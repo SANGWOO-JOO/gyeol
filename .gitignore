@@ -1,0 +1,52 @@
+# OS / 편집기
+.DS_Store
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# 비밀값·자격 증명
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Terraform (상태 파일에는 비밀값이 들어갈 수 있다. .terraform.lock.hcl은 커밋한다)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Kotlin / Gradle
+.gradle/
+build/
+out/
+*.class
+local.properties
+.kotlin/
+
+# Node / web
+node_modules/
+dist/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# 로그·실험 결과
+*.log
+tools/results/
+
+# 개인 청취 기록 (실제 Takeout 파일은 절대 커밋하지 않는다. 가상 데이터만 tools/fixtures에 둔다)
+watch-history*.json
+data/private/
