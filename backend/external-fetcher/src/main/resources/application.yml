@@ -1,0 +1,21 @@
+server:
+  port: ${PORT:18081}
+
+spring:
+  application:
+    name: gyeol-external-fetcher
+
+gyeol:
+  fetcher:
+    # MusicBrainz·위키백과가 요구하는 User-Agent 연락처. 코드에 쓰지 않고 환경 변수로 받는다.
+    contact: ${GYEOL_CONTACT:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

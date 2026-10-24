@@ -1,0 +1,41 @@
+# 로컬 개발 환경: PostgreSQL + pgvector, LocalStack(S3·SQS)
+# 실행: docker compose -f local/compose.yaml up -d
+# 포트는 다른 프로젝트와 겹치지 않게 gyeol 전용으로 잡는다.
+name: gyeol-local
+
+services:
+  postgres:
+    # RDS에서 쓸 버전(PostgreSQL 17 + pgvector)에 맞춘다
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: gyeol
+      POSTGRES_USER: gyeol
+      POSTGRES_PASSWORD: gyeol
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gyeol -d gyeol"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:4
+    environment:
+      SERVICES: s3,sqs
+      AWS_DEFAULT_REGION: ap-northeast-2
+    ports:
+      - "4566:4566"
+    volumes:
+      # 컨테이너가 준비되면 버킷·큐·S3 → SQS 알림을 만든다
+      - ./localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name gyeol-local-parse >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres-data:

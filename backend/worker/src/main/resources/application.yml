@@ -1,0 +1,25 @@
+server:
+  port: ${PORT:18082}
+
+spring:
+  application:
+    name: gyeol-worker
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:15432/gyeol}
+    username: ${DB_USER:gyeol}
+    password: ${DB_PASSWORD:gyeol}
+
+gyeol:
+  worker:
+    # 이 워커가 처리할 큐 역할. L1은 parse만 있다.
+    role: ${WORKER_ROLE:parse}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
