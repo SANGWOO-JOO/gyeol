@@ -8,11 +8,19 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:15432/gyeol}
     username: ${DB_USER:gyeol}
     password: ${DB_PASSWORD:gyeol}
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION:ap-northeast-2}
 
 gyeol:
   worker:
     # 이 워커가 처리할 큐 역할. L1은 parse만 있다.
     role: ${WORKER_ROLE:parse}
+    parse-queue: ${PARSE_QUEUE:gyeol-local-parse}
+    upload-bucket: ${UPLOAD_BUCKET:gyeol-local-uploads}
+    # 청취 기록 원본 보관 기간
+    listen-ttl: 7d
 
 management:
   endpoints:
