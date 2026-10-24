@@ -79,7 +79,10 @@ object Reranker {
             val titleTokens = tokens - artistTokens.toSet()
 
             var score = 0
-            if (artistTokens.isNotEmpty()) score += 4
+            // 검색어가 전부 가수 칸에만 맞고 제목에는 하나도 안 맞으면 가산점을 줄인다.
+            // (제목·가수가 뒤바뀐 항목 "잔나비 / 주저하는 연인들을 위해"가 1위로 오르는 것을 막음. 가수만 검색하면 모두 같은 점수라 순서 영향 없음)
+            val onlyArtistMatched = titleTokens.isEmpty() && tokens.none { tNorm.contains(it) }
+            if (artistTokens.isNotEmpty()) score += if (onlyArtistMatched) 1 else 4
             if (titleTokens.isNotEmpty() && titleTokens.all { tNorm.contains(it) }) score += 3
             else if (titleTokens.any { tNorm.contains(it) }) score += 1
             if (isVariant(c.title)) score -= 4

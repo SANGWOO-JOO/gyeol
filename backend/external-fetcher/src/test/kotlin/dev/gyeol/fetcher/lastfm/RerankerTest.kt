@@ -78,6 +78,46 @@ class RerankerTest {
     }
 
     @Test
+    fun `ZARD처럼 이미 깔끔한 결과는 다시 정렬해도 원곡 1위를 지킨다 (실제 API 상위 10개)`() {
+        val root = JsonMapper.builder().build().readTree(javaClass.getResourceAsStream("/lastfm-zard-samples.json"))
+        val zard = root.path("cases").toList().map { c ->
+            Case(
+                type = c.path("type").asString(),
+                q = c.path("q").asString(),
+                title = c.path("title").toList().map { it.asString() },
+                artist = c.path("artist").toList().map { it.asString() },
+                results = c.path("results").toList().map { r -> TrackHit(title = r[0].asString(), artist = r[1].asString()) },
+            )
+        }
+        val withResults = zard.filter { it.results.isNotEmpty() }
+        withResults.forEach { c ->
+            val top = Reranker.rerank(c.q, c.results, 10).first()
+            assertTrue(isCleanOriginal(top, c), "검색어 '${c.q}' → ${top.title} / ${top.artist}")
+        }
+        // 한글로 옮겨 쓴 제목("마케나이데", "지지마")은 Last.fm 결과가 0건 → L2 우리 DB 검색이 맡는다
+        assertEquals(setOf("ZARD 마케나이데", "자드 지지마"), zard.filter { it.results.isEmpty() }.map { it.q }.toSet())
+    }
+
+    @Test
+    fun `제목·가수가 뒤바뀐 항목은 1위로 올리지 않는다 (실제 API에서 발견)`() {
+        val out = Reranker.rerank(
+            "주저하는",
+            listOf(
+                TrackHit(title = "주저하는 연인들을 위해", artist = "잔나비"),
+                TrackHit(title = "잔나비", artist = "주저하는 연인들을 위해"),
+            ),
+            10,
+        )
+        assertEquals("주저하는 연인들을 위해" to "잔나비", out.first().title to out.first().artist)
+    }
+
+    @Test
+    fun `가수 이름만 검색하면 원래 순서를 지킨다`() {
+        val hits = listOf("Fine", "INVU", "Why").map { TrackHit(title = it, artist = "태연") }
+        assertEquals(listOf("Fine", "INVU", "Why"), Reranker.rerank("태연", hits, 10).map { it.title })
+    }
+
+    @Test
     fun `제목 정리 - 앞 번호와 가수 머리말을 뗀다`() {
         assertEquals("거짓말", Reranker.cleanTitle("045. 빅뱅 - 거짓말", Reranker.norm("빅뱅 거짓말")))
         assertEquals("Yellow", Reranker.cleanTitle("Coldplay - Yellow", Reranker.norm("Coldplay Yellow")))

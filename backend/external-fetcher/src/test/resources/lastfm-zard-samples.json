@@ -1,0 +1,601 @@
+{
+ "_설명": "2026-10-25 실제 Last.fm API(track.search) 상위 10개. 깔끔한 결과를 다시 정렬이 망가뜨리지 않는지 확인하는 용도 (docs/l1-design.md 4-2장).",
+ "cases": [
+  {
+   "type": "일본어",
+   "q": "ZARD 負けないで",
+   "title": [
+    "負けないで"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": [
+    [
+     "負けないで",
+     "ZARD"
+    ],
+    [
+     "負け犬にアンコールはいらない",
+     "Yorushika"
+    ],
+    [
+     "「負けないで」Music Video",
+     "ZARD"
+    ],
+    [
+     "負け犬にアンコールはいらない",
+     "ヨルシカ"
+    ],
+    [
+     "息もできない",
+     "ZARD"
+    ],
+    [
+     "負けないで [Live]",
+     "ZARD"
+    ],
+    [
+     "負けない心",
+     "AAA"
+    ],
+    [
+     "負けないで、負けないで…",
+     "林原めぐみ"
+    ],
+    [
+     "負けないで Gomi's 10th Anniversary Special Mix",
+     "ZARD"
+    ],
+    [
+     "負けないで（'07 Live Ver.）",
+     "ZARD"
+    ]
+   ]
+  },
+  {
+   "type": "일본어",
+   "q": "ZARD 揺れる想い",
+   "title": [
+    "揺れる想い"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": [
+    [
+     "揺れる想い",
+     "ZARD"
+    ],
+    [
+     "揺れる想い [Live]",
+     "ZARD"
+    ],
+    [
+     "「揺れる想い」Music Video",
+     "ZARD"
+    ],
+    [
+     "揺れる想い",
+     "SARD UNDERGROUND"
+    ],
+    [
+     "揺れる想い（'07 Live Ver.）",
+     "ZARD"
+    ],
+    [
+     "揺れる思い",
+     "ZARD"
+    ],
+    [
+     "揺れる想い (Gomi's New York Remix)",
+     "ZARD"
+    ],
+    [
+     "揺れる想い('07 Live Ver.)",
+     "ZARD"
+    ],
+    [
+     "揺れるスカート",
+     "YUKI"
+    ],
+    [
+     "from",
+     "揺れるは幽霊"
+    ]
+   ]
+  },
+  {
+   "type": "일본어",
+   "q": "ZARD 運命のルーレット廻して",
+   "title": [
+    "運命のルーレット廻して"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": [
+    [
+     "運命のルーレット廻して",
+     "ZARD"
+    ],
+    [
+     "運命のルーレット廻して (Re-mix Version)",
+     "ZARD"
+    ],
+    [
+     "運命のルーレット廻して",
+     "SARD UNDERGROUND"
+    ],
+    [
+     "運命のルーレット廻して",
+     "La PomPon"
+    ],
+    [
+     "運命のルーレット廻して (转动命运之轮)",
+     "ZARD"
+    ],
+    [
+     "ZARD 運命のルーレット廻して  (La PomPon × ZARD Ver.)【高音質】",
+     "kevin music"
+    ],
+    [
+     "運命の君",
+     "Mega Shinnosuke"
+    ],
+    [
+     "運命",
+     "Sumika"
+    ],
+    [
+     "運命のルーレット廻して（TV on-air ver.）",
+     "ZARD"
+    ],
+    [
+     "愛して 愛して 愛して",
+     "Kikuo"
+    ]
+   ]
+  },
+  {
+   "type": "일본어",
+   "q": "ZARD マイ フレンド",
+   "title": [
+    "マイフレンド"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": [
+    [
+     "マイ フレンド",
+     "ZARD"
+    ],
+    [
+     "マイ　フレンド",
+     "ZARD"
+    ],
+    [
+     "マイ・フレンド",
+     "ZARD"
+    ],
+    [
+     "マイ フレンド [Live]",
+     "ZARD"
+    ],
+    [
+     "マイ・フレンド",
+     "Beni"
+    ],
+    [
+     "マイ☆フレンド",
+     "AI"
+    ],
+    [
+     "マイ·フレンド",
+     "ZARD"
+    ],
+    [
+     "マイ フレンド (Original Karaoke)",
+     "ZARD"
+    ],
+    [
+     "マイ フレンド",
+     "SARD UNDERGROUND"
+    ],
+    [
+     "マイ フレンド('07 Live Ver.)",
+     "ZARD"
+    ]
+   ]
+  },
+  {
+   "type": "일본어",
+   "q": "ZARD 突然",
+   "title": [
+    "突然"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": [
+    [
+     "突然",
+     "ZARD"
+    ],
+    [
+     "突然好想你",
+     "Mayday"
+    ],
+    [
+     "突然の予告",
+     "Takeshi Kobayashi"
+    ],
+    [
+     "突然 Do love me!",
+     "HKT48"
+    ],
+    [
+     "突然の贈りもの",
+     "Taeko Onuki"
+    ],
+    [
+     "突然",
+     "FIELD OF VIEW"
+    ],
+    [
+     "ラブ・ストーリーは突然に",
+     "Kazumasa Oda"
+    ],
+    [
+     "突然想起你",
+     "Elva Hsiao"
+    ],
+    [
+     "突然好想你",
+     "五月天"
+    ],
+    [
+     "突然的自我",
+     "Wu Bai"
+    ]
+   ]
+  },
+  {
+   "type": "일본어",
+   "q": "ZARD 永遠",
+   "title": [
+    "永遠"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": [
+    [
+     "永遠",
+     "ZARD"
+    ],
+    [
+     "永遠",
+     "Boa"
+    ],
+    [
+     "永遠 (Intro Piano Version)",
+     "ZARD"
+    ],
+    [
+     "永遠",
+     "Egoist"
+    ],
+    [
+     "永遠",
+     "SUGIZO"
+    ],
+    [
+     "永遠のブルー",
+     "Hitsujibungaku"
+    ],
+    [
+     "永遠プレッシャー",
+     "AKB48"
+    ],
+    [
+     "永遠フレンズ",
+     "Printemps"
+    ],
+    [
+     "永遠",
+     "Tatsuya Kitani"
+    ],
+    [
+     "永遠",
+     "キタニタツヤ"
+    ]
+   ]
+  },
+  {
+   "type": "영어",
+   "q": "ZARD Don't you see!",
+   "title": [
+    "dontyousee"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": [
+    [
+     "Don't you see!",
+     "ZARD"
+    ],
+    [
+     "Zard - Don't You See",
+     "ZARD"
+    ],
+    [
+     "Don't You See",
+     "ZARD"
+    ],
+    [
+     "Don’t you see!",
+     "ZARD"
+    ],
+    [
+     "You Don't See Me",
+     "Keane"
+    ],
+    [
+     "DON’T YOU SEE ME TRYING?",
+     "Erin LeCount"
+    ],
+    [
+     "Don't You See !",
+     "ZARD"
+    ],
+    [
+     "I don't wanna see you",
+     "Catalyst..."
+    ],
+    [
+     "Don't you see! [Live]",
+     "ZARD"
+    ],
+    [
+     "don't you see",
+     "naerobi"
+    ]
+   ]
+  },
+  {
+   "type": "영어",
+   "q": "ZARD IN MY ARMS TONIGHT",
+   "title": [
+    "inmyarmstonight"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": [
+    [
+     "IN MY ARMS TONIGHT",
+     "ZARD"
+    ],
+    [
+     "In My Arms Tonight",
+     "Cinema Kid"
+    ],
+    [
+     "in my arms tonight",
+     "Elias"
+    ],
+    [
+     "ＩＮ　ＭＹ　ＡＲＭＳ　ＴＯＮＩＧＨＴ",
+     "ZARD"
+    ],
+    [
+     "In My Arms Tonight",
+     "J.D. Souther"
+    ],
+    [
+     "IN MY ARMS TONIGHT (Original Karaoke)",
+     "ZARD"
+    ],
+    [
+     "In My Arms Tonight",
+     "Tito & Tarantula"
+    ],
+    [
+     "Cry In My Arms Tonight",
+     "Twilighttt"
+    ],
+    [
+     "IN MY ARMS TONIGHT (LIVE)",
+     "ZARD"
+    ],
+    [
+     "IN MY ARMS TONIGHT",
+     "SARD UNDERGROUND"
+    ]
+   ]
+  },
+  {
+   "type": "제목만",
+   "q": "負けないで",
+   "title": [
+    "負けないで"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": [
+    [
+     "負けないで",
+     "ZARD"
+    ],
+    [
+     "負けないで",
+     "SARD UNDERGROUND"
+    ],
+    [
+     "負けないで",
+     "Kis-My-Ft2"
+    ],
+    [
+     "負けないで",
+     "織田哲郎"
+    ],
+    [
+     "負けないで",
+     "Nao"
+    ],
+    [
+     "負けないで",
+     "Marty Friedman"
+    ],
+    [
+     "負けないで",
+     "羽田裕美"
+    ],
+    [
+     "負けないで",
+     "坂井泉水"
+    ],
+    [
+     "負けないで",
+     "Elequte"
+    ],
+    [
+     "負けないで",
+     "eLECUTE"
+    ]
+   ]
+  },
+  {
+   "type": "로마자",
+   "q": "ZARD makenaide",
+   "title": [
+    "負けないで",
+    "makenaide"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": [
+    [
+     "Makenaide",
+     "ZARD"
+    ],
+    [
+     "Makenaide (Original Karaoke)",
+     "ZARD"
+    ],
+    [
+     "Makenaide (Gomi's 10th Anniversary Special Mix)",
+     "ZARD"
+    ],
+    [
+     "Makenaide ('07 Live Ver.)",
+     "ZARD"
+    ],
+    [
+     "Makenaide -07 Live Ver-",
+     "ZARD"
+    ],
+    [
+     "Makenaide",
+     "ZARD (Izumi Sakai)"
+    ],
+    [
+     "負けないで / Makenaide (지지마)",
+     "ZARD"
+    ],
+    [
+     "Makenaide [Encore]",
+     "ZARD"
+    ],
+    [
+     "Makenaide (Piano)",
+     "ZARD"
+    ],
+    [
+     "Makenaide (’07 Live Ver.)",
+     "ZARD"
+    ]
+   ]
+  },
+  {
+   "type": "한글",
+   "q": "자드 負けないで",
+   "title": [
+    "負けないで"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": [
+    [
+     "負けないで",
+     "ZARD"
+    ],
+    [
+     "負け犬にアンコールはいらない",
+     "Yorushika"
+    ],
+    [
+     "負け犬にアンコールはいらない",
+     "ヨルシカ"
+    ],
+    [
+     "負けない心",
+     "AAA"
+    ],
+    [
+     "負けないで、負けないで…",
+     "林原めぐみ"
+    ],
+    [
+     "負けないで",
+     "SARD UNDERGROUND"
+    ],
+    [
+     "君はできない子",
+     "Kikuo"
+    ],
+    [
+     "僕をそんな目で見ないで",
+     "Kikuo"
+    ],
+    [
+     "負けない 負けたくない",
+     "プッチモニ"
+    ],
+    [
+     "「負けないで」Music Video",
+     "ZARD"
+    ]
+   ]
+  },
+  {
+   "type": "한글",
+   "q": "ZARD 마케나이데",
+   "title": [
+    "負けないで",
+    "makenaide"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": []
+  },
+  {
+   "type": "한글",
+   "q": "자드 지지마",
+   "title": [
+    "負けないで"
+   ],
+   "artist": [
+    "zard"
+   ],
+   "results": []
+  }
+ ]
+}

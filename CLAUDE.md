@@ -61,7 +61,9 @@ gyeol/
 - 9/27~10/4 일정은 착수하지 못했고, 예전 계정(382243539616)은 무료 플랜 종료 후 접근 불가. 새 계정 700419978873으로 재시작.
 - 설계 v4 반영(`docs/design-v3.md`). 코드와 인프라는 아직 없음.
 - 완료: 로컬 AWS 자격 증명(IAM 사용자 `sangwoo-cli`, `default` 프로필), 예산 알림, 비용 이상 탐지, IAM 결제 정보 접근, Cost Explorer.
-- L1 진행 중 (설계 `docs/l1-design.md`, 2026-10-24 승인). 끝난 단계: ① 저장소 뼈대(Gradle 멀티 모듈) ② 로컬 환경(`local/compose.yaml`: PostgreSQL+pgvector, LocalStack S3·SQS, S3→SQS 알림 확인) ③ 첫 마이그레이션(`V1__init.sql`) ④ 가상 Takeout 생성기(`tools/fake-takeout`, 실제 파일 통계와 2% 안으로 일치, 테스트용 작은 파일은 `tools/fixtures/`) ⑤ API(세션·곡 저장·업로드 주소·상태·통계·삭제) ⑥ external-fetcher(Last.fm 검색 + 다시 정렬, MusicBrainz는 L2 곡 식별용, 속도 제한·캐시, 33개 표본에서 원곡 1위 17 → 25) + 검색 API, 고른 곡 mbid 선택 값(V2). **Last.fm 키(`LASTFM_API_KEY`)가 아직 없어 실제 API 확인은 미완** (사용자가 포크 세션에서 발급 중). 다음: ⑦ parse 워커 → ⑥ external-fetcher → ⑦ parse 워커 → ⑧ 웹 → ⑨ 테스트 → ⑩ k3d(설치 필요).
+- L1 진행 중 (설계 `docs/l1-design.md`, 2026-10-24 승인). 끝난 단계: ① 저장소 뼈대(Gradle 멀티 모듈) ② 로컬 환경(`local/compose.yaml`: PostgreSQL+pgvector, LocalStack S3·SQS, S3→SQS 알림 확인) ③ 첫 마이그레이션(`V1__init.sql`) ④ 가상 Takeout 생성기(`tools/fake-takeout`, 실제 파일 통계와 2% 안으로 일치, 테스트용 작은 파일은 `tools/fixtures/`) ⑤ API(세션·곡 저장·업로드 주소·상태·통계·삭제) ⑥ external-fetcher(Last.fm 검색 + 다시 정렬, MusicBrainz는 L2 곡 식별용, 속도 제한·캐시, 실제 Last.fm API 33개 표본에서 원곡 1위 17 → 28(85%), 응답 중앙값 약 300ms) + 검색 API, 고른 곡 mbid 선택 값(V2). Last.fm 키는 `.env`의 `LASTFM_API_KEY`. 다음: ⑦ parse 워커
+
+로컬에서 fetcher 실행: `( set -a; . ./.env; set +a; java -jar backend/external-fetcher/build/libs/external-fetcher-0.1.0.jar )` (`.env`는 커밋 제외, 값을 출력하지 말 것) → ⑥ external-fetcher → ⑦ parse 워커 → ⑧ 웹 → ⑨ 테스트 → ⑩ k3d(설치 필요).
 
 ## 로컬 실행
 
