@@ -103,7 +103,7 @@ class SessionRepository(private val jdbc: JdbcClient) {
         jdbc.sql("SELECT mbid, title, artist, position FROM seed_track WHERE session_id = :sid ORDER BY position")
             .param("sid", sessionId)
             .query { rs, _ ->
-                SeedTrack(rs.getObject("mbid", UUID::class.java), rs.getString("title"), rs.getString("artist"), rs.getInt("position"))
+                SeedTrack(rs.getObject("mbid", UUID::class.java) as UUID?, rs.getString("title"), rs.getString("artist"), rs.getInt("position"))
             }
             .list()
 }

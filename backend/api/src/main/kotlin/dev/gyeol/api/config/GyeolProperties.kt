@@ -7,6 +7,7 @@ import java.time.Duration
 data class GyeolProperties(
     val sessionTtl: Duration = Duration.ofDays(30),
     val webOrigin: String = "http://localhost:15173",
+    val fetcherUrl: String = "http://localhost:18081",
     val upload: Upload = Upload(),
 ) {
     data class Upload(

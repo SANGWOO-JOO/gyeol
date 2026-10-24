@@ -7,8 +7,26 @@ spring:
 
 gyeol:
   fetcher:
-    # MusicBrainz·위키백과가 요구하는 User-Agent 연락처. 코드에 쓰지 않고 환경 변수로 받는다.
+    # MusicBrainz·위키백과가 요구하는 User-Agent 연락처. 코드에 쓰지 않고 환경 변수로 받는다. 비어 있으면 시작하지 않는다.
     contact: ${GYEOL_CONTACT:}
+    app-version: 0.1.0
+    musicbrainz:
+      base-url: https://musicbrainz.org/ws/2
+      # MusicBrainz 규칙: 초당 1회. 줄이 2.5초보다 길어지면 기다리지 않고 바로 거절한다.
+      min-interval: 1s
+      max-wait: 2500ms
+      timeout: 2s
+    lastfm:
+      # 비어 있으면 Last.fm 검색만 503으로 거절한다 (fetcher는 계속 돈다)
+      api-key: ${LASTFM_API_KEY:}
+      base-url: https://ws.audioscrobbler.com/2.0/
+      # Last.fm 이용 조건: IP당 평균 초당 5회 이하 → 여유 있게 초당 4회
+      min-interval: 250ms
+      max-wait: 2s
+      timeout: 3s
+    cache:
+      ttl: 10m
+      max-entries: 500
 
 management:
   endpoints:

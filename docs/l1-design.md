@@ -145,8 +145,8 @@ L1의 목표는 **로컬에서 두 입구가 처음부터 끝까지 동작하는
 | API | 요청 | 응답 | 조건·오류 |
 |---|---|---|---|
 | `POST /api/sessions` | `{"entry": "TAKEOUT"\|"SEEDS"}` | 201 `{token, entry, status, resultUrl: "/r/{token}", expiresAt}` | |
-| `GET /api/tracks/search?q=&limit=10` | | 200 `{items: [{mbid, title, artist, releaseYear}], source}` | q 2~100자. **L1은 MusicBrainz만**(fetcher가 초당 1회, 최근 결과 기억). 3초 초과·차단 시 503 `SEARCH_UNAVAILABLE`. DB 먼저 검색은 L2 |
-| `POST /api/sessions/{token}/seeds` | `{tracks: [{mbid, title, artist}]}` 3~5개 | 200 `{status: "DONE", count}` | SEEDS·CREATED만, mbid 중복 불가. 제목·가수는 재검증 안 함(자기 세션에만 영향) |
+| `GET /api/tracks/search?q=&limit=10` | | 200 `{items: [{title, artist, mbid?, listeners?}], source: "lastfm"}` | q 2~100자. **Last.fm 검색 + 서버 재정렬**(4-2장). 3초 초과·차단·키 없음 시 503 `SEARCH_UNAVAILABLE`. DB 먼저 검색은 L2 |
+| `POST /api/sessions/{token}/seeds` | `{tracks: [{mbid?, title, artist}]}` 3~5개 | 200 `{status: "DONE", count}` | SEEDS·CREATED만. **mbid는 선택**(있으면 UUID 형식). 같은 곡(제목·가수가 같음) 중복 불가. 제목·가수는 재검증 안 함(자기 세션에만 영향) |
 | `POST /api/sessions/{token}/upload-url` | `{totalCount, musicCount, unclassifiedCount, byteSize}` | 200 `{uploadId, url, method: "PUT", headers, expiresAt}` | TAKEOUT·CREATED만 → UPLOADING. **20MB 초과 413 `TOO_LARGE`**. 서명 10분, 크기를 서명에 포함. 키는 `uploads/{uploadId}.json` |
 | `GET /api/sessions/{token}` | | 200 `{entry, status, counts: {total, music, unclassified, saved}, period, seeds, error, createdAt, expiresAt}` | 화면이 **2초마다** 조회 |
 | `GET /api/sessions/{token}/stats` | | 200 `{period, totals, topTitles(20), topChannels(20), byHour, byWeekday, byMonth, bySource, coverage}` | DONE이 아니면 409 `NOT_READY`, SEEDS면 409 `INVALID_STATE`. 시간대는 한국 시간, 채널의 ` - Topic`은 떼고 합침 |
@@ -158,6 +158,44 @@ L1의 목표는 **로컬에서 두 입구가 처음부터 끝까지 동작하는
 **워커(parse)**: `s3:TestEvent` 무시 → upload가 이미 PROCESSED면 건너뜀 → 세션 PROCESSING → 검증·묶음 저장 → 저장 건수·기간 기록 → DONE. 실패 시 FAILED + 오류 메시지, 3번 실패한 메시지는 실패 큐로.
 
 **오류 코드**: 400 `VALIDATION` / 404 `SESSION_NOT_FOUND` / 409 `INVALID_STATE`, `NOT_READY` / 413 `TOO_LARGE` / 502 `STORAGE_ERROR` / 503 `SEARCH_UNAVAILABLE`
+
+### 4-2. 곡 검색 출처 결정 (2026-10-25)
+
+**MusicBrainz는 즉시 검색에 맞지 않는다** (실측, 로컬 → musicbrainz.org)
+
+| 검색 | 결과 | 응답 시간 |
+|---|---|---|
+| "태연 Rain" (단순 검색 모드) | 엉뚱한 곡 ("rain rain rain…") | 1.9초 |
+| "다비치 거북이" | 시간 초과(2초) → 503 | 2초+ |
+| 가수 검색 "다비치" / "태연" | 별칭으로 DAVICHI / TAEYEON 찾음 | 0.8초 / 5.9초 |
+| 가수 ID + 곡명 "거북이" | 정확 | **12.4초** |
+
+- 한국 가수는 영문 이름으로 저장되고 한글 이름은 별칭에만 있어, 곡 검색에서 한글 가수명이 걸리지 않는다. 가수 → 곡 두 단계로 찾으면 정확하지만 느리다.
+- → **MusicBrainz는 L2의 백그라운드 곡 식별에 쓰고, A 입구 검색은 Last.fm으로 한다.**
+
+**Last.fm 검색 정확도** (사이트 검색으로 측정, API 결과와 같다는 보장은 없음. 33개 표본, 원곡 기준 판정)
+
+| 유형 | 개수 | 원곡 1위 | 원곡 3위 안 |
+|---|---|---|---|
+| 옛노래(90년대) | 4 | 4 | 4 |
+| 인디·덜 알려진 곡 | 6 | 5 | 6 |
+| OST | 2 | 2 | 2 |
+| 영어 | 3 | 2 | 3 |
+| 인기 K-pop | 4 | 1 | 3 |
+| 일본어·로마자 | 4 | 1 | 4 |
+| 한글 표기·소문자·모호한 제목 | 3 | 1 | 2 |
+| 붙여쓰기·띄어쓰기·오타 | 4 | 0 | 0 |
+| 부분·초성 | 3 | 1 | 1 |
+| **합계** | 33 | **17 (52%)** | **25 (76%)** |
+
+- 가수와 제목을 띄어 쓴 검색은 27개 중 25개에서 원곡이 3위 안. 응답 0.3~1.4초.
+- 1위에 MV·댄스 연습·라이브·커버·가사 영상·업로더 이름이 자주 올라온다 (유튜브 영상 제목이 곡 이름으로 쌓인 데이터).
+- 붙여쓰기·오타·글자 일부·초성은 0건. 단어 단위 검색만 된다.
+
+**반영**
+- L1: Last.fm에서 30개를 받아 **서버에서 다시 정렬**한 뒤 10개를 돌려준다 (규칙은 `backend/external-fetcher`의 `Reranker`, 33개 표본을 테스트 자료로 사용). 결과가 없으면 "가수와 곡 제목을 띄어 써 보세요" 안내.
+- Last.fm 결과에는 MusicBrainz ID가 비어 있는 경우가 많다 → **고른 곡의 mbid는 선택 값**으로 바꾸고(V2 마이그레이션), 정확한 ID는 L2에서 MusicBrainz로 채운다.
+- L2: 붙여쓰기·오타·부분·초성은 우리 DB의 유사도 검색(PostgreSQL pg_trgm, 초성 색인)이 맡는다.
 
 ## 5. 데이터 (L1에서 만드는 테이블)
 

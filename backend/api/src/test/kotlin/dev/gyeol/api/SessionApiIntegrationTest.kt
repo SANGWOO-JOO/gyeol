@@ -54,9 +54,27 @@ class SessionApiIntegrationTest {
         @JvmStatic
         val localstack = LocalStackContainer(DockerImageName.parse("localstack/localstack:4")).withServices("s3")
 
+        // 가짜 external-fetcher: 켜져 있으면 고정 결과, 꺼져 있으면 503
+        @Volatile var fakeFetcherUp = true
+        val fetcherQueries = java.util.concurrent.CopyOnWriteArrayList<String>()
+        private val fakeFetcher = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress(0), 0).apply {
+            createContext("/internal/lastfm/search") { ex ->
+                fetcherQueries += ex.requestURI.rawQuery
+                val body = """{"items":[{"title":"Rain","artist":"태연","mbid":null,"listeners":123456,"releaseYear":null}],"source":"lastfm","cached":false}""".toByteArray()
+                if (fakeFetcherUp) {
+                    ex.responseHeaders.add("Content-Type", "application/json")
+                    ex.sendResponseHeaders(200, body.size.toLong()); ex.responseBody.use { it.write(body) }
+                } else {
+                    ex.sendResponseHeaders(503, -1); ex.close()
+                }
+            }
+            start()
+        }
+
         @DynamicPropertySource
         @JvmStatic
         fun props(registry: DynamicPropertyRegistry) {
+            registry.add("gyeol.fetcher-url") { "http://localhost:${fakeFetcher.address.port}" }
             registry.add("spring.cloud.aws.endpoint") { localstack.endpoint.toString() }
             registry.add("spring.cloud.aws.region.static") { localstack.region }
             registry.add("spring.cloud.aws.credentials.access-key") { localstack.accessKey }
@@ -165,7 +183,15 @@ class SessionApiIntegrationTest {
     @Test
     fun `곡 고르기 세션 - 3~5곡 저장`() {
         val token = call("POST", "/api/sessions", mapOf("entry" to "SEEDS")).second!!["token"].asString()
-        val tracks = (1..3).map { mapOf("mbid" to UUID.randomUUID().toString(), "title" to "곡 $it", "artist" to "가수") }
+        // mbid는 선택 값 (Last.fm 결과에는 없는 경우가 많음)
+        val tracks = listOf(
+            mapOf("mbid" to UUID.randomUUID().toString(), "title" to "곡 1", "artist" to "가수"),
+            mapOf("mbid" to null, "title" to "곡 2", "artist" to "가수"),
+            mapOf("title" to "곡 3", "artist" to "가수"),
+        )
+        // 같은 곡(제목·가수, 대소문자 무시)을 두 번 고를 수 없다
+        val dup = tracks.take(2) + mapOf("title" to "곡 1", "artist" to "가수")
+        assertEquals("VALIDATION", call("POST", "/api/sessions/$token/seeds", mapOf("tracks" to dup)).second!!["code"].asString())
 
         assertEquals("VALIDATION", call("POST", "/api/sessions/$token/seeds", mapOf("tracks" to tracks.take(2))).second!!["code"].asString())
         assertEquals(200, call("POST", "/api/sessions/$token/seeds", mapOf("tracks" to tracks)).first)
@@ -173,6 +199,7 @@ class SessionApiIntegrationTest {
         val (_, view) = call("GET", "/api/sessions/$token")
         assertEquals("DONE", view!!["status"].asString())
         assertEquals(3, view["seeds"].size())
+        assertTrue(view["seeds"][1]["mbid"].isNull)
         assertEquals("INVALID_STATE", call("GET", "/api/sessions/$token/stats").second!!["code"].asString())
         // 같은 세션에 다시 저장할 수 없다
         assertEquals(409, call("POST", "/api/sessions/$token/seeds", mapOf("tracks" to tracks)).first)
@@ -191,6 +218,20 @@ class SessionApiIntegrationTest {
         assertEquals("VALIDATION", call("POST", "/api/sessions/$token/upload-url", wrongSum).second!!["code"].asString())
         // 곡 고르기 세션이 아니면 seeds 불가
         assertEquals("INVALID_STATE", call("POST", "/api/sessions/$token/seeds", mapOf("tracks" to emptyList<Any>())).second!!["code"].asString())
-        assertTrue(true)
+    }
+
+    @Test
+    fun `곡 검색 - external-fetcher 결과를 그대로 돌려주고, 장애면 503`() {
+        fakeFetcherUp = true
+        val (ok, res) = call("GET", "/api/tracks/search?q=%ED%83%9C%EC%97%B0&limit=5")
+        assertEquals(200, ok)
+        assertEquals("Rain", res!!["items"][0]["title"].asString())
+        assertEquals("lastfm", res["source"].asString())
+        assertTrue(fetcherQueries.last().contains("q=%ED%83%9C%EC%97%B0") || fetcherQueries.last().contains("q=태연"))
+
+        assertEquals("VALIDATION", call("GET", "/api/tracks/search?q=a").second!!["code"].asString())
+
+        fakeFetcherUp = false
+        assertEquals("SEARCH_UNAVAILABLE", call("GET", "/api/tracks/search?q=rain").second!!["code"].asString())
     }
 }

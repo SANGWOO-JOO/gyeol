@@ -36,7 +36,7 @@ data class SeedsResponse(val status: String, val count: Int)
 
 data class Counts(val total: Int?, val music: Int?, val unclassified: Int?, val saved: Int?)
 data class PeriodDates(val start: LocalDate?, val end: LocalDate?)
-data class SeedView(val mbid: String, val title: String, val artist: String)
+data class SeedView(val mbid: String?, val title: String, val artist: String)
 
 data class SessionView(
     val entry: Entry,
@@ -100,7 +100,7 @@ class SessionController(
             status = s.status.name,
             counts = Counts(s.totalCount, s.musicCount, s.unclassifiedCount, s.savedCount),
             period = period,
-            seeds = service.seedsOf(s)?.map { SeedView(it.mbid.toString(), it.title, it.artist) },
+            seeds = service.seedsOf(s)?.map { SeedView(it.mbid?.toString(), it.title, it.artist) },
             error = s.errorMessage,
             createdAt = s.createdAt,
             expiresAt = s.expiresAt,

@@ -67,8 +67,11 @@ class SessionService(
         if (tracks.size !in 3..5) throw ApiException.validation("곡은 3~5개를 골라야 합니다")
 
         val seeds = tracks.mapIndexed { i, t ->
-            val mbid = runCatching { UUID.fromString(t.mbid) }.getOrNull()
-                ?: throw ApiException.validation("${i + 1}번째 곡의 mbid 형식이 올바르지 않습니다")
+            // mbid는 선택 값 (Last.fm 결과에 없는 경우가 많음). 있으면 UUID 형식이어야 한다
+            val mbid = t.mbid?.takeIf { it.isNotBlank() }?.let {
+                runCatching { UUID.fromString(it) }.getOrNull()
+                    ?: throw ApiException.validation("${i + 1}번째 곡의 mbid 형식이 올바르지 않습니다")
+            }
             val title = t.title?.trim().orEmpty()
             val artist = t.artist?.trim().orEmpty()
             if (title.isEmpty() || title.length > 300 || artist.isEmpty() || artist.length > 300) {
@@ -76,7 +79,8 @@ class SessionService(
             }
             SeedTrack(mbid, title, artist, i + 1)
         }
-        if (seeds.map { it.mbid }.toSet().size != seeds.size) throw ApiException.validation("같은 곡을 두 번 고를 수 없습니다")
+        val distinct = seeds.map { "${it.title.lowercase()}|${it.artist.lowercase()}" }.toSet()
+        if (distinct.size != seeds.size) throw ApiException.validation("같은 곡을 두 번 고를 수 없습니다")
 
         // L1에는 추천이 없어 바로 DONE. L3부터는 PROCESSING을 거친다.
         if (!sessions.transition(session.id, SessionStatus.CREATED, SessionStatus.DONE)) {
