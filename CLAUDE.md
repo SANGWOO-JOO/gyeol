@@ -61,14 +61,15 @@ gyeol/
 - 9/27~10/4 일정은 착수하지 못했고, 예전 계정(382243539616)은 무료 플랜 종료 후 접근 불가. 새 계정 700419978873으로 재시작.
 - 설계 v4 반영(`docs/design-v3.md`). 코드와 인프라는 아직 없음.
 - 완료: 로컬 AWS 자격 증명(IAM 사용자 `sangwoo-cli`, `default` 프로필), 예산 알림, 비용 이상 탐지, IAM 결제 정보 접근, Cost Explorer.
-- L1 진행 중 (설계 `docs/l1-design.md`, 2026-10-24 승인). 끝난 단계: ① 저장소 뼈대(Gradle 멀티 모듈) ② 로컬 환경(`local/compose.yaml`: PostgreSQL+pgvector, LocalStack S3·SQS, S3→SQS 알림 확인) ③ 첫 마이그레이션(`V1__init.sql`) ④ 가상 Takeout 생성기(`tools/fake-takeout`, 실제 파일 통계와 2% 안으로 일치, 테스트용 작은 파일은 `tools/fixtures/`). 다음: ⑤ API → ⑥ external-fetcher → ⑦ parse 워커 → ⑧ 웹 → ⑨ 테스트 → ⑩ k3d(설치 필요).
+- L1 진행 중 (설계 `docs/l1-design.md`, 2026-10-24 승인). 끝난 단계: ① 저장소 뼈대(Gradle 멀티 모듈) ② 로컬 환경(`local/compose.yaml`: PostgreSQL+pgvector, LocalStack S3·SQS, S3→SQS 알림 확인) ③ 첫 마이그레이션(`V1__init.sql`) ④ 가상 Takeout 생성기(`tools/fake-takeout`, 실제 파일 통계와 2% 안으로 일치, 테스트용 작은 파일은 `tools/fixtures/`) ⑤ API(세션·곡 저장·업로드 주소·상태·통계·삭제, 검색은 ⑥에서, 통합 테스트 3개). 다음: ⑥ external-fetcher + 검색 API → ⑥ external-fetcher → ⑦ parse 워커 → ⑧ 웹 → ⑨ 테스트 → ⑩ k3d(설치 필요).
 
 ## 로컬 실행
 
 ```bash
 docker compose -f local/compose.yaml up -d      # DB + LocalStack
 ./gradlew build                                  # JDK 21 필요 (JAVA_HOME)
-java -jar backend/api/build/libs/api-0.1.0.jar   # 18080, 시작할 때 Flyway 실행
+SPRING_PROFILES_ACTIVE=local java -jar backend/api/build/libs/api-0.1.0.jar   # 18080, Flyway 실행, LocalStack 사용
+./gradlew :backend:api:test                      # 통합 테스트 (Docker로 PostgreSQL·LocalStack을 따로 띄움)
 ```
 
 - 포트: PostgreSQL 15432, LocalStack 4566, api 18080, external-fetcher 18081, worker 18082, 웹 15173 (다른 프로젝트와 겹치지 않게)

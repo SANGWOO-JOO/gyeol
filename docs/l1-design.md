@@ -136,6 +136,29 @@ L1의 목표는 **로컬에서 두 입구가 처음부터 끝까지 동작하는
 | GET | `/api/sessions/{token}/stats` | 기본 통계 |
 | DELETE | `/api/sessions/{token}` | 즉시 삭제 (DB + S3) |
 
+### 4-1. API 상세 (2026-10-25 승인)
+
+**공통**: JSON, 오류는 `{"code": "...", "message": "..."}`. 토큰은 32바이트 무작위(base64url 43자), DB에는 SHA-256 해시만. 만료(30일)는 404와 같게 처리. 접근 로그에서 토큰을 가린다.
+
+**세션 상태**: SEEDS `CREATED → DONE` / TAKEOUT `CREATED → UPLOADING → PROCESSING → DONE | FAILED`
+
+| API | 요청 | 응답 | 조건·오류 |
+|---|---|---|---|
+| `POST /api/sessions` | `{"entry": "TAKEOUT"\|"SEEDS"}` | 201 `{token, entry, status, resultUrl: "/r/{token}", expiresAt}` | |
+| `GET /api/tracks/search?q=&limit=10` | | 200 `{items: [{mbid, title, artist, releaseYear}], source}` | q 2~100자. **L1은 MusicBrainz만**(fetcher가 초당 1회, 최근 결과 기억). 3초 초과·차단 시 503 `SEARCH_UNAVAILABLE`. DB 먼저 검색은 L2 |
+| `POST /api/sessions/{token}/seeds` | `{tracks: [{mbid, title, artist}]}` 3~5개 | 200 `{status: "DONE", count}` | SEEDS·CREATED만, mbid 중복 불가. 제목·가수는 재검증 안 함(자기 세션에만 영향) |
+| `POST /api/sessions/{token}/upload-url` | `{totalCount, musicCount, unclassifiedCount, byteSize}` | 200 `{uploadId, url, method: "PUT", headers, expiresAt}` | TAKEOUT·CREATED만 → UPLOADING. **20MB 초과 413 `TOO_LARGE`**. 서명 10분, 크기를 서명에 포함. 키는 `uploads/{uploadId}.json` |
+| `GET /api/sessions/{token}` | | 200 `{entry, status, counts: {total, music, unclassified, saved}, period, seeds, error, createdAt, expiresAt}` | 화면이 **2초마다** 조회 |
+| `GET /api/sessions/{token}/stats` | | 200 `{period, totals, topTitles(20), topChannels(20), byHour, byWeekday, byMonth, bySource, coverage}` | DONE이 아니면 409 `NOT_READY`, SEEDS면 409 `INVALID_STATE`. 시간대는 한국 시간, 채널의 ` - Topic`은 떼고 합침 |
+| `DELETE /api/sessions/{token}` | | 204 | S3 먼저 삭제 → DB 삭제(연쇄). S3 실패 시 502 `STORAGE_ERROR`, DB 유지 |
+
+**브라우저가 올리는 파일** (원본이 아니라 필터를 거친 것):
+`{"schemaVersion": 1, "items": [{"videoId", "title"(시청 문구를 뗀 제목), "channel", "watchedAt", "source": "MUSIC_APP"|"YOUTUBE"}]}`
+
+**워커(parse)**: `s3:TestEvent` 무시 → upload가 이미 PROCESSED면 건너뜀 → 세션 PROCESSING → 검증·묶음 저장 → 저장 건수·기간 기록 → DONE. 실패 시 FAILED + 오류 메시지, 3번 실패한 메시지는 실패 큐로.
+
+**오류 코드**: 400 `VALIDATION` / 404 `SESSION_NOT_FOUND` / 409 `INVALID_STATE`, `NOT_READY` / 413 `TOO_LARGE` / 502 `STORAGE_ERROR` / 503 `SEARCH_UNAVAILABLE`
+
 ## 5. 데이터 (L1에서 만드는 테이블)
 
 | 테이블 | 내용 |

@@ -1,0 +1,10 @@
+# 로컬 개발: LocalStack(4566)을 AWS 대신 쓴다. 실행할 때 SPRING_PROFILES_ACTIVE=local
+spring:
+  cloud:
+    aws:
+      endpoint: http://localhost:4566
+      credentials:
+        access-key: test
+        secret-key: test
+      s3:
+        path-style-access-enabled: true
