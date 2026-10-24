@@ -61,6 +61,17 @@ gyeol/
 - 9/27~10/4 일정은 착수하지 못했고, 예전 계정(382243539616)은 무료 플랜 종료 후 접근 불가. 새 계정 700419978873으로 재시작.
 - 설계 v4 반영(`docs/design-v3.md`). 코드와 인프라는 아직 없음.
 - 완료: 로컬 AWS 자격 증명(IAM 사용자 `sangwoo-cli`, `default` 프로필), 예산 알림, 비용 이상 탐지, IAM 결제 정보 접근, Cost Explorer.
-- 다음 작업: 로컬 L1. 설계는 `docs/l1-design.md` (2026-10-20, 승인 대기, 10장 "정할 것" 미결정). 승인 후 폴더 구조·Gradle·docker compose·첫 마이그레이션부터.
+- L1 진행 중 (설계 `docs/l1-design.md`, 2026-10-24 승인). 끝난 단계: ① 저장소 뼈대(Gradle 멀티 모듈) ② 로컬 환경(`local/compose.yaml`: PostgreSQL+pgvector, LocalStack S3·SQS, S3→SQS 알림 확인) ③ 첫 마이그레이션(`V1__init.sql`). 다음: ④ 가상 Takeout 생성기 → ⑤ API → ⑥ external-fetcher → ⑦ parse 워커 → ⑧ 웹 → ⑨ 테스트 → ⑩ k3d(설치 필요).
+
+## 로컬 실행
+
+```bash
+docker compose -f local/compose.yaml up -d      # DB + LocalStack
+./gradlew build                                  # JDK 21 필요 (JAVA_HOME)
+java -jar backend/api/build/libs/api-0.1.0.jar   # 18080, 시작할 때 Flyway 실행
+```
+
+- 포트: PostgreSQL 15432, LocalStack 4566, api 18080, external-fetcher 18081, worker 18082, 웹 15173 (다른 프로젝트와 겹치지 않게)
+- 환경 변수 예시는 `.env.example`
 - Google Takeout: 2026-10-24 18:44 요청 완료(YouTube 및 YouTube Music → 시청 기록만, JSON, .zip, 1회). 완료 메일 대기, 링크는 1주일 유효. 받은 파일은 저장소 밖에 보관. 이 과정을 사용자용 안내로 `docs/user-guide/takeout.md`에 기록(4·5단계는 파일 도착·서비스 완성 후 보완, 한국어 설정일 때 파일 이름 확인 필요).
 - 사용자 사전 준비 남음: 루트 MFA·전화번호 `+82 10…` 형식, Bedrock 모델 호출 확인, Last.fm·YouTube API 키, GitHub 저장소, (선택) 도메인.
