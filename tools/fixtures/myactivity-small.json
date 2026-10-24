@@ -1,0 +1,6026 @@
+[
+  {
+    "header": "YouTube",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-10-23T12:55:26.950Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-10-23T07:04:34.693Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000151 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ir11mZKEWG2",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2026-10-22T04:22:42.526Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00003 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000003",
+    "time": "2026-10-17T13:21:32.264Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00008 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000008",
+    "time": "2026-10-16T12:11:49.332Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00018 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000018",
+    "time": "2026-10-16T11:10:43.886Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "Fake Song 0004 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=BUb3pWWmA7i",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-10-14T09:49:45.652Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000108 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=UrK47x62G0_",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2026-10-13T08:29:14.489Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000123 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=_aXXDTjoyMt",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2026-10-08T14:14:52.851Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "Fake Song 0004 (Live) - 가상가수002 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=kpHE0JtRpSi",
+    "subtitles": [
+      {
+        "name": "가상가수002",
+        "url": "https://www.youtube.com/channel/UC7tKr8I_KYHZUqgiEz2RKT5"
+      }
+    ],
+    "time": "2026-10-07T02:21:09.107Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000090 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=Nc2AQEYn7kz",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2026-10-07T01:55:14.366Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000040 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=01vjVB43RrZ",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2026-10-04T13:29:24.964Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000096 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=IpDa8ab5P7O",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2026-09-22T12:22:53.138Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000061 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=D4vSzVdnoAN",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2026-09-22T03:40:55.191Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0002 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=3GQ3yyOGJai",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-09-21T02:54:26.493Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000160 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=2mPXPov4_3O",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2026-09-18T23:25:51.766Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000004 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=UUIY1pOpmX-",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2026-09-18T08:41:39.848Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000119 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=eQrA-WVLFw0",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2026-09-16T10:05:59.233Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "Fake Artist 001 '가상노래 0001' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2026-09-13T14:42:40.648Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000136 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=46Ze7KkYh8g",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2026-09-09T13:11:22.642Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000064 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=xNkhE1dpc6r",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2026-09-07T10:36:12.764Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "Fake Artist 001 '가상노래 0001' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2026-09-04T00:20:16.068Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000091 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=Ni6TVEFYidY",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2026-09-01T00:09:24.658Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-08-30T22:44:12.687Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상가수002 - Fake Song 0006 (Official MV) 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=rpzpr9B36B0",
+    "subtitles": [
+      {
+        "name": "가상가수002",
+        "url": "https://www.youtube.com/channel/UC7tKr8I_KYHZUqgiEz2RKT5"
+      }
+    ],
+    "time": "2026-08-30T08:27:37.737Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000106 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=q1IsuZ6gyrq",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2026-08-29T12:09:18.738Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-08-26T13:45:32.563Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000140 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=6Fv9b0LttWL",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2026-08-20T11:39:52.439Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "架空の歌 0008 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=V62odmbNJ8p",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-08-16T03:53:26.070Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0004 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=BUb3pWWmA7i",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-08-13T16:53:12.833Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000019 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=AZ8TuTtfqhJ",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2026-08-09T13:45:58.111Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "架空の歌 0012 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=z6bLjiX9pgf",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-08-09T07:23:51.679Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000118 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ahQqnxgjigZ",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2026-07-31T06:30:19.966Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0002 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=3GQ3yyOGJai",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-07-28T12:33:55.645Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000089 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=XSNYJMHFVJ7",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2026-07-27T00:38:33.381Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00003 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000003",
+    "time": "2026-07-25T10:27:02.001Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000104 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=qgnQuLs7qgS",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2026-07-24T13:25:17.741Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000115 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=-jjsvvGKOw0",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2026-07-23T13:42:31.575Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00011 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000011",
+    "time": "2026-07-22T13:47:57.792Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000032 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=Lh1Mig78jnB",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2026-07-17T14:50:06.827Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-07-16T00:50:39.395Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000063 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=5br4KM3TLDY",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2026-07-15T13:03:32.733Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000080 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=iaLsKCTSB1Y",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2026-07-05T07:34:06.573Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0006 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=CKnPJonBEBZ",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-07-02T04:43:31.135Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0001 (Live) - Fake Artist 001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2026-07-01T14:38:42.597Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000077 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=8Y2PToh_6cE",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2026-06-29T10:34:29.177Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000008 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=be00v0T02nH",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2026-06-27T12:43:28.566Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000141 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=K0C805VvHGz",
+    "subtitles": [
+      {
+        "name": "가상채널 0011",
+        "url": "https://www.youtube.com/channel/UCd9jnLvLhQMYGCZDoKTc3j9"
+      }
+    ],
+    "time": "2026-06-27T11:05:34.249Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000110 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=VJj0xWaU8Aq",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2026-06-20T15:20:17.408Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0002 (Live) - 가상가수002 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=S4T63oqPYTN",
+    "subtitles": [
+      {
+        "name": "가상가수002",
+        "url": "https://www.youtube.com/channel/UC7tKr8I_KYHZUqgiEz2RKT5"
+      }
+    ],
+    "time": "2026-06-20T02:02:04.161Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00011 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/IZfvyWfUobyNPEiz8V3X0FOa23",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2026-06-20T01:15:41.186Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00018 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000018",
+    "time": "2026-06-16T03:52:46.771Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000069 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=yTsfFQOYZFd",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2026-06-14T23:49:13.737Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000143 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=jj3_mp2PSjH",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2026-06-14T21:52:46.296Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000145 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=M7CqV3wt89x",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2026-06-13T07:47:53.947Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00016 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000016",
+    "time": "2026-06-12T08:31:00.926Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000114 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=kbbfgDLb0sT",
+    "subtitles": [
+      {
+        "name": "가상채널 0011",
+        "url": "https://www.youtube.com/channel/UCd9jnLvLhQMYGCZDoKTc3j9"
+      }
+    ],
+    "time": "2026-06-09T12:17:50.119Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-06-09T11:07:32.288Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=-qU5igoYZYx 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=-qU5igoYZYx",
+    "time": "2026-05-30T03:08:39.121Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "[MV] Fake Artist 001 _ 가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2026-05-29T06:57:26.938Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=L38yCLT6c3P 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=L38yCLT6c3P",
+    "time": "2026-05-29T01:37:03.601Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=otcKCWGVbr- 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=otcKCWGVbr-",
+    "time": "2026-05-28T22:59:51.631Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00017 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000017",
+    "time": "2026-05-28T14:40:22.072Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-05-27T13:08:19.483Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000009 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=aigNYd7UkqE",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2026-05-27T13:02:21.999Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0002 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=3GQ3yyOGJai",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-05-25T12:40:41.790Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000047 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ux_4pBGA3z_",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2026-05-24T09:53:29.957Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000129 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=sxJ29BSluMr",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2026-05-17T16:53:49.204Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000015 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=SIWaJfXPI77",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2026-05-17T06:54:26.853Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000122 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=fpKMK9iKOeU",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2026-05-16T09:48:00.655Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상가수002 - Fake Song 0006 (Official MV) 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=rpzpr9B36B0",
+    "subtitles": [
+      {
+        "name": "가상가수002",
+        "url": "https://www.youtube.com/channel/UC7tKr8I_KYHZUqgiEz2RKT5"
+      }
+    ],
+    "time": "2026-05-10T10:27:13.926Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000158 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=SA-uGwROyKQ",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2026-04-30T23:44:26.842Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-04-26T15:47:28.737Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000020 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hfupH7tYI9e",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2026-04-25T05:47:48.381Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000132 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=wxPs6uXHbdi",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2026-04-20T10:28:27.067Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000022 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=Ofsbt0UzyK6",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2026-04-19T01:57:48.223Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000048 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=V82BPERbQP5",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2026-04-15T06:31:48.350Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000128 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=XLHnvqUcD_n",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2026-04-13T04:56:06.511Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-04-12T11:51:06.302Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000138 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=zfS5QY1o6HY",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2026-04-11T12:18:14.281Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0002 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=3GQ3yyOGJai",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-04-09T14:42:25.613Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000126 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=6OrTiBofk9u",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2026-04-02T12:00:02.089Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "架空の歌 0005 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=HLrChYxQF-_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-03-31T10:59:41.078Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000074 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=2nVvlCJJ0a4",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2026-03-29T08:33:28.180Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000115 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=-jjsvvGKOw0",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2026-03-28T16:36:21.604Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=PwR6lPltKm6 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=PwR6lPltKm6",
+    "time": "2026-03-27T09:51:10.484Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00003 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000003",
+    "time": "2026-03-24T16:35:21.235Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000029 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=r37oeViBoCF",
+    "subtitles": [
+      {
+        "name": "가상채널 0011",
+        "url": "https://www.youtube.com/channel/UCd9jnLvLhQMYGCZDoKTc3j9"
+      }
+    ],
+    "time": "2026-03-22T11:05:44.952Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000097 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=-cme8fq1byN",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2026-03-21T15:06:40.228Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000144 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=X2MXgf6Kjj5",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2026-03-21T13:18:50.137Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000086 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=jahz36guVCY",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2026-03-20T07:54:58.373Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00007 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000007",
+    "time": "2026-03-16T13:45:04.951Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000011 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=a05zy1sB93f",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2026-03-14T23:01:02.972Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-03-13T22:06:50.365Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000020 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hfupH7tYI9e",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2026-03-12T06:50:36.316Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00005 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000005",
+    "time": "2026-03-11T03:31:53.389Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "Fake Artist 001 '架空の歌 0005' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=A3HZmhYtIS9",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2026-03-10T11:48:04.258Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000149 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=Nh7xF6WP4tB",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2026-03-09T13:10:29.868Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000039 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=LMZrzET25e2",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2026-03-06T13:01:46.548Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000049 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=KVeFKOVlPPa",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2026-03-04T15:55:34.333Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000112 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=JYFW8isga8I",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2026-03-02T07:46:02.019Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "Fake Artist 001 - 가상노래 0001 (Official MV) 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2026-03-02T02:53:33.337Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000062 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ywKjpGlAHWR",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2026-02-28T04:51:16.535Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000152 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=HmQJ_smlH8T",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2026-02-28T00:24:49.515Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000072 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=SAC_WjDwntH",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2026-02-26T11:53:21.549Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00009 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000009",
+    "time": "2026-02-26T06:38:19.804Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00020 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/MQmWdIYh4Qt25-fl57uMH3h4Ri",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2026-02-25T03:26:28.735Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-02-24T12:08:04.014Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000030 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=21Fj1KBQfV8",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2026-02-24T08:51:37.238Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000095 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=7hYQu2LvJmg",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2026-02-22T14:55:00.225Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-02-22T14:06:06.215Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상가수002 '가상노래 0003' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=5hbrWPiwyDN",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2026-02-21T22:21:23.587Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000150 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=fqUWCVNn5m_",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2026-02-20T04:03:07.815Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000012 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=J1Ry8ZxKik6",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2026-02-15T13:28:04.971Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-02-13T01:13:04.946Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00019 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000019",
+    "time": "2026-02-12T15:31:54.832Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000055 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=pyKYpmla7le",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2026-02-09T09:12:07.974Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000025 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=9PmnX1dypFl",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2026-02-08T09:10:43.667Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-02-06T14:44:33.948Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000016 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=8HmPHtcFvXT",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2026-02-04T11:45:17.495Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000142 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=Rgot1j4mm_p",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2026-02-02T07:28:45.112Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00016 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/NyYyIlKjBHOaygr9LAflRoh7qu",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2026-01-30T10:34:24.104Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000148 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=bR_X_Ymsxti",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2026-01-28T13:44:40.061Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000046 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=8wXjGwjfmdT",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2026-01-27T16:37:04.743Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00007 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000007",
+    "time": "2026-01-23T23:20:53.635Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000045 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=yGZAFVMn3_P",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2026-01-20T00:35:09.452Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000021 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=azpVxpRqnTQ",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2026-01-18T14:51:12.407Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-01-15T11:19:45.303Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000041 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=7zXrgUtJQ33",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2026-01-14T22:14:12.996Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-01-13T13:21:44.463Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000117 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=O_EZQ0f_8Pg",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2026-01-13T01:24:49.796Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0014 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=UFo-6fzfBQ7",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-01-12T00:16:27.224Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-01-10T15:19:15.810Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000099 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=FAobWo9nDdU",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2026-01-10T10:22:18.319Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0014 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=UFo-6fzfBQ7",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2026-01-09T22:40:32.900Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00002 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/GmUwd-eSOe2iQuRVleDW9aSzKw",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2026-01-09T13:57:20.188Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상가수002 'Fake Song 0004' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=kpHE0JtRpSi",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2026-01-07T12:30:53.099Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000071 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=Pp3v9A8V-3S",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2026-01-06T11:28:18.207Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00013 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/DaQ3SEnqROHLrTsuKrLpFjDBlG",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2026-01-06T00:27:42.522Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0007 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=XGFrYAgjr3f",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2026-01-05T13:47:44.952Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000146 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=3KFd3_CN7pA",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2026-01-04T22:10:33.853Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000125 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=M1D0HoXJxgq",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2026-01-01T12:31:54.034Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000109 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=GD06fGpsjIu",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-12-31T11:44:00.712Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-12-26T06:24:57.074Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0004 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=BUb3pWWmA7i",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-12-19T01:42:21.582Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000043 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=UrngOmwBsC8",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-12-16T11:51:30.858Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000079 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=6DQZuKBJItB",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-12-15T15:39:54.769Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0002 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=3GQ3yyOGJai",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-12-12T10:27:46.351Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000161 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=jx8r3FeDPJX",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-12-11T22:23:03.418Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000076 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=bdFxI04Q8qX",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2025-12-10T08:39:24.750Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "架空の歌 0008 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=V62odmbNJ8p",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-12-08T10:27:27.026Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000068 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=Oo8TnVh0u3b",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-12-08T01:41:24.595Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "架空の歌 0005 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=HLrChYxQF-_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-12-07T15:05:12.707Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00017 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/S2XO7IGFpA7YtWLofjCwsfCqog",
+    "subtitles": [
+      {
+        "name": "가상채널 0011",
+        "url": "https://www.youtube.com/channel/UCd9jnLvLhQMYGCZDoKTc3j9"
+      }
+    ],
+    "time": "2025-12-07T12:41:53.666Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000070 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=vSRgROB8d8U",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-12-05T08:38:18.536Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000005 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=cNN2IOlB6w2",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2025-12-04T23:39:05.722Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000056 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=i7EY-g7Jt7O",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2025-12-04T05:13:15.084Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0001 (Live) - Fake Artist 001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2025-12-01T23:07:35.200Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000127 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=lIcB6Hc6v-d",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2025-11-29T01:14:40.033Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000059 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=oOBCTUbELm4",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2025-11-28T03:22:22.436Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000130 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=as6vUrmV32X",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-11-26T13:18:34.491Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000050 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=XD22jFXwooK",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-11-26T01:19:10.229Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0001 (Live) - Fake Artist 001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2025-11-25T13:13:02.333Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "Fake Song 0006 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=CKnPJonBEBZ",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-11-18T01:16:21.742Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000006 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=aBXeUhn_UAt",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2025-11-15T13:48:39.977Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-11-12T14:46:21.115Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000107 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=_UT2g0NXHSs",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2025-11-11T21:59:44.988Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000155 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=3kdlJGtGzH9",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2025-11-11T09:27:34.377Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00021 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/xQMHPPytaLB6jLlaPJHKF4Ihgh",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2025-11-09T21:20:43.523Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000047 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ux_4pBGA3z_",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2025-11-08T03:14:11.827Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0011 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=qeGa6d6-mMo",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-11-07T14:46:31.888Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000017 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ocGoAxJBCFp",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2025-11-06T05:24:44.136Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00004 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000004",
+    "time": "2025-11-05T08:29:12.505Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000131 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=7k5A_QvA-ri",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2025-11-04T06:57:29.952Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000082 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=JSk1AQLvUP1",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2025-10-30T16:36:41.399Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000073 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=eWBUYxWspGr",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2025-10-25T13:09:33.527Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00019 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000019",
+    "time": "2025-10-20T11:32:29.452Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000002 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=SzdvmrzRVTv",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2025-10-20T10:00:40.990Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00013 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000013",
+    "time": "2025-10-17T12:22:08.092Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00015 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/NJe6iIA3rItH_QJ8SdRRb9peXt",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2025-10-16T03:57:21.749Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000007 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=VBk01eHLEhH",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2025-10-15T23:48:20.502Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000041 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=7zXrgUtJQ33",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2025-10-12T22:26:52.385Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000094 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=BcCBXk2I38w",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2025-10-11T14:37:56.190Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0002 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=3GQ3yyOGJai",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-10-10T05:31:10.022Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000067 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=sX3d2oKYmAC",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-10-09T22:19:43.248Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000065 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=afUeInH182R",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-10-09T13:01:21.934Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0007 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=XGFrYAgjr3f",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-10-03T22:01:02.852Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-10-02T12:26:10.912Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=FoQ9IElHqTB",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2025-10-01T12:32:43.992Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0007 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=XGFrYAgjr3f",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-09-28T23:40:20.956Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000075 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=wLGTIN5u-tM",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-09-28T13:04:59.811Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00011 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000011",
+    "time": "2025-09-20T03:42:33.962Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000023 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=GiIFHQk5u8M",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2025-09-19T04:17:18Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "[MV] Fake Artist 001 _ Fake Song 0015 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=gWX0k2O5avI",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2025-09-18T23:22:56.299Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000100 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=JqjtDjcLIzI",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2025-09-16T03:32:22.082Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "架空の歌 0005 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=HLrChYxQF-_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-09-13T06:35:04.027Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000119 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=eQrA-WVLFw0",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-09-10T11:09:08.734Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000061 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=D4vSzVdnoAN",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-09-06T10:53:32.462Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00019 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/PUwEVGSAg7oNcJivyKAq80x7EL",
+    "subtitles": [
+      {
+        "name": "가상채널 0011",
+        "url": "https://www.youtube.com/channel/UCd9jnLvLhQMYGCZDoKTc3j9"
+      }
+    ],
+    "time": "2025-09-06T04:41:00.852Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00012 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/3MgC-71zYwWqunEaZ5O7bpqoel",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2025-09-04T23:06:13.167Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "架空の歌 0005 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=HLrChYxQF-_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-09-04T17:16:13.820Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "Fake Song 0006 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=CKnPJonBEBZ",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-09-01T12:27:27.831Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000010 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=idJN1k80WqJ",
+    "subtitles": [
+      {
+        "name": "가상채널 0011",
+        "url": "https://www.youtube.com/channel/UCd9jnLvLhQMYGCZDoKTc3j9"
+      }
+    ],
+    "time": "2025-08-30T13:58:42.722Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000113 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=oeroIYblKIi",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2025-08-28T04:48:51.163Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00002 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000002",
+    "time": "2025-08-23T01:02:47.339Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000105 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=1hk5QC6P_i7",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2025-08-22T14:59:55.330Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0004 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=BUb3pWWmA7i",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-08-20T03:26:56.095Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000031 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hZGXzOOLV-b",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2025-08-19T08:17:35.333Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000044 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=al4kjrCBgkS",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2025-08-13T23:07:43.723Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=G2Mq0Kx-zEd 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=G2Mq0Kx-zEd",
+    "time": "2025-08-13T13:47:38.853Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "[MV] Fake Artist 001 _ 架空の歌 0005 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=A3HZmhYtIS9",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2025-08-13T10:15:45.804Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000078 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ilgrtOx9mct",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2025-08-13T04:31:34.696Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "架空の歌 0010 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pbHwoxHAyxO",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-08-11T12:47:02.743Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0007 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=XGFrYAgjr3f",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-08-07T21:39:16.511Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-08-06T02:18:08.450Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000098 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ahLuSyzxZlW",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2025-07-30T21:22:39.696Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000081 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=HoeFd4rF3gb",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-07-29T04:10:40.443Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000157 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=WiLBWl9RrOH",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2025-07-28T00:09:25.049Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0001 (Live) - Fake Artist 001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2025-07-27T12:21:57.120Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0007 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=XGFrYAgjr3f",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-07-25T00:19:50.619Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-07-16T17:11:33.350Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000092 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=lv1sKDb4aAH",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2025-07-15T07:02:18.852Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0002 (Live) - 가상가수002 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=S4T63oqPYTN",
+    "subtitles": [
+      {
+        "name": "가상가수002",
+        "url": "https://www.youtube.com/channel/UC7tKr8I_KYHZUqgiEz2RKT5"
+      }
+    ],
+    "time": "2025-07-09T12:55:19.772Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000054 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=tdIaq0Whm2r",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2025-07-05T23:54:36.071Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000027 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=z0JSmPc9gur",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-07-02T08:55:03.034Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000036 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=7pEUypLKESV",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2025-07-02T00:17:43.721Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000085 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=yAaCo59742J",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2025-07-01T11:53:54.762Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0009 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=AoCy_Lp4llZ",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-06-29T14:29:05.263Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-06-25T09:07:34.642Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000033 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=pn8EUGVNbhA",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2025-06-24T03:32:35Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000139 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=yW7-zgGoVSK",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2025-06-22T16:12:59.081Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000111 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=2gpAzOzuC7v",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-06-21T00:16:49.644Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000057 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=GuTf1f0-UX_",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2025-06-20T20:59:38.812Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000003 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=V1PxLrBXSZt",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2025-06-19T23:42:13.976Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000101 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=fMKiMQ62dhE",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2025-06-19T06:46:26.259Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000051 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=dqiQJjl6hpL",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-06-17T17:02:04.069Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000013 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=3nn87QII_0n",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-06-09T04:45:22.655Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "Fake Artist 001 '가상노래 0001' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2025-06-08T05:03:19.548Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0006 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=CKnPJonBEBZ",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-06-06T10:51:56.310Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00006 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000006",
+    "time": "2025-06-03T13:12:49.886Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=46hNikQpljI 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=46hNikQpljI",
+    "time": "2025-05-30T16:19:27.159Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "Fake Artist 001 - Fake Song 0015 (Official MV) 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=gWX0k2O5avI",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2025-05-23T03:34:23.305Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000049 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=KVeFKOVlPPa",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2025-05-17T21:46:24.627Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00004 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000004",
+    "time": "2025-05-17T16:10:29.403Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000020 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hfupH7tYI9e",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2025-05-17T03:08:24.196Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00018 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000018",
+    "time": "2025-05-15T22:19:27.960Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0007 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=XGFrYAgjr3f",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-05-08T01:39:31.905Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000124 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ghOLMfopnNd",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2025-05-08T01:25:31.072Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000028 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=I7cGTg3UwGi",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2025-05-02T23:11:45.426Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-05-02T08:32:38.164Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0006 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=CKnPJonBEBZ",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-04-29T11:22:30.518Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000026 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=LUEnH4MjRyK",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2025-04-28T22:03:26.424Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-04-28T17:44:38.339Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상가수002 - Fake Song 0011 (Official MV) 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=nm6X6DcPAgd",
+    "subtitles": [
+      {
+        "name": "가상가수002",
+        "url": "https://www.youtube.com/channel/UC7tKr8I_KYHZUqgiEz2RKT5"
+      }
+    ],
+    "time": "2025-04-26T14:18:22.641Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "[MV] Fake Artist 001 _ 가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2025-04-25T01:15:12.028Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000089 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=XSNYJMHFVJ7",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2025-04-23T11:44:51.723Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00007 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000007",
+    "time": "2025-04-23T03:24:24.195Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-04-20T12:14:34.895Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000088 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=VK-kUK-qOMB",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-04-19T16:31:58.366Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00005 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/oBfeJ5-37JmHSFkrdzPhfXgvQl",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2025-04-18T13:22:12.888Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000084 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=sNiuJa2D6da",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2025-04-15T14:41:11.270Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00014 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/6vhyrh7u-u0dKYFUFuA1jp1Ycy",
+    "subtitles": [
+      {
+        "name": "가상채널 0011",
+        "url": "https://www.youtube.com/channel/UCd9jnLvLhQMYGCZDoKTc3j9"
+      }
+    ],
+    "time": "2025-04-15T12:03:42.962Z",
+    "products": [
+      "YouTube"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00007 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/wVr9emInGRoEts37ocJAZn5HeG",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2025-04-14T21:18:37.945Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000093 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hyDjIuau9hL",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2025-04-14T15:54:04.363Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "Fake Artist 001 '가상노래 0001' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2025-04-13T16:30:18.007Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=7xV0Q70ljNt 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=7xV0Q70ljNt",
+    "time": "2025-04-13T13:45:34.870Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-04-10T10:00:15.995Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000087 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=pMYkUs992IT",
+    "subtitles": [
+      {
+        "name": "가상채널 0011",
+        "url": "https://www.youtube.com/channel/UCd9jnLvLhQMYGCZDoKTc3j9"
+      }
+    ],
+    "time": "2025-04-09T12:15:44.522Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00008 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/4H6ckZLxJ7GxapSkAK_lHPWGA8",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2025-04-09T09:33:49.149Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00010 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/X70Z4waoBO4GR-BjaAQQtgszMj",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2025-04-08T09:38:29.942Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000014 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ByKLgmTvnUR",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2025-04-03T07:02:16.711Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00004 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000004",
+    "time": "2025-04-03T04:45:37.005Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0007 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=XGFrYAgjr3f",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-04-02T11:57:13.450Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0011 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=qeGa6d6-mMo",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-03-29T10:33:44.238Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0002 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=3GQ3yyOGJai",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-03-28T13:56:37.226Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00003 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/KXJj-2KF-GD5b4TaIEYNI9yUmT",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-03-28T04:59:43.546Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000133 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=CsyDB2DeaAn",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2025-03-25T23:17:29.696Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000083 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=zjip1tFsDrj",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-03-25T11:39:05.722Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-03-24T22:49:08.780Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000088 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=VK-kUK-qOMB",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-03-24T12:58:28.831Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000052 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=_Cg3848WzIe",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2025-03-23T02:31:39.977Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000066 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=c_iRCZkJtv1",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2025-03-22T22:04:24.887Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000042 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=fVFDqtKtlKC",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2025-03-21T23:42:22.201Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "架空の歌 0005 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=HLrChYxQF-_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-03-19T23:44:10.698Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상가수002 'Fake Song 0011' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=nm6X6DcPAgd",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2025-03-12T22:19:05.166Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-03-09T14:54:30.854Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000116 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=biv1OzuNJvT",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-03-09T11:03:03.702Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000053 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=nRRWYvvMmCH",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2025-03-08T05:22:55.029Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000065 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=afUeInH182R",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-03-06T11:47:03.451Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=RHle-q8t8Uz 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=RHle-q8t8Uz",
+    "time": "2025-03-02T07:11:02.285Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00005 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000005",
+    "time": "2025-02-28T23:55:29.050Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000159 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=OVwgdkJDNvs",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2025-02-26T14:31:16.097Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0001 (Live) - Fake Artist 001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=hNyQ-93ALB_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2025-02-19T19:53:28.611Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000156 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=wfh7KRfnqar",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2025-02-14T07:00:28.579Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000135 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=Spptld8SQu0",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-02-12T06:30:38.444Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000121 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=jpt4GE3qA-H",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2025-02-11T21:55:49.846Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000022 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=Ofsbt0UzyK6",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-02-09T12:52:38.111Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000018 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=pyaC9yxbb0e",
+    "subtitles": [
+      {
+        "name": "가상채널 0011",
+        "url": "https://www.youtube.com/channel/UCd9jnLvLhQMYGCZDoKTc3j9"
+      }
+    ],
+    "time": "2025-02-05T15:08:14.188Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000103 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=zWA7yl8rSXN",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2025-02-03T13:17:51.431Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0002 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=3GQ3yyOGJai",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2025-01-31T14:11:50.617Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "架空の歌 0012 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=z6bLjiX9pgf",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-01-30T14:56:21.691Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000147 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=85Jp7obm_yX",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2025-01-27T11:06:02.251Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상가수002 'Fake Song 0004' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=kpHE0JtRpSi",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-01-27T08:09:48.755Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000014 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ByKLgmTvnUR",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2025-01-20T16:20:52.406Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "架空の歌 0005 (Live) - Fake Artist 001 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=A3HZmhYtIS9",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001",
+        "url": "https://www.youtube.com/channel/UCblzSNqiwMudx-PwJUaPJuk"
+      }
+    ],
+    "time": "2025-01-18T15:46:09.659Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상가수002 'Fake Song 0007' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=xEZvN3xGLsC",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2025-01-18T08:09:01.950Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00001 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/_s2maCNseAC1hFlg8FI2YMw3nT",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2025-01-16T14:14:15.637Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "架空の歌 0005 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=HLrChYxQF-_",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2025-01-13T00:58:40.376Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상가수002 - Fake Song 0006 (Official MV) 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=rpzpr9B36B0",
+    "subtitles": [
+      {
+        "name": "가상가수002",
+        "url": "https://www.youtube.com/channel/UC7tKr8I_KYHZUqgiEz2RKT5"
+      }
+    ],
+    "time": "2025-01-12T05:09:14.645Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000006 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=aBXeUhn_UAt",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2025-01-08T01:24:39.810Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000082 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=JSk1AQLvUP1",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2024-12-01T13:01:07.703Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "架空の歌 0010 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pbHwoxHAyxO",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2024-11-19T08:21:12.621Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2024-11-15T04:03:34.799Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000035 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=YJW0nZZLZ1Q",
+    "subtitles": [
+      {
+        "name": "가상채널 0012",
+        "url": "https://www.youtube.com/channel/UCXXgTYlcfHRkCJPnWD7CF2L"
+      }
+    ],
+    "time": "2024-11-13T09:11:02.942Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000153 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=rMsV-OOE_aS",
+    "subtitles": [
+      {
+        "name": "가상채널 0002",
+        "url": "https://www.youtube.com/channel/UCGUSLiDEVaSqOCpj_zYflpE"
+      }
+    ],
+    "time": "2024-11-08T13:47:49.147Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000024 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=vraony6xqnw",
+    "subtitles": [
+      {
+        "name": "가상채널 0001",
+        "url": "https://www.youtube.com/channel/UCSUsXgeVts_E_SGYqYhXt6v"
+      }
+    ],
+    "time": "2024-11-01T09:54:01.051Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상노래 0003 (Live) - 가상가수002 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=5hbrWPiwyDN",
+    "subtitles": [
+      {
+        "name": "가상가수002",
+        "url": "https://www.youtube.com/channel/UC7tKr8I_KYHZUqgiEz2RKT5"
+      }
+    ],
+    "time": "2024-10-24T07:07:41.427Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00004 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/6r6x0-Z3DS4VTMjghdoeJWN-z_",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2024-10-15T01:19:53.323Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000011 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=a05zy1sB93f",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2024-09-23T15:42:45.807Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2024-09-16T05:13:48.299Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상가수002 'Fake Song 0004' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=kpHE0JtRpSi",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2024-09-05T12:45:01.031Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0003 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=9KVECyYPJ0T",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2024-08-28T01:52:31.723Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000037 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=POUImIuxHpz",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2024-08-26T01:12:26.848Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00009 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/aRp709vExxZvXrsFSYYZlWIpKh",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2024-08-23T16:12:55.344Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상가수002 '가상노래 0003' 커버 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=5hbrWPiwyDN",
+    "subtitles": [
+      {
+        "name": "가상채널 0003",
+        "url": "https://www.youtube.com/channel/UCoXQw4Vw4-20caN5vDP1oxA"
+      }
+    ],
+    "time": "2024-08-04T17:36:10.048Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00011 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000011",
+    "time": "2024-07-29T23:24:06.189Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000034 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=-VCTIwBshR1",
+    "subtitles": [
+      {
+        "name": "가상채널 0006",
+        "url": "https://www.youtube.com/channel/UCMWAo9_OyjP4DEDZ0qSXcYl"
+      }
+    ],
+    "time": "2024-07-18T12:26:31.771Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000154 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=YJZQOVI9YAO",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2024-06-25T14:25:22.393Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000038 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=NCfUH8o7Ujs",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2024-06-24T11:51:10.779Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000137 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=fTwvAfjMaCn",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2024-06-20T00:17:06.027Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0002 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=3GQ3yyOGJai",
+    "subtitles": [
+      {
+        "name": "가상가수002 - Topic",
+        "url": "https://www.youtube.com/channel/UCQDn3P-tZTr87s617HC3S4g"
+      }
+    ],
+    "time": "2024-06-11T03:35:05.645Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000078 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=ilgrtOx9mct",
+    "subtitles": [
+      {
+        "name": "가상채널 0005",
+        "url": "https://www.youtube.com/channel/UCMr5SZ83IxFjXKGMajI8VDc"
+      }
+    ],
+    "time": "2024-06-02T06:53:34.563Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "Fake Song 0015 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=gdVox0F4jW3",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2024-06-01T23:33:38.791Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00018 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/pz4GBF9KPCVBxLtR8WwR3iMnbj",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2024-05-30T01:35:31.480Z",
+    "products": [
+      "YouTube"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000060 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=XyyDGGlU9ej",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2024-05-17T03:07:04.375Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000102 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=AMOXbVfrbEQ",
+    "subtitles": [
+      {
+        "name": "가상채널 0009",
+        "url": "https://www.youtube.com/channel/UCGXqsWht9p6wvU4yfVz86E1"
+      }
+    ],
+    "time": "2024-04-27T01:45:26.485Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상항목 00006 목록을 확인함",
+    "titleUrl": "https://www.youtube.com/post/lbye24GJ1XIQJsdYnT5A5cNoSV",
+    "subtitles": [
+      {
+        "name": "가상채널 0004",
+        "url": "https://www.youtube.com/channel/UCplDOCuE4MYCor37E6pnUDz"
+      }
+    ],
+    "time": "2024-04-20T14:01:17.036Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000120 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=Err8HcvkT6-",
+    "subtitles": [
+      {
+        "name": "가상채널 0007",
+        "url": "https://www.youtube.com/channel/UCevstDcab2tN9t6K_BdJnEn"
+      }
+    ],
+    "time": "2024-03-11T03:56:20.686Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=8Rp0Eft40cc 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=8Rp0Eft40cc",
+    "time": "2024-03-04T12:29:25.812Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=R72W7I3pGJ- 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=R72W7I3pGJ-",
+    "time": "2024-03-03T07:56:38.995Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=nIrCcDdkq3g 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=nIrCcDdkq3g",
+    "time": "2024-02-28T05:49:22.931Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "https://www.youtube.com/watch?v=A6P-4bDik9i 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=A6P-4bDik9i",
+    "time": "2024-02-13T15:16:53.176Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000010 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=idJN1k80WqJ",
+    "subtitles": [
+      {
+        "name": "가상채널 0011",
+        "url": "https://www.youtube.com/channel/UCd9jnLvLhQMYGCZDoKTc3j9"
+      }
+    ],
+    "time": "2024-02-12T15:47:24.997Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000094 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=BcCBXk2I38w",
+    "subtitles": [
+      {
+        "name": "가상채널 0008",
+        "url": "https://www.youtube.com/channel/UCHHVcRnFJRs0ee-wE9HNikm"
+      }
+    ],
+    "time": "2024-01-21T23:24:37.761Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000058 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=IKvWybFIbPu",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2024-01-13T13:23:46.962Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube Music",
+    "title": "가상노래 0001 을(를) 시청했습니다.",
+    "titleUrl": "https://music.youtube.com/watch?v=pjUHJETrpHg",
+    "subtitles": [
+      {
+        "name": "Fake Artist 001 - Topic",
+        "url": "https://www.youtube.com/channel/UCAh_9Rnub-dfIZPJfEZxSMC"
+      }
+    ],
+    "time": "2024-01-10T16:42:56.589Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "일반 영상 000134 을(를) 시청했습니다.",
+    "titleUrl": "https://www.youtube.com/watch?v=7W77rnMvYcb",
+    "subtitles": [
+      {
+        "name": "가상채널 0010",
+        "url": "https://www.youtube.com/channel/UCfZJadOg_jC-irBxzx75qCr"
+      }
+    ],
+    "time": "2023-12-28T22:39:59.993Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 시청 기록"
+    ]
+  },
+  {
+    "header": "YouTube",
+    "title": "가상검색어 00011 을(를) 검색했습니다.",
+    "titleUrl": "https://www.youtube.com/results?search_query=%EA%B0%80%EC%83%81%EA%B2%80%EC%83%89%EC%96%B4%2000011",
+    "time": "2023-10-27T10:03:28.882Z",
+    "products": [
+      "YouTube"
+    ],
+    "activityControls": [
+      "YouTube 검색 기록"
+    ]
+  }
+]

@@ -54,3 +54,5 @@ search-history*.json
 검색 기록*.json
 Takeout*/
 data/private/
+# 가상 테스트 파일은 예외 (tools/fake-takeout으로 만든 것만 둔다)
+!tools/fixtures/*.json
