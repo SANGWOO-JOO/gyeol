@@ -1,0 +1,75 @@
+// api 서버 호출 (docs/l1-design.md 4-1). 개발 서버는 /api를 18080으로 넘긴다
+
+export type Entry = 'SEEDS' | 'TAKEOUT'
+export type Status = 'CREATED' | 'UPLOADING' | 'PROCESSING' | 'DONE' | 'FAILED'
+
+export interface Track { title: string; artist: string; mbid?: string | null; listeners?: number | null; releaseYear?: number | null }
+export interface CreatedSession { token: string; entry: Entry; status: Status; resultUrl: string; expiresAt: string }
+export interface SessionView {
+  entry: Entry
+  status: Status
+  counts: { total: number | null; music: number | null; unclassified: number | null; saved: number | null }
+  period: { start: string | null; end: string | null } | null
+  seeds: { mbid: string | null; title: string; artist: string }[] | null
+  error: string | null
+  createdAt: string
+  expiresAt: string
+}
+export interface UploadTicket { uploadId: string; url: string; method: 'PUT'; headers: Record<string, string>; expiresAt: string }
+export interface Stats {
+  period: { start: string | null; end: string | null; days: number | null }
+  totals: { plays: number; uniqueTitles: number; uniqueChannels: number }
+  topTitles: { title: string; channel: string | null; plays: number }[]
+  topChannels: { channel: string; plays: number }[]
+  byHour: number[]
+  byWeekday: number[]
+  byMonth: { month: string; plays: number }[]
+  bySource: { musicApp: number; youtube: number }
+  coverage: { music: number | null; unclassified: number | null }
+}
+
+export class ApiError extends Error {
+  constructor(readonly status: number, readonly code: string, message: string) { super(message) }
+}
+
+async function call<T>(path: string, init?: RequestInit): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(`/api${path}`, { ...init, headers: init?.body ? { 'Content-Type': 'application/json' } : undefined })
+  } catch {
+    throw new ApiError(0, 'NETWORK', '서버에 연결하지 못했습니다. 잠시 뒤 다시 시도해 주세요.')
+  }
+  if (res.status === 204) return undefined as T
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw new ApiError(res.status, body?.code ?? 'UNKNOWN', body?.message ?? '요청을 처리하지 못했습니다.')
+  return body as T
+}
+
+const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) })
+
+export const api = {
+  createSession: (entry: Entry) => call<CreatedSession>('/sessions', json('POST', { entry })),
+  session: (token: string) => call<SessionView>(`/sessions/${token}`),
+  searchTracks: (q: string, signal?: AbortSignal) =>
+    call<{ items: Track[]; source: string }>(`/tracks/search?q=${encodeURIComponent(q)}&limit=10`, { signal }),
+  saveSeeds: (token: string, tracks: Track[]) =>
+    call<{ status: string; count: number }>(`/sessions/${token}/seeds`, json('POST', {
+      tracks: tracks.map(t => ({ mbid: t.mbid ?? null, title: t.title, artist: t.artist })),
+    })),
+  uploadUrl: (token: string, c: { totalCount: number; musicCount: number; unclassifiedCount: number; byteSize: number }) =>
+    call<UploadTicket>(`/sessions/${token}/upload-url`, json('POST', c)),
+  stats: (token: string) => call<Stats>(`/sessions/${token}/stats`),
+  remove: (token: string) => call<void>(`/sessions/${token}`, { method: 'DELETE' }),
+}
+
+/** 서명 URL로 S3에 직접 올린다. 받은 헤더 중 브라우저가 직접 정하는 Content-Length는 빼고 보낸다 */
+export async function putToS3(ticket: UploadTicket, body: string): Promise<void> {
+  const headers = Object.fromEntries(Object.entries(ticket.headers).filter(([k]) => k.toLowerCase() !== 'content-length'))
+  let res: Response
+  try {
+    res = await fetch(ticket.url, { method: ticket.method, headers, body })
+  } catch {
+    throw new ApiError(0, 'UPLOAD_NETWORK', '파일을 올리지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.')
+  }
+  if (!res.ok) throw new ApiError(res.status, 'UPLOAD_FAILED', `파일을 올리지 못했습니다 (${res.status}).`)
+}
