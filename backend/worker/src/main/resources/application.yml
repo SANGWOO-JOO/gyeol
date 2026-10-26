@@ -21,6 +21,10 @@ gyeol:
     upload-bucket: ${UPLOAD_BUCKET:gyeol-local-uploads}
     # 청취 기록 원본 보관 기간
     listen-ttl: 7d
+    # 보관 기간이 지난 데이터 정리 (매일 04:00 한국 시간)
+    cleanup:
+      enabled: ${CLEANUP_ENABLED:true}
+      cron: ${CLEANUP_CRON:0 0 4 * * *}
 
 management:
   endpoints:

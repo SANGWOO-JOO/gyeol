@@ -88,6 +88,22 @@ class SessionRepository(private val jdbc: JdbcClient) {
         jdbc.sql("DELETE FROM session WHERE id = :id").param("id", id).update()
     }
 
+    /**
+     * 만료된 세션 삭제 (업로드·청취 기록·고른 곡은 연쇄 삭제).
+     * S3 원본을 아직 못 지운 세션은 남겨 두어, 파일이 고아로 남지 않게 한다
+     */
+    fun deleteExpired(now: Instant, limit: Int): Int =
+        jdbc.sql(
+            """
+            DELETE FROM session WHERE id IN (
+                SELECT s.id FROM session s
+                WHERE s.expires_at < :now
+                  AND NOT EXISTS (SELECT 1 FROM upload u WHERE u.session_id = s.id AND u.file_deleted_at IS NULL)
+                ORDER BY s.id LIMIT :limit
+            )
+            """.trimIndent(),
+        ).param("now", Timestamp.from(now)).param("limit", limit).update()
+
     fun insertSeeds(sessionId: Long, seeds: List<SeedTrack>) {
         seeds.forEach { s ->
             jdbc.sql(

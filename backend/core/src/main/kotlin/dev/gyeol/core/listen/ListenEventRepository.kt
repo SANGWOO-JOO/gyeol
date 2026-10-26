@@ -42,4 +42,11 @@ class ListenEventRepository(private val jdbcTemplate: JdbcTemplate) {
             }
         }
     }
+
+    /** 보관 기간이 지난 청취 기록을 limit건씩 지운다. 지운 건수를 돌려준다 */
+    fun deleteExpired(now: Instant, limit: Int): Int =
+        jdbcTemplate.update(
+            "DELETE FROM listen_event WHERE id IN (SELECT id FROM listen_event WHERE expires_at < ? ORDER BY id LIMIT ?)",
+            Timestamp.from(now), limit,
+        )
 }

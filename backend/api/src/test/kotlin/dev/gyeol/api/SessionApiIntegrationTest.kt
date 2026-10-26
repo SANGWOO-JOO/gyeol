@@ -9,6 +9,7 @@ import dev.gyeol.core.upload.UploadRepository
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
@@ -104,6 +105,7 @@ class SessionApiIntegrationTest {
     @Autowired lateinit var sessions: SessionRepository
     @Autowired lateinit var uploads: UploadRepository
     @Autowired lateinit var listens: ListenEventRepository
+    @Autowired lateinit var jdbc: JdbcClient
 
     private val http = HttpClient.newHttpClient()
 
@@ -218,6 +220,43 @@ class SessionApiIntegrationTest {
         assertEquals("VALIDATION", call("POST", "/api/sessions/$token/upload-url", wrongSum).second!!["code"].asString())
         // 곡 고르기 세션이 아니면 seeds 불가
         assertEquals("INVALID_STATE", call("POST", "/api/sessions/$token/seeds", mapOf("tracks" to emptyList<Any>())).second!!["code"].asString())
+    }
+
+    @Test
+    fun `만료된 세션은 조회·통계·삭제 모두 404`() {
+        val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
+        assertEquals(200, call("GET", "/api/sessions/$token").first)
+        jdbc.sql("UPDATE session SET expires_at = now() - interval '1 second' WHERE token_hash = :h").param("h", Tokens.hash(token)).update()
+
+        assertEquals("SESSION_NOT_FOUND", call("GET", "/api/sessions/$token").second!!["code"].asString())
+        assertEquals(404, call("GET", "/api/sessions/$token/stats").first)
+        assertEquals(404, call("POST", "/api/sessions/$token/upload-url", mapOf("totalCount" to 1, "musicCount" to 1, "unclassifiedCount" to 0, "byteSize" to 10)).first)
+        assertEquals(404, call("DELETE", "/api/sessions/$token").first)
+    }
+
+    @Test
+    fun `통계는 한국 시간 기준 - 자정 전후가 다른 시간·요일·월로 들어간다`() {
+        val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
+        val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id
+        val uploadId = UUID.randomUUID()
+        uploads.create(uploadId, sid, "uploads/$uploadId.json")
+        val times = listOf(
+            "2026-10-25T14:59:00Z", // 한국 10/25(일) 23:59
+            "2026-10-25T15:00:00Z", // 한국 10/26(월) 00:00
+            "2026-10-31T15:00:00Z", // 한국 11/1(일) 00:00
+        ).map(Instant::parse)
+        listens.insertBatch(sid, uploadId, times.map { ListenEvent("v", "노래", "가수 - Topic", it, Source.MUSIC_APP) }, Instant.now().plus(7, ChronoUnit.DAYS))
+        sessions.markDone(sid, times.size, times.first(), times.last())
+
+        val stats = call("GET", "/api/sessions/$token/stats").second!!
+        assertEquals(1, stats["byHour"][23].asInt())
+        assertEquals(2, stats["byHour"][0].asInt())
+        assertEquals(1, stats["byWeekday"][0].asInt()) // 월
+        assertEquals(2, stats["byWeekday"][6].asInt()) // 일
+        assertEquals(listOf("2026-10" to 2, "2026-11" to 1), stats["byMonth"].toList().map { it["month"].asString() to it["plays"].asInt() })
+        assertEquals("2026-10-25", stats["period"]["start"].asString())
+        assertEquals("2026-11-01", stats["period"]["end"].asString())
+        assertEquals(8, stats["period"]["days"].asInt())
     }
 
     @Test

@@ -2,6 +2,8 @@ package dev.gyeol.core.upload
 
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.stereotype.Repository
+import java.sql.Timestamp
+import java.time.Instant
 import java.util.UUID
 
 enum class UploadStatus { PENDING, PROCESSED, FAILED }
@@ -37,5 +39,22 @@ class UploadRepository(private val jdbc: JdbcClient) {
 
     fun markFailed(id: UUID) {
         jdbc.sql("UPDATE upload SET status = 'FAILED', processed_at = now() WHERE id = :id").param("id", id).update()
+    }
+
+    /** 원본 파일을 지울 업로드: 보관 기간(before 이전 생성)이 지났거나 세션이 만료됨, 아직 안 지움 */
+    fun findFilesToDelete(before: Instant, now: Instant, limit: Int): List<Pair<UUID, String>> =
+        jdbc.sql(
+            """
+            SELECT u.id, u.s3_key FROM upload u JOIN session s ON s.id = u.session_id
+            WHERE u.file_deleted_at IS NULL AND (u.created_at < :before OR s.expires_at < :now)
+            ORDER BY u.created_at LIMIT :limit
+            """.trimIndent(),
+        )
+            .param("before", Timestamp.from(before)).param("now", Timestamp.from(now)).param("limit", limit)
+            .query { rs, _ -> rs.getObject("id", UUID::class.java) to rs.getString("s3_key") }.list()
+
+    fun markFilesDeleted(ids: Collection<UUID>) {
+        if (ids.isEmpty()) return
+        jdbc.sql("UPDATE upload SET file_deleted_at = now() WHERE id IN (:ids)").param("ids", ids).update()
     }
 }
