@@ -2,17 +2,17 @@ package dev.gyeol.worker.parse
 
 import io.awspring.cloud.sqs.annotation.SqsListener
 import org.slf4j.LoggerFactory
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 import java.net.URLDecoder
 
 /**
- * SQS parse 큐를 듣는다 (WORKER_ROLE=parse일 때만).
+ * SQS parse 큐를 듣는다 (WORKER_ROLE에 parse가 있을 때만).
  * 메시지는 S3 업로드 알림. 예외가 나면 메시지가 지워지지 않아 다시 받게 되고, 3번 실패하면 실패 큐로 간다.
  */
 @Component
-@ConditionalOnProperty(name = ["gyeol.worker.role"], havingValue = "parse")
+@ConditionalOnExpression("'\${gyeol.worker.role:parse}'.contains('parse')")
 class ParseListener(
     private val service: ParseService,
     private val json: JsonMapper,

@@ -166,6 +166,19 @@ class SessionApiIntegrationTest {
         uploads.markProcessed(uploadId, events.size)
         sessions.markDone(sid, events.size, events.first().watchedAt, events.last().watchedAt)
 
+        // 식별 대상이 없으면 진행률은 빠지고, 생기면 상태별로 센다 (L2-1)
+        assertTrue(call("GET", "/api/sessions/$token").second!!["identify"].isNull)
+        jdbc.sql(
+            """
+            INSERT INTO identify_target (session_id, alias_key, title, channel, source, plays, status) VALUES
+              (:sid, 'a', '노래 0', '가수 A - Topic', 'YOUTUBE', 8, 'DONE'), (:sid, 'b', '노래 1', '가수 A', 'YOUTUBE', 7, 'PENDING')
+            """.trimIndent(),
+        ).param("sid", sid).update()
+        val progress = call("GET", "/api/sessions/$token").second!!["identify"]
+        assertEquals(2, progress["target"].asInt())
+        assertEquals(1, progress["done"].asInt())
+        assertEquals(1, progress["notFound"].asInt()) // 캐시 기록이 없는 완료는 못 찾음으로 센다
+
         val (ok, stats) = call("GET", "/api/sessions/$token/stats")
         assertEquals(200, ok)
         assertEquals(30, stats!!["totals"]["plays"].asInt())

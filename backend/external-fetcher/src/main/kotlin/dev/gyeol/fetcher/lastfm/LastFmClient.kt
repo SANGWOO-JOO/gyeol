@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientResponseException
 import tools.jackson.databind.JsonNode
+import java.time.Duration
 
 /**
  * Last.fm 곡 검색 (track.search). A 입구의 즉시 검색에 쓴다.
@@ -74,6 +75,27 @@ class LastFmClient(private val props: FetcherProperties) {
         val result = SearchResult(Reranker.rerank(query, hits, limit), "lastfm", cached = false)
         cache.put(key, result)
         return result
+    }
+
+    /**
+     * 가수·곡으로 검색해 Last.fm이 아는 곡명 표기들을 돌려준다 (예: "좋은날" → "좋은 날").
+     * 곡 식별에서 MusicBrainz 제목과 띄어쓰기가 다를 때 쓴다. 키가 없거나 실패하면 빈 목록
+     */
+    fun spellings(artist: String, title: String): List<String> {
+        if (props.lastfm.apiKey.isBlank()) return emptyList()
+        return try {
+            gate.acquire(Duration.ofSeconds(30))
+            val body = http.get()
+                .uri { b ->
+                    b.queryParam("method", "track.search").queryParam("artist", artist).queryParam("track", title)
+                        .queryParam("api_key", props.lastfm.apiKey).queryParam("format", "json").queryParam("limit", 10).build()
+                }
+                .retrieve().body(JsonNode::class.java)
+            body?.path("results")?.path("trackmatches")?.path("track")?.mapNotNull { it.path("name").asString("").trim().ifEmpty { null } }.orEmpty()
+        } catch (e: Exception) {
+            log.debug("Last.fm 표기 조회 실패: {}", e.message)
+            emptyList()
+        }
     }
 
     private fun parse(body: JsonNode): List<TrackHit> =

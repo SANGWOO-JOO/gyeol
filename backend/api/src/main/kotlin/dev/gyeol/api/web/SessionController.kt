@@ -6,6 +6,7 @@ import dev.gyeol.api.session.UploadCounts
 import dev.gyeol.api.session.UploadTicket
 import dev.gyeol.api.stats.Stats
 import dev.gyeol.api.stats.StatsService
+import dev.gyeol.core.identify.IdentifyRepository
 import dev.gyeol.core.session.Entry
 import dev.gyeol.core.session.Session
 import org.springframework.http.HttpStatus
@@ -38,12 +39,16 @@ data class Counts(val total: Int?, val music: Int?, val unclassified: Int?, val 
 data class PeriodDates(val start: LocalDate?, val end: LocalDate?)
 data class SeedView(val mbid: String?, val title: String, val artist: String)
 
+/** L2-1 곡 식별 진행률 (재생 상위 곡). 대상이 없으면 응답에서 빠진다 */
+data class IdentifyView(val target: Int, val done: Int, val matched: Int, val notFound: Int, val failed: Int)
+
 data class SessionView(
     val entry: Entry,
     val status: String,
     val counts: Counts,
     val period: PeriodDates?,
     val seeds: List<SeedView>?,
+    val identify: IdentifyView?,
     val error: String?,
     val createdAt: Instant,
     val expiresAt: Instant,
@@ -54,6 +59,7 @@ data class SessionView(
 class SessionController(
     private val service: SessionService,
     private val stats: StatsService,
+    private val identify: IdentifyRepository,
 ) {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -101,6 +107,7 @@ class SessionController(
             counts = Counts(s.totalCount, s.musicCount, s.unclassifiedCount, s.savedCount),
             period = period,
             seeds = service.seedsOf(s)?.map { SeedView(it.mbid?.toString(), it.title, it.artist) },
+            identify = identify.progress(s.id).takeIf { it.target > 0 }?.let { IdentifyView(it.target, it.done, it.matched, it.notFound, it.failed) },
             error = s.errorMessage,
             createdAt = s.createdAt,
             expiresAt = s.expiresAt,

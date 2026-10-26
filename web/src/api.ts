@@ -11,6 +11,8 @@ export interface SessionView {
   counts: { total: number | null; music: number | null; unclassified: number | null; saved: number | null }
   period: { start: string | null; end: string | null } | null
   seeds: { mbid: string | null; title: string; artist: string }[] | null
+  /** L2-1 곡 식별 진행률 (재생 상위 곡). 대상이 없으면 null */
+  identify: { target: number; done: number; matched: number; notFound: number; failed: number } | null
   error: string | null
   createdAt: string
   expiresAt: string

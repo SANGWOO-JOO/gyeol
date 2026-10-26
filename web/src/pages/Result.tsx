@@ -21,14 +21,15 @@ export function Result() {
 
   // 처리 중이면 2초마다 상태 확인, 끝나면 통계를 한 번 가져온다
   useEffect(() => {
-    let stop = false, timer: ReturnType<typeof setTimeout>
+    let stop = false, statsLoaded = false, timer: ReturnType<typeof setTimeout>
     async function tick() {
       try {
         const s = await api.session(token)
         if (stop) return
         setSession(s)
-        if (s.status === 'DONE' && s.entry === 'TAKEOUT') setStats(await api.stats(token))
-        else if (s.status !== 'DONE' && s.status !== 'FAILED') timer = setTimeout(tick, POLL_MS)
+        if (s.status === 'DONE' && s.entry === 'TAKEOUT' && !statsLoaded) { statsLoaded = true; setStats(await api.stats(token)) }
+        // 처리 중이거나, 통계는 나왔지만 곡 확인(식별)이 아직 진행 중이면 계속 확인
+        if ((s.status !== 'DONE' && s.status !== 'FAILED') || identifying(s)) timer = setTimeout(tick, POLL_MS)
       } catch (e) {
         if (!stop) setError(e instanceof ApiError && e.status === 404 ? '결과를 찾을 수 없어요. 링크가 틀렸거나 기간이 지나 삭제되었어요.' : '결과를 불러오지 못했어요.')
       }
@@ -67,6 +68,7 @@ export function Result() {
         )}
 
         {session?.status === 'DONE' && session.entry === 'SEEDS' && <Seeds session={session} />}
+        {session?.status === 'DONE' && session.identify && <IdentifyProgress p={session.identify} />}
         {session?.status === 'DONE' && stats && <Report stats={stats} />}
 
         {session && (
@@ -80,6 +82,29 @@ export function Result() {
         )}
       </div>
     </Layout>
+  )
+}
+
+const identifying = (s: SessionView) => !!s.identify && s.identify.done + s.identify.failed < s.identify.target
+
+/** 재생 상위 곡을 MusicBrainz로 확인하는 진행 상황 (L2-1). 곡 단위 결과 화면은 L2-2 */
+function IdentifyProgress({ p }: { p: NonNullable<SessionView['identify']> }) {
+  const finished = p.done + p.failed
+  const running = finished < p.target
+  return (
+    <div className={ui.card} style={{ padding: 16 }}>
+      <div className={ui.row} style={{ justifyContent: 'space-between' }}>
+        <strong>{running ? '많이 들은 곡을 확인하고 있어요' : '많이 들은 곡 확인을 마쳤어요'}</strong>
+        <span className={ui.count}>{num(finished)}/{num(p.target)}</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 3, background: 'var(--surface-2)', margin: '10px 0 8px', overflow: 'hidden' }}>
+        <div style={{ width: `${(finished / Math.max(1, p.target)) * 100}%`, height: '100%', background: 'var(--accent-bar)', transition: 'width .4s' }} />
+      </div>
+      <span className={ui.small}>
+        찾은 곡 {num(p.matched)} · 못 찾음 {num(p.notFound)}{p.failed ? ` · 오류 ${num(p.failed)}` : ''}
+        {running ? ' · 곡마다 몇 초씩 걸려요. 이 페이지를 닫아도 계속 진행돼요.' : ''}
+      </span>
+    </div>
   )
 }
 

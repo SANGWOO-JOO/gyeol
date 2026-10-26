@@ -8,10 +8,22 @@ import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.RestControllerAdvice
 
 data class FetcherError(val code: String, val message: String)
 
 /** 클러스터 안에서 api만 부르는 내부 API. 외부에는 열지 않는다. */
+@RestControllerAdvice
+class FetcherErrors {
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun badRequest(e: IllegalArgumentException) =
+        ResponseEntity.badRequest().body(FetcherError("VALIDATION", e.message ?: "잘못된 요청"))
+
+    @ExceptionHandler(TooBusyException::class, UpstreamException::class)
+    fun unavailable(e: RuntimeException) =
+        ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(FetcherError("UPSTREAM_UNAVAILABLE", e.message ?: "외부 API를 쓸 수 없습니다"))
+}
+
 @RestController
 class SearchController(
     private val lastFm: LastFmClient,
@@ -37,12 +49,4 @@ class SearchController(
         require(limit in 1..20) { "limit은 1~20이어야 합니다" }
         return query to limit
     }
-
-    @ExceptionHandler(IllegalArgumentException::class)
-    fun badRequest(e: IllegalArgumentException) =
-        ResponseEntity.badRequest().body(FetcherError("VALIDATION", e.message ?: "잘못된 요청"))
-
-    @ExceptionHandler(TooBusyException::class, UpstreamException::class)
-    fun unavailable(e: RuntimeException) =
-        ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(FetcherError("UPSTREAM_UNAVAILABLE", e.message ?: "외부 API를 쓸 수 없습니다"))
 }

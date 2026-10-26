@@ -4,8 +4,13 @@
     (dict "name" "FETCHER_URL" "value" (printf "http://gyeol-fetcher:%v" .Values.fetcher.port))
     (dict "name" "GYEOL_UPLOAD_PUBLICENDPOINT" "value" .Values.aws.publicEndpoint)))
   "worker" (dict "cfg" .Values.worker "service" false "env" (list
-    (dict "name" "WORKER_ROLE" "value" "parse")
+    (dict "name" "WORKER_ROLE" "value" .Values.worker.role)
     (dict "name" "PARSE_QUEUE" "value" .Values.aws.parseQueue)
+    (dict "name" "PARSE_DLQ" "value" .Values.aws.parseDlq)
+    (dict "name" "IDENTIFY_QUEUE" "value" .Values.aws.identifyQueue)
+    (dict "name" "IDENTIFY_DLQ" "value" .Values.aws.identifyDlq)
+    (dict "name" "IDENTIFY_TOP_N" "value" (toString .Values.worker.identifyTopN))
+    (dict "name" "FETCHER_URL" "value" (printf "http://gyeol-fetcher:%v" .Values.fetcher.port))
     (dict "name" "CLEANUP_ENABLED" "value" (toString .Values.worker.cleanupEnabled))))
   "fetcher" (dict "cfg" .Values.fetcher "service" true "image" "external-fetcher" "env" (list
     (dict "name" "GYEOL_CONTACT" "value" .Values.contact)))

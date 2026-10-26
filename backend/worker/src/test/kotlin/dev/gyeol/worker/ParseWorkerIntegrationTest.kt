@@ -44,6 +44,10 @@ import kotlin.test.assertTrue
         "spring.flyway.locations=classpath:db/migration",
         "gyeol.worker.parse-queue=gyeol-test-parse",
         "gyeol.worker.upload-bucket=gyeol-test-uploads",
+        "gyeol.worker.role=parse",
+        "gyeol.worker.parse-dlq=gyeol-test-parse-dlq",
+        "gyeol.worker.identify.queue=gyeol-test-identify", // 계획은 큐에 넣기만 한다 (identify 리스너는 꺼짐)
+        "gyeol.worker.cleanup.enabled=false",
     ],
 )
 class ParseWorkerIntegrationTest {
@@ -87,6 +91,7 @@ class ParseWorkerIntegrationTest {
         @JvmStatic
         fun infra() {
             s3.createBucket { it.bucket(BUCKET) }
+            sqs.createQueue { it.queueName("gyeol-test-identify") }
             dlqUrl = sqs.createQueue { it.queueName(DLQ) }.queueUrl()
             val dlqArn = sqs.getQueueAttributes { it.queueUrl(dlqUrl).attributeNames(QueueAttributeName.QUEUE_ARN) }.attributes()[QueueAttributeName.QUEUE_ARN]
             queueUrl = sqs.createQueue {

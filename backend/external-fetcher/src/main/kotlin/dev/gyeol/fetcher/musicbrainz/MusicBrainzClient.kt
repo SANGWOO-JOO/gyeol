@@ -38,6 +38,45 @@ class MusicBrainzClient(private val props: FetcherProperties) {
         .defaultHeader("Accept", "application/json")
         .build()
 
+    private val slowHttp: RestClient = RestClient.builder()
+        .baseUrl(props.musicbrainz.baseUrl)
+        .requestFactory(
+            SimpleClientHttpRequestFactory().apply {
+                setConnectTimeout(props.musicbrainz.timeout)
+                setReadTimeout(props.musicbrainz.identifyTimeout)
+            },
+        )
+        .defaultHeader("User-Agent", props.userAgent)
+        .defaultHeader("Accept", "application/json")
+        .build()
+
+    /**
+     * 곡 식별용 원시 조회 (`/artist`, `/recording`, `/release` …). 즉시 검색과 같은 속도 제한을 함께 쓰되 오래 기다릴 수 있다.
+     * MusicBrainz가 바쁘다고(503) 하면 늦춰 가며 두 번 더 시도한다.
+     */
+    fun fetch(path: String, params: Map<String, Any>): JsonNode {
+        var last: Exception? = null
+        repeat(3) { attempt ->
+            gate.acquire(props.musicbrainz.identifyMaxWait)
+            try {
+                return slowHttp.get()
+                    .uri { b -> b.path(path).apply { params.forEach { (k, v) -> queryParam(k, v) } }.queryParam("fmt", "json").build() }
+                    .retrieve()
+                    .body(JsonNode::class.java) ?: throw UpstreamException("MusicBrainz 응답이 비어 있습니다")
+            } catch (e: RestClientResponseException) {
+                if (e.statusCode.value() != 503) throw UpstreamException("MusicBrainz가 ${e.statusCode.value()}을(를) 돌려주었습니다", e)
+                last = e
+            } catch (e: UpstreamException) {
+                throw e
+            } catch (e: Exception) {
+                last = e
+            }
+            Thread.sleep(2000L * (attempt + 1))
+        }
+        log.warn("MusicBrainz 식별 조회 실패 {}: {}", path, last?.message)
+        throw UpstreamException("MusicBrainz에 연결하지 못했습니다", last)
+    }
+
     fun search(query: String, limit: Int): SearchResult {
         val key = "${query.trim().lowercase()}|$limit"
         cache.get(key)?.let { return it.copy(cached = true) }
@@ -82,5 +121,5 @@ class MusicBrainzClient(private val props: FetcherProperties) {
     }
 
     /** Lucene 특수 문자를 이스케이프해 사용자가 입력한 글자가 검색 문법으로 해석되지 않게 한다 */
-    private fun escape(q: String): String = q.replace(Regex("""([+\-!(){}\[\]^"~*?:\\/]|&&|\|\|)"""), """\\$1""")
+    fun escape(q: String): String = q.replace(Regex("""([+\-!(){}\[\]^"~*?:\\/]|&&|\|\|)"""), """\\$1""")
 }

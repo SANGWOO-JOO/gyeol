@@ -11,9 +11,9 @@ scripts/test-all.sh
 
 | 모듈 | 개수 | 내용 |
 |---|---|---|
-| api | 6 | 업로드 주소 → S3 → 통계 → 삭제, 곡 저장, 400·404·409·413, 만료 세션 404, 통계 한국 시간 경계, 곡 검색·503 |
-| worker | 15 | parse 통합 5(저장·중복 메시지·형식 오류·S3 시험 메시지·2.5만 건), 업로드 파일 검증 단위 5, 만료 데이터 정리 통합 5 |
-| external-fetcher | 20 | 속도 제한 3, MusicBrainz 5, Last.fm 5, 다시 정렬 7 |
+| api | 6 | 업로드 주소 → S3 → 통계 → 삭제, 곡 저장, 400·404·409·413, 만료 세션 404, 통계 한국 시간 경계, 곡 검색·503, 식별 진행률 |
+| worker | 22 | parse 통합 5(저장·중복 메시지·형식 오류·S3 시험 메시지·2.5만 건), 업로드 파일 검증 단위 5, 만료 데이터 정리 통합 5, 곡 식별 통합 3(계획·전역 캐시·실패 큐), 규칙·정규화 키 단위 4 |
+| external-fetcher | 28 | 속도 제한 3, MusicBrainz 5, Last.fm 5, 다시 정렬 7, 곡 식별 규칙 8 |
 | web | 6 | Takeout 거르기 (한국어·영어, 삭제 영상, 일반 영상, 검색 기록 파일 거절, 형식 오류) |
 
 모듈 하나만: `./gradlew :backend:worker:test`, `cd web && npm test`
@@ -53,6 +53,13 @@ const dt = new DataTransfer(); dt.items.add(new File([t], '내활동.json', { ty
 input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true }))
 ```
 끝나면 `web/public/_e2e.json`을 반드시 지운다.
+
+## 곡 식별 정확도 (실제 MusicBrainz)
+
+```bash
+( set -a; . ./.env; set +a; java -jar backend/external-fetcher/build/libs/external-fetcher-0.1.0.jar ) &   # 또는 scripts/dev-up.sh
+node tools/identify-eval/eval.mjs     # 37곡 표본, 약 3분
+```
 
 ## 3. 만료 데이터 정리 확인
 

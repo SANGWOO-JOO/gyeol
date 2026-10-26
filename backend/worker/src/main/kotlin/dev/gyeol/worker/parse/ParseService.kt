@@ -7,6 +7,7 @@ import dev.gyeol.core.upload.Upload
 import dev.gyeol.core.upload.UploadRepository
 import dev.gyeol.core.upload.UploadStatus
 import dev.gyeol.worker.WorkerProperties
+import dev.gyeol.worker.identify.IdentifyPlanner
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionTemplate
@@ -31,6 +32,7 @@ class ParseService(
     private val json: JsonMapper,
     private val props: WorkerProperties,
     private val tx: TransactionTemplate,
+    private val planner: IdentifyPlanner,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -80,6 +82,13 @@ class ParseService(
 
         val ms = (System.nanoTime() - started) / 1_000_000
         log.info("처리 완료: 세션 {}, 저장 {}건, 건너뛴 항목 {}건, 파일 {}KB, {}ms", session.id, saved, parsed.skipped, bytes.size / 1024, ms)
+
+        // 곡 식별 계획 (L2-1). 실패해도 통계는 이미 볼 수 있으므로 업로드 처리는 성공으로 둔다
+        try {
+            planner.plan(session.id)
+        } catch (e: Exception) {
+            log.error("식별 계획 실패: 세션 {}", session.id, e)
+        }
         return ParseOutcome.DONE
     }
 

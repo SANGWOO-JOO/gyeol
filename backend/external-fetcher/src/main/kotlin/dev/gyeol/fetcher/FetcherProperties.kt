@@ -16,6 +16,9 @@ data class FetcherProperties(
         val minInterval: Duration = Duration.ofSeconds(1),
         val maxWait: Duration = Duration.ofMillis(2500),
         val timeout: Duration = Duration.ofSeconds(2),
+        /** 백그라운드 곡 식별: 응답이 0.8~12초로 느려 제한 시간과 차례 대기를 길게 */
+        val identifyTimeout: Duration = Duration.ofSeconds(20),
+        val identifyMaxWait: Duration = Duration.ofSeconds(60),
     )
 
     data class LastFm(

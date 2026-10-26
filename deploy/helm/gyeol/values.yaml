@@ -12,6 +12,9 @@ aws:
   region: ap-northeast-2
   uploadBucket: gyeol-uploads
   parseQueue: gyeol-parse
+  parseDlq: gyeol-parse-dlq
+  identifyQueue: gyeol-identify
+  identifyDlq: gyeol-identify-dlq
   # 비우면 AWS 기본 주소. LocalStack일 때만 채운다
   endpoint: ""
   # 브라우저가 올릴 S3 주소가 서버와 다를 때만 (k3d)
@@ -32,7 +35,10 @@ api:
 worker:
   replicas: 1
   port: 18082
+  # 처리할 큐 역할. EKS 측정 때는 parse·identify를 Deployment로 나눠 따로 늘릴 수 있다
+  role: parse,identify
   cleanupEnabled: true
+  identifyTopN: 300
 fetcher:
   replicas: 1
   port: 18081

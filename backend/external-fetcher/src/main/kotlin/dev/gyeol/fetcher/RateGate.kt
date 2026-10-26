@@ -20,12 +20,13 @@ class RateGate(
     private val lock = ReentrantLock()
     private var nextSlot = Long.MIN_VALUE
 
-    fun acquire() {
+    /** [limit]는 이번 호출만의 대기 상한 (백그라운드 식별은 즉시 검색보다 오래 기다려도 된다) */
+    fun acquire(limit: Duration = maxWait) {
         val wait = lock.withLock {
             val now = clock()
             val slot = if (nextSlot == Long.MIN_VALUE) now else maxOf(now, nextSlot)
             val wait = slot - now
-            if (wait > maxWait.toNanos()) throw TooBusyException("요청이 몰려 ${maxWait.toMillis()}ms 안에 차례가 오지 않습니다")
+            if (wait > limit.toNanos()) throw TooBusyException("요청이 몰려 ${limit.toMillis()}ms 안에 차례가 오지 않습니다")
             nextSlot = slot + minInterval.toNanos()
             wait
         }

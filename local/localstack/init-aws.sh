@@ -19,6 +19,16 @@ QUEUE_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
   --queue-url "$(awslocal sqs get-queue-url --queue-name "$QUEUE" --region "$REGION" --query QueueUrl --output text)" \
   --attribute-names QueueArn --query Attributes.QueueArn --output text)
 
+# 곡 식별 큐 (L2-1). 곡 하나에 수십 초가 걸릴 수 있어 표시 제한 시간을 15분으로 둔다.
+IDQ=gyeol-local-identify
+IDQ_DLQ=gyeol-local-identify-dlq
+awslocal sqs create-queue --queue-name "$IDQ_DLQ" --region "$REGION" >/dev/null
+IDQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
+  --queue-url "$(awslocal sqs get-queue-url --queue-name "$IDQ_DLQ" --region "$REGION" --query QueueUrl --output text)" \
+  --attribute-names QueueArn --query Attributes.QueueArn --output text)
+awslocal sqs create-queue --queue-name "$IDQ" --region "$REGION" \
+  --attributes "{\"VisibilityTimeout\":\"900\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$IDQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
+
 # 업로드 버킷. 브라우저가 서명 URL로 직접 올리므로 로컬 웹 주소(Vite 15173, k3d 18000)에 CORS를 열어 둔다.
 awslocal s3 mb "s3://$BUCKET" --region "$REGION" >/dev/null
 awslocal s3api put-bucket-cors --bucket "$BUCKET" --cors-configuration '{
@@ -39,4 +49,4 @@ awslocal s3api put-bucket-notification-configuration --bucket "$BUCKET" --notifi
   }]
 }"
 
-echo "gyeol-local: 버킷 $BUCKET, 큐 $QUEUE (+ $DLQ), S3 → SQS 알림 준비 완료"
+echo "gyeol-local: 버킷 $BUCKET, 큐 $QUEUE (+ $DLQ), $IDQ (+ $IDQ_DLQ), S3 → SQS 알림 준비 완료"
