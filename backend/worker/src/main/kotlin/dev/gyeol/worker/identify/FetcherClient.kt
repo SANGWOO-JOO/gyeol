@@ -1,6 +1,7 @@
 package dev.gyeol.worker.identify
 
 import dev.gyeol.core.identify.ArtistInfo
+import dev.gyeol.core.identify.CoverTarget
 import dev.gyeol.core.identify.TrackInfo
 import dev.gyeol.worker.WorkerProperties
 import org.springframework.http.client.SimpleClientHttpRequestFactory
@@ -22,6 +23,14 @@ class FetcherClient(props: WorkerProperties) {
             },
         )
         .build()
+
+    /** 원곡 음반의 앞표지 주소. 없으면 null (다른 음반 표지로 대신하지 않음) */
+    fun cover(t: CoverTarget): String? =
+        http.post().uri("/internal/coverart/front")
+            .body(mapOf("releaseMbid" to t.releaseMbid?.toString(), "releaseGroupMbid" to t.releaseGroupMbid?.toString(), "releaseTitle" to t.releaseTitle))
+            .retrieve()
+            .body(JsonNode::class.java)
+            ?.path("url")?.asString("")?.ifEmpty { null }
 
     /** 찾으면 곡 정보, 못 찾으면 null */
     fun identify(artist: String, title: String): TrackInfo? {

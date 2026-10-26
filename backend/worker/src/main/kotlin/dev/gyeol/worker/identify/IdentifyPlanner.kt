@@ -13,6 +13,7 @@ import tools.jackson.databind.json.JsonMapper
 import java.time.Instant
 
 data class IdentifyMessage(val sessionId: Long, val keys: List<String>)
+data class CoverMessage(val trackIds: List<Long>)
 
 /**
  * 청취 기록 저장이 끝난 세션에서 바로 식별할 곡을 정한다.
@@ -46,17 +47,23 @@ class IdentifyPlanner(
         var hits = 0
         val pending = repo.pendingKeys(sessionId)
         val queue = mutableListOf<String>()
+        val hitTracks = mutableSetOf<Long>()
         for (t in repo.targets(sessionId, pending)) {
             val alias = repo.findAlias(t.key)
             if (alias != null && alias.isFresh(retryBefore)) {
                 tx.executeWithoutResult {
-                    if (repo.finishTarget(sessionId, t.key, TargetStatus.DONE)) alias.trackId?.let { repo.linkListens(t, it) }
+                    if (repo.finishTarget(sessionId, t.key, TargetStatus.DONE)) alias.trackId?.let { repo.linkListens(t, it); repo.linkSeeds(t, it) }
                 }
+                alias.trackId?.let { hitTracks += it }
                 hits++
             } else {
                 queue += t.key
             }
         }
+        // 캐시로 찾은 곡도 표지를 아직 확인하지 않았으면 표지 큐로 (식별만 끝나고 표지 단계가 없던 곡)
+        val needCover = hitTracks.filter { repo.coverTarget(it)?.checkedAt == null }
+        needCover.chunked(50).forEach { ids -> sqs.send { it.queue(props.cover.queue).payload(json.writeValueAsString(CoverMessage(ids))) } }
+
         val batches = queue.chunked(props.identify.batch)
         batches.forEach { keys -> sqs.send { it.queue(props.identify.queue).payload(json.writeValueAsString(IdentifyMessage(sessionId, keys))) } }
         log.info("식별 계획: 세션 {}, 대상 {}곡 (캐시 적중 {}, 큐 {}곡 / 메시지 {}개)", sessionId, groups.size, hits, queue.size, batches.size)

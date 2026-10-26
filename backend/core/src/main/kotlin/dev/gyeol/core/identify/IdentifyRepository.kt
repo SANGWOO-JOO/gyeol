@@ -33,6 +33,12 @@ data class PlayGroup(val title: String, val channel: String?, val source: Source
 
 data class Target(val sessionId: Long, val key: String, val title: String, val channel: String?, val source: Source, val plays: Int, val status: TargetStatus)
 
+/** 고른 곡 카드에 붙일 원곡 음반 정보 */
+data class SeedCard(val releaseTitle: String?, val releaseYear: Int?, val coverUrl: String?)
+
+/** 표지를 찾을 곡의 원곡 음반 */
+data class CoverTarget(val trackId: Long, val releaseMbid: UUID?, val releaseGroupMbid: UUID?, val releaseTitle: String?, val checkedAt: Instant?)
+
 data class IdentifyProgress(val target: Int, val done: Int, val matched: Int, val notFound: Int, val failed: Int)
 
 @Repository
@@ -135,6 +141,36 @@ class IdentifyRepository(private val jdbc: JdbcClient) {
         jdbc.sql("UPDATE listen_event SET track_id = :t WHERE session_id = :sid AND title = :title AND channel IS NOT DISTINCT FROM :ch")
             .param("t", trackId).param("sid", target.sessionId).param("title", target.title).param("ch", target.channel)
             .update()
+    }
+
+    /** 고른 곡(A 입구) 연결: 식별 대상의 채널은 "가수 - Topic" 형태로 만든다 (SessionService.saveSeeds) */
+    fun linkSeeds(target: Target, trackId: Long) {
+        jdbc.sql("UPDATE seed_track SET track_id = :t WHERE session_id = :sid AND title = :title AND artist || ' - Topic' = :ch")
+            .param("t", trackId).param("sid", target.sessionId).param("title", target.title).param("ch", target.channel.orEmpty())
+            .update()
+    }
+
+    /** 고른 곡의 식별 결과 (순서 → 원곡 음반·표지). 아직 못 찾은 곡은 빠진다 */
+    fun seedCards(sessionId: Long): Map<Int, SeedCard> =
+        jdbc.sql(
+            """
+            SELECT s.position, t.release_title, t.release_date, t.cover_url
+            FROM seed_track s JOIN track t ON t.id = s.track_id WHERE s.session_id = :sid
+            """.trimIndent(),
+        ).param("sid", sessionId)
+            .query { rs, _ -> rs.getInt(1) to SeedCard(rs.getString(2), rs.getString(3)?.take(4)?.toIntOrNull(), rs.getString(4)) }
+            .list().toMap()
+
+    // ── 앨범 표지 (L2-2) ──
+
+    fun coverTarget(trackId: Long): CoverTarget? =
+        jdbc.sql("SELECT id, release_mbid, release_group_mbid, release_title, cover_checked_at FROM track WHERE id = :id").param("id", trackId)
+            .query { rs, _ -> CoverTarget(rs.getLong(1), rs.getObject(2, UUID::class.java), rs.getObject(3, UUID::class.java), rs.getString(4), rs.getTimestamp(5)?.toInstant()) }
+            .optional().orElse(null)
+
+    /** 표지 주소 저장. 없으면 null로 두고 확인 시각만 남긴다 */
+    fun saveCover(trackId: Long, url: String?) {
+        jdbc.sql("UPDATE track SET cover_url = :u, cover_checked_at = now() WHERE id = :id").param("u", url).param("id", trackId).update()
     }
 
     fun progress(sessionId: Long): IdentifyProgress =

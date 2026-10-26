@@ -15,8 +15,8 @@ spring:
 
 gyeol:
   worker:
-    # 이 워커가 처리할 큐 역할. 쉼표로 여러 개 (parse, identify)
-    role: ${WORKER_ROLE:parse,identify}
+    # 이 워커가 처리할 큐 역할. 쉼표로 여러 개 (parse, identify, cover)
+    role: ${WORKER_ROLE:parse,identify,cover}
     parse-queue: ${PARSE_QUEUE:gyeol-local-parse}
     parse-dlq: ${PARSE_DLQ:gyeol-local-parse-dlq}
     upload-bucket: ${UPLOAD_BUCKET:gyeol-local-uploads}
@@ -28,6 +28,9 @@ gyeol:
       dlq: ${IDENTIFY_DLQ:gyeol-local-identify-dlq}
       top-n: ${IDENTIFY_TOP_N:300}
       fetcher-url: ${FETCHER_URL:http://localhost:18081}
+    # L2-2 앨범 표지
+    cover:
+      queue: ${COVER_QUEUE:gyeol-local-cover}
     # 보관 기간이 지난 데이터 정리 (매일 04:00 한국 시간)
     cleanup:
       enabled: ${CLEANUP_ENABLED:true}

@@ -21,6 +21,7 @@ gyeol:
   session-ttl: 30d
   web-origin: ${WEB_ORIGIN:http://localhost:15173}
   fetcher-url: ${FETCHER_URL:http://localhost:18081}
+  identify-queue: ${IDENTIFY_QUEUE:gyeol-local-identify}
   upload:
     bucket: ${UPLOAD_BUCKET:gyeol-local-uploads}
     max-bytes: 20971520 # 20MB

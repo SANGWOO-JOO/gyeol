@@ -2,6 +2,10 @@ package dev.gyeol.api.session
 
 import dev.gyeol.api.config.GyeolProperties
 import dev.gyeol.api.web.ApiException
+import dev.gyeol.core.identify.AliasKey
+import dev.gyeol.core.identify.IdentifyRepository
+import dev.gyeol.core.identify.PlayGroup
+import dev.gyeol.core.listen.Source
 import dev.gyeol.core.session.Entry
 import dev.gyeol.core.session.SeedTrack
 import dev.gyeol.core.session.Session
@@ -9,16 +13,20 @@ import dev.gyeol.core.session.SessionRepository
 import dev.gyeol.core.session.SessionStatus
 import dev.gyeol.core.session.Tokens
 import dev.gyeol.core.upload.UploadRepository
+import io.awspring.cloud.sqs.operations.SqsTemplate
+import java.time.Instant
+import java.util.UUID
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.Delete
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
-import java.time.Instant
-import java.util.UUID
+import tools.jackson.databind.json.JsonMapper
 
 data class CreatedSession(val token: String, val session: Session)
 
@@ -41,6 +49,9 @@ class SessionService(
     private val s3: S3Client,
     private val presigner: S3Presigner,
     private val props: GyeolProperties,
+    private val identify: IdentifyRepository,
+    private val sqs: SqsTemplate,
+    private val json: JsonMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -87,7 +98,28 @@ class SessionService(
             throw ApiException.invalidState("이미 곡을 저장한 세션입니다")
         }
         sessions.insertSeeds(session.id, seeds)
+        requestIdentify(session.id, seeds)
         return seeds.size
+    }
+
+    /**
+     * 고른 곡도 식별한다 (L2-2). 채널을 "가수 - Topic"으로 만들어 업로드 기록과 같은 전역 캐시 키를 쓴다.
+     * 큐 메시지는 커밋 뒤에 보낸다 (먼저 보내면 worker가 아직 없는 대상을 읽고 건너뛸 수 있음).
+     * 큐에 못 넣어도 곡 저장은 성공으로 둔다 (곡 이름은 이미 보이고, 표지·식별만 빠짐).
+     */
+    private fun requestIdentify(sessionId: Long, seeds: List<SeedTrack>) {
+        val targets = seeds.map { s ->
+            val channel = "${s.artist} - Topic"
+            AliasKey.of(s.title, channel) to PlayGroup(s.title, channel, Source.YOUTUBE, 1)
+        }.distinctBy { it.first }
+        identify.insertTargets(sessionId, targets)
+        val body = json.writeValueAsString(mapOf("sessionId" to sessionId, "keys" to targets.map { it.first }))
+        TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
+            override fun afterCommit() {
+                runCatching { sqs.send { it.queue(props.identifyQueue).payload(body) } }
+                    .onFailure { log.error("고른 곡 식별 요청 실패 (세션 {})", sessionId, it) }
+            }
+        })
     }
 
     @Transactional

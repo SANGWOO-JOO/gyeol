@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { api, ApiError, type SessionView, type Stats } from '../api'
 import { BarChart } from '../components/BarChart'
 import { Alert, Layout } from '../components/Layout'
-import { Tile } from '../components/Tile'
+import { Cover, Tile } from '../components/Tile'
 import ui from '../styles/ui.module.css'
 
 const POLL_MS = 2000
@@ -21,15 +21,22 @@ export function Result() {
 
   // 처리 중이면 2초마다 상태 확인, 끝나면 통계를 한 번 가져온다
   useEffect(() => {
-    let stop = false, statsLoaded = false, timer: ReturnType<typeof setTimeout>
+    // 곡 확인이 진행되면 순위가 바뀌므로 통계를 다시 받는다 (실제 규모 통계는 약 1초라 10초에 한 번, 끝나면 한 번 더)
+    let stop = false, lastDone = -1, lastFetch = 0, coverWaits = 0, timer: ReturnType<typeof setTimeout>
     async function tick() {
       try {
         const s = await api.session(token)
         if (stop) return
         setSession(s)
-        if (s.status === 'DONE' && s.entry === 'TAKEOUT' && !statsLoaded) { statsLoaded = true; setStats(await api.stats(token)) }
+        const done = s.identify ? s.identify.done + s.identify.failed : 0
+        const due = !identifying(s) || Date.now() - lastFetch > 10_000
+        if (s.status === 'DONE' && s.entry === 'TAKEOUT' && done !== lastDone && due) {
+          lastDone = done; lastFetch = Date.now()
+          setStats(await api.stats(token))
+        }
         // 처리 중이거나, 통계는 나왔지만 곡 확인(식별)이 아직 진행 중이면 계속 확인
-        if ((s.status !== 'DONE' && s.status !== 'FAILED') || identifying(s)) timer = setTimeout(tick, POLL_MS)
+        const waitCover = coverPending(s) && coverWaits++ < 30 // 최대 1분 (표지가 없는 곡도 있음)
+        if ((s.status !== 'DONE' && s.status !== 'FAILED') || identifying(s) || waitCover) timer = setTimeout(tick, POLL_MS)
       } catch (e) {
         if (!stop) setError(e instanceof ApiError && e.status === 404 ? '결과를 찾을 수 없어요. 링크가 틀렸거나 기간이 지나 삭제되었어요.' : '결과를 불러오지 못했어요.')
       }
@@ -68,7 +75,7 @@ export function Result() {
         )}
 
         {session?.status === 'DONE' && session.entry === 'SEEDS' && <Seeds session={session} />}
-        {session?.status === 'DONE' && session.identify && <IdentifyProgress p={session.identify} />}
+        {session?.status === 'DONE' && session.entry === 'TAKEOUT' && session.identify && <IdentifyProgress p={session.identify} />}
         {session?.status === 'DONE' && stats && <Report stats={stats} />}
 
         {session && (
@@ -86,6 +93,8 @@ export function Result() {
 }
 
 const identifying = (s: SessionView) => !!s.identify && s.identify.done + s.identify.failed < s.identify.target
+// 표지는 식별 뒤 따로 붙는다: 찾은 고른 곡에 표지 확인이 남아 있으면 조금 더 기다린다
+const coverPending = (s: SessionView) => !!s.seeds?.some(x => x.releaseTitle && !x.coverUrl)
 
 /** 재생 상위 곡을 MusicBrainz로 확인하는 진행 상황 (L2-1). 곡 단위 결과 화면은 L2-2 */
 function IdentifyProgress({ p }: { p: NonNullable<SessionView['identify']> }) {
@@ -115,8 +124,11 @@ function Seeds({ session }: { session: SessionView }) {
       <ul className={`${ui.list} ${ui.card}`} style={{ padding: '4px 16px' }}>
         {session.seeds?.map((s, i) => (
           <li key={i} className={ui.listItem}>
-            <Tile text={s.artist} />
-            <div className={ui.grow}><div>{s.title}</div><div className={ui.small}>{s.artist}</div></div>
+            <Cover url={s.coverUrl} text={s.artist} />
+            <div className={ui.grow}>
+              <div>{s.title}</div>
+              <div className={ui.small}>{s.artist}{s.releaseTitle ? ` · ${s.releaseTitle}${s.releaseYear ? ` (${s.releaseYear})` : ''}` : ''}</div>
+            </div>
           </li>
         ))}
       </ul>
@@ -132,6 +144,8 @@ function Report({ stats }: { stats: Stats }) {
   const months = stats.byMonth.map(m => m.month)
   const monthTicks = months.map((m, i) => (m.endsWith('-01') || i === 0 ? i : -1)).filter(i => i >= 0)
   const appShare = totals.plays ? Math.round((stats.bySource.musicApp / totals.plays) * 100) : 0
+  const identifiedShare = stats.identified.totalPlays ? Math.round((stats.identified.plays / stats.identified.totalPlays) * 100) : 0
+  const hasCover = stats.topSongs.some(t => t.coverUrl)
 
   return (
     <div className={ui.stack} style={{ gap: 28 }}>
@@ -142,15 +156,20 @@ function Report({ stats }: { stats: Stats }) {
       </section>
 
       <section className={ui.stack} style={{ gap: 8 }}>
-        <h2 style={{ fontSize: 18 }}>많이 들은 곡</h2>
+        <div className={ui.row} style={{ justifyContent: 'space-between' }}>
+          <h2 style={{ fontSize: 18 }}>많이 들은 곡</h2>
+          {identifiedShare > 0 && <span className={ui.small}>곡 확인: 재생의 {identifiedShare}%</span>}
+        </div>
         <ol className={`${ui.list} ${ui.card}`} style={{ padding: '4px 16px' }}>
-          {stats.topTitles.slice(0, 10).map((t, i) => (
+          {stats.topSongs.slice(0, 10).map((t, i) => (
             <li key={i} className={ui.listItem}>
               <span className={ui.rank}>{i + 1}</span>
-              <Tile text={t.channel ?? t.title} />
+              <Cover url={t.coverUrl} text={t.artist ?? t.title} />
               <div className={ui.grow}>
                 <div className={ui.ellipsis}>{t.title}</div>
-                <div className={`${ui.small} ${ui.ellipsis}`}>{t.channel}</div>
+                <div className={`${ui.small} ${ui.ellipsis}`}>
+                  {t.artist}{t.release?.title ? ` · ${t.release.title}${t.release.year ? ` (${t.release.year})` : ''}` : ''}
+                </div>
               </div>
               <span className={ui.count}>{num(t.plays)}회</span>
             </li>
@@ -159,14 +178,14 @@ function Report({ stats }: { stats: Stats }) {
       </section>
 
       <section className={ui.stack} style={{ gap: 8 }}>
-        <h2 style={{ fontSize: 18 }}>많이 들은 가수·채널</h2>
+        <h2 style={{ fontSize: 18 }}>많이 들은 가수</h2>
         <ol className={`${ui.list} ${ui.card}`} style={{ padding: '4px 16px' }}>
-          {stats.topChannels.slice(0, 10).map((c, i) => (
+          {stats.topArtists.slice(0, 10).map((a, i) => (
             <li key={i} className={ui.listItem}>
               <span className={ui.rank}>{i + 1}</span>
-              <Tile text={c.channel} size={32} />
-              <div className={`${ui.grow} ${ui.ellipsis}`}>{c.channel}</div>
-              <span className={ui.count}>{num(c.plays)}회</span>
+              <Tile text={a.name} size={32} />
+              <div className={`${ui.grow} ${ui.ellipsis}`}>{a.name}</div>
+              <span className={ui.count}>{num(a.plays)}회</span>
             </li>
           ))}
         </ol>
@@ -188,6 +207,12 @@ function Report({ stats }: { stats: Stats }) {
         <Alert kind="info">
           뮤직 앱과 "- Topic" 채널 기록 {num(coverage.music ?? 0)}건으로 분석했어요. 일반 유튜브의 뮤직비디오 등 {num(coverage.unclassified)}건은 아직 판정하지 못해 빠져 있어요.
         </Alert>
+      )}
+      {hasCover && (
+        <span className={ui.small}>
+          곡 정보: <a href="https://musicbrainz.org" target="_blank" rel="noreferrer">MusicBrainz</a> ·
+          앨범 표지: <a href="https://coverartarchive.org" target="_blank" rel="noreferrer">Cover Art Archive</a>
+        </span>
       )}
     </div>
   )

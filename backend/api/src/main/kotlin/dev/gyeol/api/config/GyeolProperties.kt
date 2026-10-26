@@ -8,6 +8,8 @@ data class GyeolProperties(
     val sessionTtl: Duration = Duration.ofDays(30),
     val webOrigin: String = "http://localhost:15173",
     val fetcherUrl: String = "http://localhost:18081",
+    /** 고른 곡 식별을 맡기는 큐 (worker의 identify 큐와 같음) */
+    val identifyQueue: String = "gyeol-local-identify",
     val upload: Upload = Upload(),
 ) {
     data class Upload(

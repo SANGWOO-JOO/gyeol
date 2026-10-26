@@ -7,6 +7,7 @@ aws:
   parseDlq: gyeol-local-parse-dlq
   identifyQueue: gyeol-local-identify
   identifyDlq: gyeol-local-identify-dlq
+  coverQueue: gyeol-local-cover
   endpoint: http://host.k3d.internal:4566
   publicEndpoint: http://localhost:4566
   localstack: true

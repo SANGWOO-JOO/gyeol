@@ -10,7 +10,7 @@ export interface SessionView {
   status: Status
   counts: { total: number | null; music: number | null; unclassified: number | null; saved: number | null }
   period: { start: string | null; end: string | null } | null
-  seeds: { mbid: string | null; title: string; artist: string }[] | null
+  seeds: { mbid: string | null; title: string; artist: string; releaseTitle?: string | null; releaseYear?: number | null; coverUrl?: string | null }[] | null
   /** L2-1 곡 식별 진행률 (재생 상위 곡). 대상이 없으면 null */
   identify: { target: number; done: number; matched: number; notFound: number; failed: number } | null
   error: string | null
@@ -28,6 +28,10 @@ export interface Stats {
   byMonth: { month: string; plays: number }[]
   bySource: { musicApp: number; youtube: number }
   coverage: { music: number | null; unclassified: number | null }
+  /** L2-2 곡 단위 순위. trackId가 없으면 아직 못 찾은 곡 ("제목 + 채널" 그대로) */
+  topSongs: { trackId: number | null; title: string; artist: string | null; release: { title: string | null; year: number | null } | null; coverUrl: string | null; plays: number }[]
+  topArtists: { artistId: number | null; name: string; plays: number }[]
+  identified: { plays: number; totalPlays: number }
 }
 
 export class ApiError extends Error {

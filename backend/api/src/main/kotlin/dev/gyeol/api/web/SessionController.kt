@@ -37,7 +37,8 @@ data class SeedsResponse(val status: String, val count: Int)
 
 data class Counts(val total: Int?, val music: Int?, val unclassified: Int?, val saved: Int?)
 data class PeriodDates(val start: LocalDate?, val end: LocalDate?)
-data class SeedView(val mbid: String?, val title: String, val artist: String)
+/** 고른 곡. 식별되면 원곡 음반과 표지가 붙는다 (L2-2) */
+data class SeedView(val mbid: String?, val title: String, val artist: String, val releaseTitle: String? = null, val releaseYear: Int? = null, val coverUrl: String? = null)
 
 /** L2-1 곡 식별 진행률 (재생 상위 곡). 대상이 없으면 응답에서 빠진다 */
 data class IdentifyView(val target: Int, val done: Int, val matched: Int, val notFound: Int, val failed: Int)
@@ -106,7 +107,10 @@ class SessionController(
             status = s.status.name,
             counts = Counts(s.totalCount, s.musicCount, s.unclassifiedCount, s.savedCount),
             period = period,
-            seeds = service.seedsOf(s)?.map { SeedView(it.mbid?.toString(), it.title, it.artist) },
+            seeds = service.seedsOf(s)?.let { list ->
+                val cards = identify.seedCards(s.id)
+                list.map { val c = cards[it.position]; SeedView(it.mbid?.toString(), it.title, it.artist, c?.releaseTitle, c?.releaseYear, c?.coverUrl) }
+            },
             identify = identify.progress(s.id).takeIf { it.target > 0 }?.let { IdentifyView(it.target, it.done, it.matched, it.notFound, it.failed) },
             error = s.errorMessage,
             createdAt = s.createdAt,

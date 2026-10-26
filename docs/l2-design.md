@@ -100,3 +100,28 @@ identify-worker
 
 - 병목은 MusicBrainz 초당 1회 제한(fetcher 한 곳). worker를 늘려도 빨라지지 않는다 → EKS 회차 ③ "외부 한도 병목" 실험에서 그대로 보여 줄 수 있다.
 - 테스트: fetcher 식별 단위 8, 규칙·키 단위 4, worker 식별 통합 3(계획·캐시·실패 큐), api 진행률.
+
+## 8. L2-2 구현 결과 (2026-10-26)
+
+**구성**: V5(`track.cover_checked_at`, `seed_track.track_id`), fetcher `POST /internal/coverart/front`(그 음반 → 같은 이름의 다른 판 → 없음), worker `CoverListener`(cover 큐, 곡마다 한 번, 없음은 30일 뒤 다시), 통계 `topSongs`·`topArtists`·`identified`, 고른 곡 식별(api가 커밋 뒤 identify 큐로), 결과 화면 표지·음반·연도·출처 표시. worker 역할 `parse,identify,cover`.
+
+**표시 이름**: 사용자가 YouTube에서 본 이름 우선(가장 많이 나온 제목, Topic 채널의 가수 이름). MusicBrainz 공식 표기("IU", "밤편지 (Through the Night)")는 쓰지 않는다. 식별된 곡은 곡으로 합치고(같은 곡의 Topic·공식 채널 기록), 못 찾은 곡은 "제목 + 채널"로 순위에 섞는다.
+
+**표지** (실제 곡 37개, 확인 방식별)
+
+| 방식 | 찾음 | 곡당 평균 |
+|---|---|---|
+| Cover Art Archive 첫 응답(307)만 확인 | 36/37 → 이름 비교 수정 후 37/37 | 0.7초 |
+| **이미지 주소까지 따라가 실제 이미지인지 확인** | **37/37** (6곡은 같은 이름의 다른 판) | 1.9초 |
+
+- 바꾼 이유: 봄날(You Never Walk Alone)은 Cover Art Archive가 "있다"고 넘겨 준 이미지 주소가 500을 줬다. 화면은 글자 타일로 대체됐지만, 끝까지 확인하니 다른 판의 표지를 찾았다.
+- 같은 이름 비교는 문장부호를 무시한다("Every letter I sent you."). 다른 음반 표지로 대신하지 않는 규칙은 유지(단위 테스트).
+
+**k3d 측정**
+
+| 항목 | 값 |
+|---|---|
+| 실제 곡 37개 업로드(식별은 캐시) → 상위 20곡 표지 모두 표시 | 75.7초 (첫 응답만 볼 때 19.8초) |
+| 새 곡 3개 고르기 → 식별 + 표지 | 14.3초 |
+
+**운영 중 발견한 것**: MusicBrainz가 "바쁘다"(503)를 주면 fetcher가 세 번 다시 시도한 뒤 실패하고, 메시지는 표시 제한 시간(15분) 뒤에야 다시 처리됐다. 외부 503일 때는 메시지를 **30초 뒤** 다시 받도록 바꿨다(`gyeol.worker.busy-retry`). 15분은 실제로 오래 걸리는 정상 처리에만 쓴다.

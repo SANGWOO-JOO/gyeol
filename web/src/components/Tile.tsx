@@ -1,4 +1,6 @@
-// 표지 대신 쓰는 글자 타일. 실제 앨범 표지는 L2 곡 식별 뒤에 넣는다 (docs/l1-design.md 4-3)
+import { useState } from 'react'
+
+// 표지가 없을 때 쓰는 글자 타일 (가수·곡 이름 첫 글자)
 const HUES = [160, 200, 250, 290, 20, 40]
 
 function hueOf(s: string) {
@@ -16,5 +18,15 @@ export function Tile({ text, size = 40 }: { text: string; size?: number }) {
     }}>
       {[...text.trim()][0] ?? '♪'}
     </span>
+  )
+}
+
+/** 원곡 음반 표지. 없거나 불러오지 못하면 글자 타일 (이미지는 Cover Art Archive에서 브라우저가 직접 불러옴) */
+export function Cover({ url, text, size = 40 }: { url?: string | null; text: string; size?: number }) {
+  const [failed, setFailed] = useState(false)
+  if (!url || failed) return <Tile text={text} size={size} />
+  return (
+    <img src={url} alt="" width={size} height={size} loading="lazy" onError={() => setFailed(true)}
+      style={{ width: size, height: size, flex: 'none', borderRadius: 8, objectFit: 'cover', background: 'var(--surface-2)' }} />
   )
 }

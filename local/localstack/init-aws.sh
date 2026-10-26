@@ -29,6 +29,15 @@ IDQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
 awslocal sqs create-queue --queue-name "$IDQ" --region "$REGION" \
   --attributes "{\"VisibilityTimeout\":\"900\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$IDQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
 
+# 앨범 표지 큐 (L2-2). 실패해도 화면은 글자 타일로 남으므로 실패 큐는 기록용
+CQ=gyeol-local-cover
+awslocal sqs create-queue --queue-name "$CQ-dlq" --region "$REGION" >/dev/null
+CQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
+  --queue-url "$(awslocal sqs get-queue-url --queue-name "$CQ-dlq" --region "$REGION" --query QueueUrl --output text)" \
+  --attribute-names QueueArn --query Attributes.QueueArn --output text)
+awslocal sqs create-queue --queue-name "$CQ" --region "$REGION" \
+  --attributes "{\"VisibilityTimeout\":\"300\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$CQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
+
 # 업로드 버킷. 브라우저가 서명 URL로 직접 올리므로 로컬 웹 주소(Vite 15173, k3d 18000)에 CORS를 열어 둔다.
 awslocal s3 mb "s3://$BUCKET" --region "$REGION" >/dev/null
 awslocal s3api put-bucket-cors --bucket "$BUCKET" --cors-configuration '{
@@ -49,4 +58,4 @@ awslocal s3api put-bucket-notification-configuration --bucket "$BUCKET" --notifi
   }]
 }"
 
-echo "gyeol-local: 버킷 $BUCKET, 큐 $QUEUE (+ $DLQ), $IDQ (+ $IDQ_DLQ), S3 → SQS 알림 준비 완료"
+echo "gyeol-local: 버킷 $BUCKET, 큐 $QUEUE (+ $DLQ), $IDQ (+ $IDQ_DLQ), $CQ (+ $CQ-dlq), S3 → SQS 알림 준비 완료"

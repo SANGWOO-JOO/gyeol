@@ -13,7 +13,16 @@ data class WorkerProperties(
     val uploadBucket: String = "gyeol-local-uploads",
     val listenTtl: Duration = Duration.ofDays(7),
     val identify: Identify = Identify(),
+    val cover: Cover = Cover(),
+    /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
+    val busyRetry: Duration = Duration.ofSeconds(30),
 ) {
+    data class Cover(
+        val queue: String = "gyeol-local-cover",
+        /** 표지가 없던 곡을 다시 확인하기까지 */
+        val retry: Duration = Duration.ofDays(30),
+    )
+
     data class Identify(
         val queue: String = "gyeol-local-identify",
         val dlq: String = "gyeol-local-identify-dlq",

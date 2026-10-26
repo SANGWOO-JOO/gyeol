@@ -45,13 +45,15 @@ import kotlin.test.assertNull
     properties = [
         "spring.flyway.enabled=true",
         "spring.flyway.locations=classpath:db/migration",
-        "gyeol.worker.role=identify",
+        "gyeol.worker.role=identify,cover",
+        "gyeol.worker.cover.queue=gyeol-test-cover",
         "gyeol.worker.cleanup.enabled=false",
         "gyeol.worker.parse-dlq=gyeol-test-parse-dlq",
         "gyeol.worker.identify.queue=gyeol-test-identify",
         "gyeol.worker.identify.dlq=gyeol-test-identify-dlq",
         "gyeol.worker.identify.top-n=3",
         "gyeol.worker.identify.batch=2",
+        "gyeol.worker.busy-retry=1s",
     ],
 )
 class IdentifyIntegrationTest {
@@ -68,6 +70,7 @@ class IdentifyIntegrationTest {
 
         /** 가짜 fetcher: "가수A - 곡1"만 찾고 나머지는 못 찾음. down이면 503 */
         val fetcherCalls = CopyOnWriteArrayList<String>()
+        val coverCalls = CopyOnWriteArrayList<String>()
         @Volatile var down = false
         private val fetcher = HttpServer.create(InetSocketAddress(0), 0).apply {
             createContext("/internal/musicbrainz/identify") { ex ->
@@ -85,6 +88,13 @@ class IdentifyIntegrationTest {
                 val bytes = res.toByteArray()
                 ex.responseHeaders.add("Content-Type", "application/json")
                 ex.sendResponseHeaders(code, bytes.size.toLong())
+                ex.responseBody.use { it.write(bytes) }
+            }
+            createContext("/internal/coverart/front") { ex ->
+                coverCalls += ex.requestBody.readAllBytes().decodeToString()
+                val bytes = """{"url":"https://coverartarchive.org/release/33333333-3333-3333-3333-333333333333/front-250","from":"RELEASE","ms":5}""".toByteArray()
+                ex.responseHeaders.add("Content-Type", "application/json")
+                ex.sendResponseHeaders(200, bytes.size.toLong())
                 ex.responseBody.use { it.write(bytes) }
             }
             start()
@@ -111,6 +121,7 @@ class IdentifyIntegrationTest {
         @JvmStatic
         fun queues() {
             parseDlqUrl = sqs.createQueue { it.queueName("gyeol-test-parse-dlq") }.queueUrl()
+            sqs.createQueue { it.queueName("gyeol-test-cover") }
             val dlqUrl = sqs.createQueue { it.queueName("gyeol-test-identify-dlq") }.queueUrl()
             val dlqArn = sqs.getQueueAttributes { it.queueUrl(dlqUrl).attributeNames(QueueAttributeName.QUEUE_ARN) }.attributes()[QueueAttributeName.QUEUE_ARN]
             sqs.createQueue {
@@ -135,6 +146,7 @@ class IdentifyIntegrationTest {
     fun reset() {
         down = false
         fetcherCalls.clear()
+        coverCalls.clear()
         jdbc.sql("DELETE FROM title_alias").update() // 전역 캐시를 비워 테스트 순서와 무관하게
     }
 
@@ -180,6 +192,14 @@ class IdentifyIntegrationTest {
         assertEquals(2, fetcherCalls.size)
         assertEquals("Singer A", jdbc.sql("SELECT a.name FROM track t JOIN artist a ON a.id = t.artist_id").query(String::class.java).single())
 
+        // 찾은 곡은 표지 큐를 거쳐 원곡 음반 표지 주소가 붙는다 (L2-2)
+        val deadline = System.nanoTime() + Duration.ofSeconds(20).toNanos()
+        fun cover() = jdbc.sql("SELECT cover_url FROM track").query { rs, _ -> rs.getString(1) }.single()
+        while (cover() == null && System.nanoTime() < deadline) Thread.sleep(200)
+        assertEquals("https://coverartarchive.org/release/33333333-3333-3333-3333-333333333333/front-250", cover())
+        assertEquals(1, coverCalls.size)
+        assert(coverCalls.single().contains("첫 앨범"))
+
         // 두 번째 세션: 세 곡 모두 캐시 적중 (못 찾음도 30일 동안은 다시 묻지 않음)
         fetcherCalls.clear()
         val second = session()
@@ -189,6 +209,7 @@ class IdentifyIntegrationTest {
         assertEquals(IdentifyProgress(3, 3, 1, 2, 0), repo.progress(second))
         assertEquals(5L, linked(second, "곡1"))
         assertEquals(0, fetcherCalls.size)
+        assertEquals(1, coverCalls.size) // 표지도 곡마다 한 번만 확인
 
         // 계획을 다시 돌려도 같은 결과
         assertEquals(0, planner.plan(second).messages)
