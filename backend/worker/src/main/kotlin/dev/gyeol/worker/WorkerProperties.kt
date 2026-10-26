@@ -14,9 +14,21 @@ data class WorkerProperties(
     val listenTtl: Duration = Duration.ofDays(7),
     val identify: Identify = Identify(),
     val cover: Cover = Cover(),
+    val llm: Llm = Llm(),
     /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
     val busyRetry: Duration = Duration.ofSeconds(30),
 ) {
+    data class Llm(
+        /** fake: 흔한 제목 형태만 규칙으로 흉내 (테스트·부하 실험), bedrock: 실제 호출 */
+        val mode: String = "fake",
+        /** Haiku 4.5는 추론 프로필로만 부를 수 있다 */
+        val model: String = "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+        val region: String = "ap-northeast-2",
+        val maxTokens: Int = 4000,
+        /** 측정용 내부 엔드포인트 (POST /internal/llm/clean). 로컬에서만 켠다 */
+        val debugEndpoint: Boolean = false,
+    )
+
     data class Cover(
         val queue: String = "gyeol-local-cover",
         /** 표지가 없던 곡을 다시 확인하기까지 */

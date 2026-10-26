@@ -30,6 +30,7 @@ class TrackSearchRepository(private val jdbc: JdbcClient) {
             """
             SELECT t.title, a.name, a.sort_name, a.aliases,
                    coalesce(array_agg(DISTINCT ta.query_title) FILTER (WHERE ta.query_title IS NOT NULL), '{}') AS yt_titles,
+                   coalesce(array_agg(DISTINCT ta.query_title_alt) FILTER (WHERE ta.query_title_alt IS NOT NULL), '{}') AS alt_titles,
                    coalesce(array_agg(DISTINCT ta.query_artist) FILTER (WHERE ta.query_artist IS NOT NULL), '{}') AS yt_artists
             FROM track t JOIN artist a ON a.id = t.artist_id
             LEFT JOIN title_alias ta ON ta.track_id = t.id AND ta.status = 'MATCHED'
@@ -38,7 +39,7 @@ class TrackSearchRepository(private val jdbc: JdbcClient) {
         ).param("id", trackId).query { rs, _ ->
             @Suppress("UNCHECKED_CAST")
             fun arr(col: String) = (rs.getArray(col)?.array as Array<String?>?)?.filterNotNull().orEmpty()
-            (listOf(rs.getString("title")) + arr("yt_titles")) to
+            (listOf(rs.getString("title")) + arr("yt_titles") + arr("alt_titles")) to
                 (listOfNotNull(rs.getString("name"), rs.getString("sort_name")) + arr("aliases") + arr("yt_artists"))
         }.optional().orElse(null) ?: return
 

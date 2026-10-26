@@ -216,13 +216,31 @@ class IdentifyIntegrationTest {
     }
 
     @Test
+    fun `일반 영상 제목은 LLM(가짜)으로 정리해 같은 곡에 연결하고, 곡이 아닌 영상은 이유를 남긴다`() {
+        val sid = sessions.create(Tokens.hash(Tokens.newToken()), Entry.TAKEOUT, Instant.now().plus(30, ChronoUnit.DAYS))
+        val uploadId = UUID.randomUUID()
+        uploads.create(uploadId, sid, "uploads/$uploadId.json")
+        val t0 = Instant.parse("2026-10-01T00:00:00Z")
+        fun ev(title: String, channel: String, n: Int) = (0 until n).map { ListenEvent("v", title, channel, t0.plusSeconds(it * 60L), Source.YOUTUBE) }
+        listens.insertBatch(sid, uploadId, ev("[MV] 가수A _ 곡1", "1theK", 4) + ev("잠잘 때 듣는 노래 모음 playlist", "누군가", 3), Instant.now().plus(7, ChronoUnit.DAYS))
+
+        planner.plan(sid)
+        assertEquals(IdentifyProgress(2, 2, 1, 1, 0), waitDone(sid))
+        assertEquals(4L, linked(sid, "[MV] 가수A _ 곡1"))
+        assertEquals(1, fetcherCalls.size) // 플레이리스트는 MusicBrainz를 부르지 않는다
+        val reasons = jdbc.sql("SELECT method || ':' || coalesce(reason, '-') FROM title_alias ORDER BY alias_key").query { rs, _ -> rs.getString(1) }.list()
+        assertEquals(setOf("LLM:-", "LLM:NOT_SONG"), reasons.toSet())
+    }
+
+    @Test
     fun `fetcher가 계속 실패하면 재시도 후 실패 큐로 가고, 곡은 FAILED로 표시된다`() {
         down = true
         val sid = session()
         planner.plan(sid)
         val p = waitDone(sid, Duration.ofSeconds(60))
-        assertEquals(1, p.done) // 일반 영상은 fetcher 없이 끝남
-        assertEquals(2, p.failed)
+        // 묶음 단위로 다시 시도하므로, fetcher가 필요 없는 일반 영상(LLM 몫)도 같은 묶음이면 함께 실패로 끝난다
+        assertEquals(0, p.done)
+        assertEquals(3, p.failed)
         assert(fetcherCalls.size >= 2) { "실패 큐로 가기 전에 다시 시도해야 합니다" }
     }
 

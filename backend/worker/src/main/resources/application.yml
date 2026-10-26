@@ -28,6 +28,11 @@ gyeol:
       dlq: ${IDENTIFY_DLQ:gyeol-local-identify-dlq}
       top-n: ${IDENTIFY_TOP_N:300}
       fetcher-url: ${FETCHER_URL:http://localhost:18081}
+    # L2-3a LLM 제목 정리 (fake | bedrock)
+    llm:
+      mode: ${LLM_MODE:fake}
+      model: ${LLM_MODEL:global.anthropic.claude-haiku-4-5-20251001-v1:0}
+      debug-endpoint: ${LLM_DEBUG_ENDPOINT:false}
     # L2-2 앨범 표지
     cover:
       queue: ${COVER_QUEUE:gyeol-local-cover}

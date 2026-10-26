@@ -52,17 +52,20 @@ class IdentifyRepository(private val jdbc: JdbcClient, private val search: Track
                 Alias(rs.getString(1), AliasStatus.valueOf(rs.getString(2)), rs.getObject(3) as Long?, rs.getTimestamp(4).toInstant())
             }.optional().orElse(null)
 
-    fun saveAlias(key: String, trackId: Long?, method: AliasMethod, query: Query?) {
+    /** [titleAlt]: LLM이 준 다른 언어 표기, [reason]: 못 찾은 이유 (L2-3a) */
+    fun saveAlias(key: String, trackId: Long?, method: AliasMethod, query: Query?, titleAlt: String? = null, reason: String? = null) {
         jdbc.sql(
             """
-            INSERT INTO title_alias (alias_key, track_id, status, method, query_artist, query_title, checked_at)
-            VALUES (:k, :t, :s, :m, :qa, :qt, now())
+            INSERT INTO title_alias (alias_key, track_id, status, method, query_artist, query_title, query_title_alt, reason, checked_at)
+            VALUES (:k, :t, :s, :m, :qa, :qt, :alt, :r, now())
             ON CONFLICT (alias_key) DO UPDATE SET track_id = EXCLUDED.track_id, status = EXCLUDED.status, method = EXCLUDED.method,
-                query_artist = EXCLUDED.query_artist, query_title = EXCLUDED.query_title, checked_at = now()
+                query_artist = EXCLUDED.query_artist, query_title = EXCLUDED.query_title,
+                query_title_alt = EXCLUDED.query_title_alt, reason = EXCLUDED.reason, checked_at = now()
             """.trimIndent(),
         )
             .param("k", key).param("t", trackId).param("s", (if (trackId != null) AliasStatus.MATCHED else AliasStatus.NOT_FOUND).name)
             .param("m", method.name).param("qa", query?.artist).param("qt", query?.title)
+            .param("alt", titleAlt).param("r", reason?.take(32))
             .update()
         // 사용자가 본 YouTube 표기(제목·가수)도 검색 색인에 (L2-4)
         if (trackId != null) search.reindex(trackId)

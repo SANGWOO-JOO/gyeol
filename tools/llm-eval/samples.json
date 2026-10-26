@@ -1,0 +1,51 @@
+{
+  "_설명": "LLM 제목 정리 정답 세트 (2026-10-26). 유튜브에서 흔한 제목 형태를 직접 만든 예시이며 실제 영상에서 가져온 것이 아니다. artist·title은 허용 표기 목록(공백·문장부호 무시, 하나라도 일치), version은 정답 분류. sure=false는 정답이 애매해 채점에서 뺀다.",
+  "cases": [
+    {"title": "[MV] IU(아이유) _ Through the Night(밤편지)", "channel": "1theK (원더케이)", "artist": ["아이유", "IU"], "song": ["밤편지", "Through the Night"], "version": "ORIGINAL"},
+    {"title": "IU 'Love wins all' MV", "channel": "이지금 [IU Official]", "artist": ["IU", "아이유"], "song": ["Love wins all"], "version": "ORIGINAL"},
+    {"title": "BTS (방탄소년단) '봄날 (Spring Day)' Official MV", "channel": "HYBE LABELS", "artist": ["BTS", "방탄소년단"], "song": ["봄날", "Spring Day"], "version": "ORIGINAL"},
+    {"title": "NewJeans (뉴진스) 'Ditto' Official MV (side A)", "channel": "HYBE LABELS", "artist": ["NewJeans", "뉴진스"], "song": ["Ditto"], "version": "ORIGINAL"},
+    {"title": "BIGBANG - 거짓말(LIES) M/V", "channel": "BIGBANG", "artist": ["BIGBANG", "빅뱅"], "song": ["거짓말", "LIES"], "version": "ORIGINAL"},
+    {"title": "TAEYEON 태연 '사계 (Four Seasons)' MV", "channel": "SMTOWN", "artist": ["TAEYEON", "태연"], "song": ["사계", "Four Seasons"], "version": "ORIGINAL"},
+    {"title": "윤하 (YOUNHA) - 사건의 지평선 (Event Horizon) [Lyric Video]", "channel": "윤하 YOUNHA OFFICIAL", "artist": ["윤하", "YOUNHA"], "song": ["사건의 지평선", "Event Horizon"], "version": "ORIGINAL"},
+    {"title": "다비치 (DAVICHI) - 8282 [가사/Lyrics]", "channel": "가사 맛집", "artist": ["다비치", "DAVICHI"], "song": ["8282"], "version": "ORIGINAL"},
+    {"title": "잔나비 JANNABI - 주저하는 연인들을 위해 (For lovers who hesitate) Official Audio", "channel": "JANNABI", "artist": ["잔나비", "JANNABI"], "song": ["주저하는 연인들을 위해", "For lovers who hesitate"], "version": "ORIGINAL"},
+    {"title": "혁오 (HYUKOH) - 위잉위잉 (Wi ing Wi ing) Official Music Video", "channel": "HYUKOH", "artist": ["혁오", "HYUKOH"], "song": ["위잉위잉", "Wi ing Wi ing"], "version": "ORIGINAL"},
+    {"title": "YOASOBI「夜に駆ける」Official Music Video", "channel": "Ayase / YOASOBI", "artist": ["YOASOBI"], "song": ["夜に駆ける"], "version": "ORIGINAL"},
+    {"title": "あいみょん - マリーゴールド【OFFICIAL MUSIC VIDEO】", "channel": "あいみょん", "artist": ["あいみょん"], "song": ["マリーゴールド"], "version": "ORIGINAL"},
+    {"title": "ZARD 負けないで (Official Music Video)", "channel": "ZARD Official YouTube Channel", "artist": ["ZARD"], "song": ["負けないで"], "version": "ORIGINAL"},
+    {"title": "Coldplay - Yellow (Official Video)", "channel": "Coldplay", "artist": ["Coldplay"], "song": ["Yellow"], "version": "ORIGINAL"},
+    {"title": "The Weeknd - Blinding Lights (Official Audio)", "channel": "TheWeekndVEVO", "artist": ["The Weeknd"], "song": ["Blinding Lights"], "version": "ORIGINAL"},
+    {"title": "Adele - Hello", "channel": "AdeleVEVO", "artist": ["Adele"], "song": ["Hello"], "version": "ORIGINAL"},
+    {"title": "밤편지", "channel": "이지금 [IU Official]", "artist": ["IU", "아이유", "이지금"], "song": ["밤편지"], "version": "ORIGINAL"},
+    {"title": "[STATION] 태연 TAEYEON 'Rain' MV", "channel": "SMTOWN", "artist": ["태연", "TAEYEON"], "song": ["Rain"], "version": "ORIGINAL"},
+    {"title": "BLACKPINK - '뚜두뚜두 (DDU-DU DDU-DU)' M/V", "channel": "BLACKPINK", "artist": ["BLACKPINK", "블랙핑크"], "song": ["뚜두뚜두", "DDU-DU DDU-DU"], "version": "ORIGINAL"},
+    {"title": "TWICE \"TT\" M/V", "channel": "JYP Entertainment", "artist": ["TWICE", "트와이스"], "song": ["TT"], "version": "ORIGINAL"},
+
+    {"title": "아이유 - 밤편지 [불후의 명곡2] | KBS 방송", "channel": "KBS Kpop", "artist": ["아이유", "IU"], "song": ["밤편지"], "version": "LIVE"},
+    {"title": "[4K] 241020 뉴진스 하니 Ditto 직캠 NewJeans HANNI Fancam", "channel": "덕질하는 사람", "artist": ["뉴진스", "NewJeans"], "song": ["Ditto"], "version": "LIVE"},
+    {"title": "윤하 YOUNHA - 사건의 지평선 LIVE | 2023 콘서트", "channel": "윤하 YOUNHA OFFICIAL", "artist": ["윤하", "YOUNHA"], "song": ["사건의 지평선"], "version": "LIVE"},
+    {"title": "Coldplay - Yellow (Live in Buenos Aires)", "channel": "Coldplay", "artist": ["Coldplay"], "song": ["Yellow"], "version": "LIVE"},
+    {"title": "[KILLING VOICE] 다비치(DAVICHI)의 킬링보이스를 라이브로! - 8282, 안녕이라고 말하지마, 거북이", "channel": "딩고 뮤직 / dingo music", "artist": ["다비치"], "song": [], "version": "MEDLEY"},
+
+    {"title": "밤편지 - 아이유 (Cover by 누군가)", "channel": "누군가 커버채널", "artist": ["누군가"], "song": ["밤편지"], "version": "COVER"},
+    {"title": "[COVER] 사건의 지평선 (윤하) 피아노 커버 | 연주 OO", "channel": "피아노 OO", "artist": [], "song": ["사건의 지평선"], "version": "COVER", "sure": false},
+    {"title": "Ditto - NewJeans (cover by 동네가수)", "channel": "동네가수", "artist": ["동네가수"], "song": ["Ditto"], "version": "COVER"},
+
+    {"title": "아이유 (IU) - 밤편지 MR (Inst.)", "channel": "MR 저장소", "artist": ["아이유", "IU"], "song": ["밤편지"], "version": "INSTRUMENTAL"},
+    {"title": "[노래방] 거짓말 - 빅뱅 / TJ노래방", "channel": "TJ KARAOKE", "artist": ["빅뱅"], "song": ["거짓말"], "version": "INSTRUMENTAL", "sure": false},
+
+    {"title": "Through the Night (Remix) - IU", "channel": "리믹스 하는 사람", "artist": ["IU"], "song": ["Through the Night"], "version": "REMIX"},
+    {"title": "NewJeans - Ditto (250 Remix)", "channel": "HYBE LABELS", "artist": ["NewJeans"], "song": ["Ditto"], "version": "REMIX"},
+
+    {"title": "새벽에 듣기 좋은 감성 노래 모음 playlist 🌙", "channel": "플리 맛집", "artist": [], "song": [], "version": "NOT_SONG"},
+    {"title": "[Playlist] 비 오는 날 카페에서 듣는 재즈 1시간", "channel": "Cafe Music BGM", "artist": [], "song": [], "version": "NOT_SONG"},
+    {"title": "아이유 밤편지 처음 들어본 외국인 반응 | Reaction", "channel": "리액션 채널", "artist": [], "song": [], "version": "NOT_SONG"},
+    {"title": "[뉴스] 뉴진스, 빌보드 차트 진입", "channel": "OO뉴스", "artist": [], "song": [], "version": "NOT_SONG"},
+    {"title": "아이유 콘서트 브이로그 | 티켓팅 성공 후기", "channel": "일상 기록", "artist": [], "song": [], "version": "NOT_SONG"},
+
+    {"title": "【歌ってみた】夜に駆ける / YOASOBI【covered by 歌い手】", "channel": "歌い手", "artist": ["歌い手"], "song": ["夜に駆ける"], "version": "COVER"},
+    {"title": "Supernova", "channel": "aespa", "artist": ["aespa", "에스파"], "song": ["Supernova"], "version": "ORIGINAL"},
+    {"title": "검정치마 - EVERYTHING (가사)", "channel": "노래 가사 채널", "artist": ["검정치마"], "song": ["EVERYTHING", "Everything"], "version": "ORIGINAL"}
+  ]
+}

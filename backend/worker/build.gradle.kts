@@ -9,6 +9,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc") // 상태 확인(health) 엔드포인트용
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs")
     implementation("io.awspring.cloud:spring-cloud-aws-starter-s3")
+    implementation("software.amazon.awssdk:bedrockruntime") // L2-3a LLM 제목 정리 (Converse API)
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
