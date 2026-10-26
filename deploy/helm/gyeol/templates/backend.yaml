@@ -1,0 +1,62 @@
+{{- $root := . }}
+{{- $services := dict
+  "api" (dict "cfg" .Values.api "service" true "env" (list
+    (dict "name" "FETCHER_URL" "value" (printf "http://gyeol-fetcher:%v" .Values.fetcher.port))
+    (dict "name" "GYEOL_UPLOAD_PUBLICENDPOINT" "value" .Values.aws.publicEndpoint)))
+  "worker" (dict "cfg" .Values.worker "service" false "env" (list
+    (dict "name" "WORKER_ROLE" "value" "parse")
+    (dict "name" "PARSE_QUEUE" "value" .Values.aws.parseQueue)
+    (dict "name" "CLEANUP_ENABLED" "value" (toString .Values.worker.cleanupEnabled))))
+  "fetcher" (dict "cfg" .Values.fetcher "service" true "image" "external-fetcher" "env" (list
+    (dict "name" "GYEOL_CONTACT" "value" .Values.contact)))
+}}
+{{- range $name, $s := $services }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gyeol-{{ $name }}
+  labels: {{- include "gyeol.labels" $root | nindent 4 }}
+    app.kubernetes.io/name: gyeol-{{ $name }}
+spec:
+  replicas: {{ $s.cfg.replicas }}
+  selector:
+    matchLabels: { app.kubernetes.io/name: gyeol-{{ $name }} }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: gyeol-{{ $name }}, app.kubernetes.io/part-of: gyeol }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 1000 }
+      containers:
+        - name: {{ $name }}
+          image: "{{ $root.Values.image.registry }}/{{ $s.image | default $name }}:{{ $root.Values.image.tag }}"
+          imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+          ports: [{ name: http, containerPort: {{ $s.cfg.port }} }]
+          env:
+            - name: PORT
+              value: {{ $s.cfg.port | quote }}
+            {{- include "gyeol.javaEnv" $root | nindent 12 }}
+            {{- range $s.env }}
+            {{- if .value }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if eq $name "fetcher" }}
+            - name: LASTFM_API_KEY
+              valueFrom: { secretKeyRef: { name: {{ $root.Values.secretName }}, key: LASTFM_API_KEY, optional: true } }
+            {{- end }}
+          resources: {{- toYaml $root.Values.javaResources | nindent 12 }}
+          {{- include "gyeol.springProbes" $root | nindent 10 }}
+{{- if $s.service }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gyeol-{{ $name }}
+  labels: {{- include "gyeol.labels" $root | nindent 4 }}
+spec:
+  selector: { app.kubernetes.io/name: gyeol-{{ $name }} }
+  ports: [{ name: http, port: {{ $s.cfg.port }}, targetPort: http }]
+{{- end }}
+{{- end }}

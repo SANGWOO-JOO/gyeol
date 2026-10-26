@@ -1,0 +1,24 @@
+{{- if .Values.ingress.enabled }}
+# 입구 하나: /api → api, 나머지 → web (운영의 CloudFront /api/* 와 같은 모양)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gyeol
+  labels: {{- include "gyeol.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  rules:
+    - {{- with .Values.ingress.host }}
+      host: {{ . }}
+      {{- end }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: gyeol-api, port: { number: {{ .Values.api.port }} } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: gyeol-web, port: { number: 80 } } }
+{{- end }}

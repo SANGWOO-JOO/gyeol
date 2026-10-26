@@ -1,0 +1,5 @@
+# 이미지에는 jar와 web/dist만 들어간다
+**
+!backend/*/build/libs/*-0.1.0.jar
+!web/dist/**
+!deploy/docker/web-nginx.conf

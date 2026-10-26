@@ -316,6 +316,9 @@ L1의 목표는 **로컬에서 두 입구가 처음부터 끝까지 동작하는
 | S3 테스트 이벤트 | 워커는 `s3:TestEvent` 메시지를 무시 | 알림을 설정하면 S3가 한 번 보내는 메시지. LocalStack과 실제 AWS 모두 보냄 |
 | 이름 | 로컬 자원은 `gyeol-local-*` (버킷 `gyeol-local-uploads`, 큐 `gyeol-local-parse`, 실패 큐 `gyeol-local-parse-dlq`) | 실제 AWS 자원과 섞이지 않게 |
 | 만료 데이터 정리 (⑨, 2026-10-26) | worker가 매일 04:00 한국 시간에 S3 원본(업로드 후 7일 또는 세션 만료) → 청취 기록(7일) → 세션(30일) 순서로 지움. 지운 원본은 `upload.file_deleted_at`(V3)에 표시, 원본을 못 지운 세션은 남김 | 화면 안내 "30일 보관"과 설계 "원본 7일"을 실제로 지키기 위해. 순서를 지켜야 S3 파일이 고아로 남지 않음. 여러 번·여러 대가 돌아도 결과가 같음. EKS에서는 `CLEANUP_ENABLED=false` 후 CronJob으로 옮길 수 있음 |
+| k3d 배포 (⑩, 2026-10-26) | Helm 차트 하나(`deploy/helm/gyeol`, `values-local.yaml`), 이미지는 맥북에서 만든 jar를 JRE 이미지에 넣음(`deploy/docker`), `k3d image import`로 레지스트리 없이 넣음, 입구는 기본 Traefik 하나(`/api` → api, 나머지 → web), DB·LocalStack은 클러스터 밖 | 운영(RDS·S3·SQS가 밖)과 같은 구조. 같은 차트를 EKS에서 values만 바꿔 쓰기 위해. 컨테이너 안 Gradle 빌드는 매번 의존성을 받아 느려서 뺌 |
+| 브라우저용 S3 주소 분리 | `gyeol.upload.public-endpoint`(환경 변수 `GYEOL_UPLOAD_PUBLICENDPOINT`)가 있으면 서명 URL을 그 주소로 만든다 | 파드는 LocalStack을 `host.k3d.internal`로 부르지만 브라우저는 `localhost`로 올려야 함. 운영에서는 설정하지 않음 |
+| 새 클러스터 대기 | 스크립트가 CoreDNS에 `host.k3d.internal`이 들어가고 Traefik이 준비될 때까지 기다린 뒤 배포 결과를 보여 줌 | 처음엔 이 주소가 늦게 등록돼 api·worker가 DB·SQS 연결 실패로 한 번씩 재시작했음 |
 
 ## 10. 정할 것
 

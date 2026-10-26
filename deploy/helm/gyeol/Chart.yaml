@@ -1,0 +1,6 @@
+apiVersion: v2
+name: gyeol
+description: 내 음악 결 — api · worker · external-fetcher · web
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

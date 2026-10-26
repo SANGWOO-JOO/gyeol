@@ -1,0 +1,48 @@
+# 기본값. 환경별 값은 values-local.yaml(k3d), 나중에 values-eks.yaml(EKS)로 덮어쓴다.
+image:
+  registry: gyeol          # k3d: 로컬 이미지 이름, EKS: ECR 주소
+  tag: dev
+  pullPolicy: IfNotPresent
+
+# 클러스터 밖 의존성 (운영에서는 RDS, S3·SQS)
+db:
+  url: jdbc:postgresql://db.example:5432/gyeol
+  user: gyeol
+aws:
+  region: ap-northeast-2
+  uploadBucket: gyeol-uploads
+  parseQueue: gyeol-parse
+  # 비우면 AWS 기본 주소. LocalStack일 때만 채운다
+  endpoint: ""
+  # 브라우저가 올릴 S3 주소가 서버와 다를 때만 (k3d)
+  publicEndpoint: ""
+
+# 비밀 값은 차트 밖에서 만든다: kubectl create secret generic gyeol-secrets (DB_PASSWORD, LASTFM_API_KEY)
+secretName: gyeol-secrets
+contact: https://github.com/SANGWOO-JOO
+
+# 공통 Java 서비스 자원. 힙은 JAVA_TOOL_OPTIONS의 MaxRAMPercentage=70으로 limits에 맞춰진다
+javaResources:
+  requests: { cpu: 100m, memory: 384Mi }
+  limits: { memory: 768Mi }
+
+api:
+  replicas: 1
+  port: 18080
+worker:
+  replicas: 1
+  port: 18082
+  cleanupEnabled: true
+fetcher:
+  replicas: 1
+  port: 18081
+web:
+  replicas: 1
+  resources:
+    requests: { cpu: 10m, memory: 16Mi }
+    limits: { memory: 64Mi }
+
+ingress:
+  enabled: true
+  className: ""   # k3d: 기본 Traefik
+  host: ""        # 비우면 모든 호스트

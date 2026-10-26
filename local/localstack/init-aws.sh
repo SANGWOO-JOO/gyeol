@@ -19,11 +19,11 @@ QUEUE_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
   --queue-url "$(awslocal sqs get-queue-url --queue-name "$QUEUE" --region "$REGION" --query QueueUrl --output text)" \
   --attribute-names QueueArn --query Attributes.QueueArn --output text)
 
-# 업로드 버킷. 브라우저가 서명 URL로 직접 올리므로 로컬 웹 주소에 CORS를 열어 둔다.
+# 업로드 버킷. 브라우저가 서명 URL로 직접 올리므로 로컬 웹 주소(Vite 15173, k3d 18000)에 CORS를 열어 둔다.
 awslocal s3 mb "s3://$BUCKET" --region "$REGION" >/dev/null
 awslocal s3api put-bucket-cors --bucket "$BUCKET" --cors-configuration '{
   "CORSRules": [{
-    "AllowedOrigins": ["http://localhost:15173"],
+    "AllowedOrigins": ["http://localhost:15173", "http://localhost:18000"],
     "AllowedMethods": ["PUT"],
     "AllowedHeaders": ["*"],
     "MaxAgeSeconds": 3000

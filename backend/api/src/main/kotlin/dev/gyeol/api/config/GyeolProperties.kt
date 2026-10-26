@@ -14,5 +14,7 @@ data class GyeolProperties(
         val bucket: String = "gyeol-local-uploads",
         val maxBytes: Long = 20L * 1024 * 1024,
         val presignTtl: Duration = Duration.ofMinutes(10),
+        /** 브라우저가 올릴 S3 주소. 서버가 쓰는 주소와 다를 때만 (k3d: 서버는 host.k3d.internal, 브라우저는 localhost) */
+        val publicEndpoint: String? = null,
     )
 }

@@ -57,3 +57,24 @@ input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true 
 ## 3. 만료 데이터 정리 확인
 
 worker가 매일 04:00(한국 시간)에 돈다(`CLEANUP_ENABLED`, `CLEANUP_CRON`). 로컬에서 바로 보려면 `CLEANUP_CRON='0 * * * * *'`(매분)으로 worker를 띄우고 `.run/worker.log`에서 "정리 완료"를 확인한다.
+
+## 4. k3d (로컬 쿠버네티스)
+
+```bash
+scripts/k3d-up.sh        # 클러스터 생성(없으면) → 빌드 → 이미지 → helm 배포. 접속 http://localhost:18000
+scripts/k3d-down.sh      # 클러스터 삭제 (DB·LocalStack은 compose라 남음)
+kubectl -n gyeol get pods
+```
+
+- DB·LocalStack은 클러스터 밖 compose를 쓴다. `scripts/dev-up.sh`의 Java 서버와 함께 띄우면 메모리가 빠듯하니 `KEEP_DOCKER=1 scripts/dev-down.sh`로 Java·웹만 끄고 쓴다.
+- 위 2절 점검표를 `http://localhost:18000`에서 그대로 한다.
+- 파드 복구: `kubectl -n gyeol delete pod -l app.kubernetes.io/name=gyeol-api` 후 다시 응답할 때까지 시간을 잰다.
+
+**2026-10-26 측정 (맥북, Docker CPU 8·메모리 7.7GB)**
+
+| 항목 | 값 |
+|---|---|
+| 클러스터 새로 만들고 배포 완료까지 (빌드 생략) | 91초 (클러스터 생성 약 70초) |
+| 이미지 4개 빌드 (jar 준비된 상태) | 약 22초 |
+| B 흐름: 올리기 클릭 → 결과 화면 (음악 25,362건) | 7.1초 |
+| api 파드 1개 삭제 → 다시 응답 (replica 1) | 17초 끊김 |

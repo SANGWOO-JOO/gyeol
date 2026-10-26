@@ -61,7 +61,7 @@ gyeol/
 - 9/27~10/4 일정은 착수하지 못했고, 예전 계정(382243539616)은 무료 플랜 종료 후 접근 불가. 새 계정 700419978873으로 재시작.
 - 설계 v4 반영(`docs/design-v3.md`). 코드와 인프라는 아직 없음.
 - 완료: 로컬 AWS 자격 증명(IAM 사용자 `sangwoo-cli`, `default` 프로필), 예산 알림, 비용 이상 탐지, IAM 결제 정보 접근, Cost Explorer.
-- L1 진행 중 (설계 `docs/l1-design.md`, 2026-10-24 승인). 끝난 단계: ① 저장소 뼈대(Gradle 멀티 모듈) ② 로컬 환경(`local/compose.yaml`: PostgreSQL+pgvector, LocalStack S3·SQS, S3→SQS 알림 확인) ③ 첫 마이그레이션(`V1__init.sql`) ④ 가상 Takeout 생성기(`tools/fake-takeout`, 실제 파일 통계와 2% 안으로 일치, 테스트용 작은 파일은 `tools/fixtures/`) ⑤ API(세션·곡 저장·업로드 주소·상태·통계·삭제) ⑥ external-fetcher(Last.fm 검색 + 다시 정렬, MusicBrainz는 L2 곡 식별용, 속도 제한·캐시, 실제 Last.fm API 33개 표본에서 원곡 1위 17 → 28(85%), 응답 중앙값 약 300ms) + 검색 API, 고른 곡 mbid 선택 값(V2). Last.fm 키는 `.env`의 `LASTFM_API_KEY`. ⑦ parse 워커(SQS → S3 읽기 → 검증 → 한 트랜잭션 저장, 영구 오류는 FAILED·일시 오류는 재시도, 통합 테스트 5개, 로컬 전체 흐름 확인: 음악 2만 5천 건 업로드부터 DONE까지 4.5초) ⑧ 웹 화면(`web/`: React 19 + TypeScript + Vite, react-router, 직접 그린 SVG 막대, CSS 모듈 + 색 토큰·다크 모드. 화면 `/`·`/pick`·`/upload`·`/r/:token`. Takeout 거르기는 Web Worker, 실제 규모 가상 파일 9.6만 건을 0.8초에 걸러 음악 25,362건만 전송. Vitest 6개. 브라우저에서 두 입구·결과·삭제·휴대폰 너비 확인). 앨범 표지는 L2에서 MusicBrainz 원곡 음반으로(`docs/l1-design.md` 4-3). ⑨ 테스트 정리(`scripts/test-all.sh` 한 번에 백엔드 41개 + 웹 6개, 업로드 파일 검증 단위·만료 세션·한국 시간 경계 테스트 추가, 만료 데이터 정리 작업(worker 매일 04:00, V3 `upload.file_deleted_at`), 점검표 `docs/testing.md`). 다음: ⑩ k3d
+- L1 진행 중 (설계 `docs/l1-design.md`, 2026-10-24 승인). 끝난 단계: ① 저장소 뼈대(Gradle 멀티 모듈) ② 로컬 환경(`local/compose.yaml`: PostgreSQL+pgvector, LocalStack S3·SQS, S3→SQS 알림 확인) ③ 첫 마이그레이션(`V1__init.sql`) ④ 가상 Takeout 생성기(`tools/fake-takeout`, 실제 파일 통계와 2% 안으로 일치, 테스트용 작은 파일은 `tools/fixtures/`) ⑤ API(세션·곡 저장·업로드 주소·상태·통계·삭제) ⑥ external-fetcher(Last.fm 검색 + 다시 정렬, MusicBrainz는 L2 곡 식별용, 속도 제한·캐시, 실제 Last.fm API 33개 표본에서 원곡 1위 17 → 28(85%), 응답 중앙값 약 300ms) + 검색 API, 고른 곡 mbid 선택 값(V2). Last.fm 키는 `.env`의 `LASTFM_API_KEY`. ⑦ parse 워커(SQS → S3 읽기 → 검증 → 한 트랜잭션 저장, 영구 오류는 FAILED·일시 오류는 재시도, 통합 테스트 5개, 로컬 전체 흐름 확인: 음악 2만 5천 건 업로드부터 DONE까지 4.5초) ⑧ 웹 화면(`web/`: React 19 + TypeScript + Vite, react-router, 직접 그린 SVG 막대, CSS 모듈 + 색 토큰·다크 모드. 화면 `/`·`/pick`·`/upload`·`/r/:token`. Takeout 거르기는 Web Worker, 실제 규모 가상 파일 9.6만 건을 0.8초에 걸러 음악 25,362건만 전송. Vitest 6개. 브라우저에서 두 입구·결과·삭제·휴대폰 너비 확인). 앨범 표지는 L2에서 MusicBrainz 원곡 음반으로(`docs/l1-design.md` 4-3). ⑨ 테스트 정리(`scripts/test-all.sh` 한 번에 백엔드 41개 + 웹 6개, 업로드 파일 검증 단위·만료 세션·한국 시간 경계 테스트 추가, 만료 데이터 정리 작업(worker 매일 04:00, V3 `upload.file_deleted_at`), 점검표 `docs/testing.md`). ⑩ k3d(`scripts/k3d-up.sh`, Helm 차트 `deploy/helm/gyeol`, 접속 18000. 같은 흐름 확인: 업로드 → 결과 7.1초, 삭제 시 S3까지 삭제, api 파드 삭제 후 17초 만에 복구). **L1 완료.** 다음: L2 설계
 
 로컬에서 fetcher 실행: `( set -a; . ./.env; set +a; java -jar backend/external-fetcher/build/libs/external-fetcher-0.1.0.jar )` (`.env`는 커밋 제외, 값을 출력하지 말 것) → ⑥ external-fetcher → ⑦ parse 워커 → ⑧ 웹 → ⑨ 테스트 → ⑩ k3d(설치 필요).
 
@@ -75,12 +75,13 @@ docker compose -f local/compose.yaml up -d      # DB + LocalStack
 SPRING_PROFILES_ACTIVE=local java -jar backend/api/build/libs/api-0.1.0.jar   # 18080, Flyway 실행, LocalStack 사용
 SPRING_PROFILES_ACTIVE=local java -jar backend/worker/build/libs/worker-0.1.0.jar   # 18082, parse 큐 처리
 scripts/test-all.sh                              # 테스트 전체 (docs/testing.md)
+scripts/k3d-up.sh                                # k3d에 배포 (http://localhost:18000), 끄기 scripts/k3d-down.sh
 ./gradlew :backend:api:test                      # 통합 테스트 (Docker로 PostgreSQL·LocalStack을 따로 띄움)
 cd web && npm install && npm run dev             # 웹 15173, /api는 18080으로 전달
 cd web && npm test                               # Takeout 거르기 단위 테스트
 ```
 
-- 포트: PostgreSQL 15432, LocalStack 4566, api 18080, external-fetcher 18081, worker 18082, 웹 15173 (다른 프로젝트와 겹치지 않게)
+- 포트: PostgreSQL 15432, LocalStack 4566, api 18080, external-fetcher 18081, worker 18082, 웹 15173, k3d 입구 18000 (다른 프로젝트와 겹치지 않게)
 - 환경 변수 예시는 `.env.example`
 - Google Takeout: 2026-10-24 18:44 요청 완료(YouTube 및 YouTube Music → 시청 기록만, JSON, .zip, 1회). 완료 메일 대기, 링크는 1주일 유효. 받은 파일은 저장소 밖에 보관. 이 과정을 사용자용 안내로 `docs/user-guide/takeout.md`에 기록(4·5단계는 파일 도착·서비스 완성 후 보완, 한국어 설정일 때 파일 이름 확인 필요).
 - 사용자 사전 준비 남음: 루트 MFA·전화번호 `+82 10…` 형식, Bedrock 모델 호출 확인, Last.fm·YouTube API 키, GitHub 저장소, (선택) 도메인.

@@ -1,0 +1,9 @@
+# k3d 로컬: DB·LocalStack은 맥북의 compose(local/compose.yaml)에 있고, 파드는 host.k3d.internal로 부른다
+db:
+  url: jdbc:postgresql://host.k3d.internal:15432/gyeol
+aws:
+  uploadBucket: gyeol-local-uploads
+  parseQueue: gyeol-local-parse
+  endpoint: http://host.k3d.internal:4566
+  publicEndpoint: http://localhost:4566
+  localstack: true
