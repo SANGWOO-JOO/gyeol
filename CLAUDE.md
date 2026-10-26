@@ -67,6 +67,8 @@ gyeol/
 
 ## 로컬 실행
 
+한 번에: `scripts/dev-up.sh`(켜기) · `scripts/dev-status.sh`(상태) · `scripts/dev-down.sh`(끄기). 로그는 `.run/`. 개별 실행은 아래.
+
 ```bash
 docker compose -f local/compose.yaml up -d      # DB + LocalStack
 ./gradlew build                                  # JDK 21 필요 (JAVA_HOME)

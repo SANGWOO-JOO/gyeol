@@ -1,0 +1,41 @@
+#!/bin/bash
+# 로컬 개발 환경 전체 시작: Docker(DB·LocalStack) → 빌드 → api·worker·fetcher → 웹
+# 로그와 PID는 .run/ (git 제외). 끄기: scripts/dev-down.sh, 상태: scripts/dev-status.sh
+set -euo pipefail
+cd "$(dirname "$0")/.."
+RUN=.run; mkdir -p "$RUN"
+export JAVA_HOME="${JAVA_HOME:-/Users/sangwoo/Library/Java/JavaVirtualMachines/corretto-21.0.4/Contents/Home}"
+JAVA="$JAVA_HOME/bin/java"
+
+# 1) Docker Desktop이 꺼져 있으면 켜고 기다린다
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker Desktop 시작 중…"; open -a Docker
+  for _ in $(seq 1 60); do docker info >/dev/null 2>&1 && break; sleep 2; done
+fi
+docker compose -f local/compose.yaml up -d
+
+# 2) 빌드 (테스트는 건너뜀, SKIP_BUILD=1이면 생략)
+[ "${SKIP_BUILD:-0}" = 1 ] || ./gradlew -q build -x test
+
+# 3) 백엔드 세 개. 이미 떠 있으면 건너뜀
+start() { # 이름 포트 명령…
+  local name=$1 port=$2; shift 2
+  if lsof -iTCP:"$port" -sTCP:LISTEN -nP >/dev/null 2>&1; then echo "$name($port) 이미 실행 중"; return; fi
+  nohup "$@" > "$RUN/$name.log" 2>&1 & echo $! > "$RUN/$name.pid"
+  echo "$name($port) 시작, 로그 $RUN/$name.log"
+}
+SPRING_PROFILES_ACTIVE=local start api 18080 "$JAVA" -jar backend/api/build/libs/api-0.1.0.jar
+SPRING_PROFILES_ACTIVE=local start worker 18082 "$JAVA" -jar backend/worker/build/libs/worker-0.1.0.jar
+( set -a; [ -f .env ] && . ./.env; set +a; start fetcher 18081 "$JAVA" -jar backend/external-fetcher/build/libs/external-fetcher-0.1.0.jar )
+
+# 4) 웹 개발 서버
+[ -d web/node_modules ] || (cd web && npm install)
+start web 15173 npm --prefix web run dev
+
+# 5) 준비될 때까지 기다림
+for _ in $(seq 1 60); do
+  ok=1; for p in 18080 18081 18082; do [ "$(curl -s -o /dev/null -w '%{http_code}' localhost:$p/actuator/health)" = 200 ] || ok=0; done
+  [ $ok = 1 ] && break; sleep 2
+done
+"$(dirname "$0")/dev-status.sh"
+echo "웹: http://localhost:15173"
