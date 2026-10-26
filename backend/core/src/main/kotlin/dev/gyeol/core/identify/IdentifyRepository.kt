@@ -42,7 +42,7 @@ data class CoverTarget(val trackId: Long, val releaseMbid: UUID?, val releaseGro
 data class IdentifyProgress(val target: Int, val done: Int, val matched: Int, val notFound: Int, val failed: Int)
 
 @Repository
-class IdentifyRepository(private val jdbc: JdbcClient) {
+class IdentifyRepository(private val jdbc: JdbcClient, private val search: TrackSearchRepository) {
 
     // ── 전역 캐시 ──
 
@@ -64,6 +64,8 @@ class IdentifyRepository(private val jdbc: JdbcClient) {
             .param("k", key).param("t", trackId).param("s", (if (trackId != null) AliasStatus.MATCHED else AliasStatus.NOT_FOUND).name)
             .param("m", method.name).param("qa", query?.artist).param("qt", query?.title)
             .update()
+        // 사용자가 본 YouTube 표기(제목·가수)도 검색 색인에 (L2-4)
+        if (trackId != null) search.reindex(trackId)
     }
 
     /** 가수·곡을 넣거나(이미 있으면 갱신) 곡 id를 돌려준다. 같은 녹음은 여러 키가 함께 쓴다 */
@@ -92,6 +94,7 @@ class IdentifyRepository(private val jdbc: JdbcClient) {
             .param("rel", t.releaseMbid).param("rg", t.releaseGroupMbid).param("rt", t.releaseTitle)
             .param("rd", t.releaseDate).param("rty", t.releaseType)
             .query(Long::class.java).single()
+            .also { search.reindex(it) }
     }
 
     // ── 세션별 식별 대상 ──
@@ -138,9 +141,10 @@ class IdentifyRepository(private val jdbc: JdbcClient) {
 
     /** 세션의 해당 (제목, 채널) 청취 기록을 곡에 연결한다 */
     fun linkListens(target: Target, trackId: Long) {
-        jdbc.sql("UPDATE listen_event SET track_id = :t WHERE session_id = :sid AND title = :title AND channel IS NOT DISTINCT FROM :ch")
+        val n = jdbc.sql("UPDATE listen_event SET track_id = :t WHERE session_id = :sid AND title = :title AND channel IS NOT DISTINCT FROM :ch")
             .param("t", trackId).param("sid", target.sessionId).param("title", target.title).param("ch", target.channel)
             .update()
+        search.addPlays(trackId, n) // 검색에서 많이 들린 곡을 먼저 (L2-4)
     }
 
     /** 고른 곡(A 입구) 연결: 식별 대상의 채널은 "가수 - Topic" 형태로 만든다 (SessionService.saveSeeds) */
@@ -160,6 +164,9 @@ class IdentifyRepository(private val jdbc: JdbcClient) {
         ).param("sid", sessionId)
             .query { rs, _ -> rs.getInt(1) to SeedCard(rs.getString(2), rs.getString(3)?.take(4)?.toIntOrNull(), rs.getString(4)) }
             .list().toMap()
+
+    fun trackExists(id: Long): Boolean =
+        jdbc.sql("SELECT EXISTS (SELECT 1 FROM track WHERE id = :id)").param("id", id).query(Boolean::class.java).single()
 
     // ── 앨범 표지 (L2-2) ──
 

@@ -107,10 +107,10 @@ class SessionRepository(private val jdbc: JdbcClient) {
     fun insertSeeds(sessionId: Long, seeds: List<SeedTrack>) {
         seeds.forEach { s ->
             jdbc.sql(
-                "INSERT INTO seed_track (session_id, mbid, title, artist, position) VALUES (:sid, :mbid, :title, :artist, :pos)",
+                "INSERT INTO seed_track (session_id, mbid, title, artist, position, track_id) VALUES (:sid, :mbid, :title, :artist, :pos, :tid)",
             )
                 .param("sid", sessionId).param("mbid", s.mbid).param("title", s.title)
-                .param("artist", s.artist).param("pos", s.position)
+                .param("artist", s.artist).param("pos", s.position).param("tid", s.trackId)
                 .update()
         }
     }

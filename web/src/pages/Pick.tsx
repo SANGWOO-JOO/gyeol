@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { api, ApiError, type Track } from '../api'
 import { Alert, Layout } from '../components/Layout'
-import { Tile } from '../components/Tile'
+import { Cover } from '../components/Tile'
 import ui from '../styles/ui.module.css'
 
 const MIN = 3, MAX = 5
@@ -83,7 +83,7 @@ export function Pick() {
               const on = isPicked(t), full = !on && picked.length >= MAX
               return (
                 <li key={key(t)} className={ui.listItem}>
-                  <Tile text={t.artist} />
+                  <Cover url={t.coverUrl} text={t.artist} />
                   <div className={ui.grow}>
                     <div className={ui.ellipsis}>{t.title}</div>
                     <div className={`${ui.small} ${ui.ellipsis}`}>{t.artist}{t.releaseYear ? ` · ${t.releaseYear}` : ''}</div>

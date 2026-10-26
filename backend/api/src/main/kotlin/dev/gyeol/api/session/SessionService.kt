@@ -38,7 +38,8 @@ data class UploadTicket(
     val expiresAt: Instant,
 )
 
-data class SeedInput(val mbid: String?, val title: String?, val artist: String?)
+/** [trackId]는 우리 DB 검색 결과에서 고른 곡 (L2-4). 있으면 식별 없이 바로 연결 */
+data class SeedInput(val mbid: String?, val title: String?, val artist: String?, val trackId: Long? = null)
 
 data class UploadCounts(val totalCount: Int?, val musicCount: Int?, val unclassifiedCount: Int?, val byteSize: Long?)
 
@@ -88,7 +89,8 @@ class SessionService(
             if (title.isEmpty() || title.length > 300 || artist.isEmpty() || artist.length > 300) {
                 throw ApiException.validation("${i + 1}번째 곡의 제목·가수는 1~300자여야 합니다")
             }
-            SeedTrack(mbid, title, artist, i + 1)
+            // 존재하지 않는 trackId는 무시하고 식별에 맡긴다
+            SeedTrack(mbid, title, artist, i + 1, t.trackId?.takeIf { trackExists(it) })
         }
         val distinct = seeds.map { "${it.title.lowercase()}|${it.artist.lowercase()}" }.toSet()
         if (distinct.size != seeds.size) throw ApiException.validation("같은 곡을 두 번 고를 수 없습니다")
@@ -102,16 +104,19 @@ class SessionService(
         return seeds.size
     }
 
+    private fun trackExists(id: Long) = identify.trackExists(id)
+
     /**
      * 고른 곡도 식별한다 (L2-2). 채널을 "가수 - Topic"으로 만들어 업로드 기록과 같은 전역 캐시 키를 쓴다.
      * 큐 메시지는 커밋 뒤에 보낸다 (먼저 보내면 worker가 아직 없는 대상을 읽고 건너뛸 수 있음).
      * 큐에 못 넣어도 곡 저장은 성공으로 둔다 (곡 이름은 이미 보이고, 표지·식별만 빠짐).
      */
     private fun requestIdentify(sessionId: Long, seeds: List<SeedTrack>) {
-        val targets = seeds.map { s ->
+        val targets = seeds.filter { it.trackId == null }.map { s ->
             val channel = "${s.artist} - Topic"
             AliasKey.of(s.title, channel) to PlayGroup(s.title, channel, Source.YOUTUBE, 1)
         }.distinctBy { it.first }
+        if (targets.isEmpty()) return
         identify.insertTargets(sessionId, targets)
         val body = json.writeValueAsString(mapOf("sessionId" to sessionId, "keys" to targets.map { it.first }))
         TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {

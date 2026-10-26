@@ -22,4 +22,5 @@ data class Session(
 )
 
 /** 고른 곡. mbid는 Last.fm 결과에 없을 수 있어 선택 값 (L2에서 MusicBrainz로 채움) */
-data class SeedTrack(val mbid: java.util.UUID?, val title: String, val artist: String, val position: Int)
+/** [trackId]: 우리 DB 검색에서 고른 곡이면 처음부터 곡에 연결된다 (L2-4) */
+data class SeedTrack(val mbid: java.util.UUID?, val title: String, val artist: String, val position: Int, val trackId: Long? = null)

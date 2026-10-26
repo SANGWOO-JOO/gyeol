@@ -3,7 +3,8 @@
 export type Entry = 'SEEDS' | 'TAKEOUT'
 export type Status = 'CREATED' | 'UPLOADING' | 'PROCESSING' | 'DONE' | 'FAILED'
 
-export interface Track { title: string; artist: string; mbid?: string | null; listeners?: number | null; releaseYear?: number | null }
+/** trackId·coverUrl은 우리 DB에서 찾은 곡에만 있다 (L2-4). trackId가 있으면 고를 때 바로 곡에 연결된다 */
+export interface Track { title: string; artist: string; mbid?: string | null; listeners?: number | null; releaseYear?: number | null; trackId?: number | null; coverUrl?: string | null }
 export interface CreatedSession { token: string; entry: Entry; status: Status; resultUrl: string; expiresAt: string }
 export interface SessionView {
   entry: Entry
@@ -60,7 +61,7 @@ export const api = {
     call<{ items: Track[]; source: string }>(`/tracks/search?q=${encodeURIComponent(q)}&limit=10`, { signal }),
   saveSeeds: (token: string, tracks: Track[]) =>
     call<{ status: string; count: number }>(`/sessions/${token}/seeds`, json('POST', {
-      tracks: tracks.map(t => ({ mbid: t.mbid ?? null, title: t.title, artist: t.artist })),
+      tracks: tracks.map(t => ({ mbid: t.mbid ?? null, title: t.title, artist: t.artist, trackId: t.trackId ?? null })),
     })),
   uploadUrl: (token: string, c: { totalCount: number; musicCount: number; unclassifiedCount: number; byteSize: number }) =>
     call<UploadTicket>(`/sessions/${token}/upload-url`, json('POST', c)),

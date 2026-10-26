@@ -11,8 +11,8 @@ scripts/test-all.sh
 
 | 모듈 | 개수 | 내용 |
 |---|---|---|
-| api | 7 | 업로드 주소 → S3 → 통계 → 삭제, 곡 저장, 400·404·409·413, 만료 세션 404, 통계 한국 시간 경계, 곡 검색·503, 식별 진행률, 곡·가수 단위 순위(합치기·표시 이름·표지), 고른 곡 식별 요청 |
-| worker | 22 | parse 통합 5(저장·중복 메시지·형식 오류·S3 시험 메시지·2.5만 건), 업로드 파일 검증 단위 5, 만료 데이터 정리 통합 5, 곡 식별 통합 3(계획·전역 캐시·표지·실패 큐), 규칙·정규화 키 단위 4 |
+| api | 8 | 업로드 주소 → S3 → 통계 → 삭제, 곡 저장, 400·404·409·413, 만료 세션 404, 통계 한국 시간 경계, 곡 검색·503, 식별 진행률, 곡·가수 단위 순위(합치기·표시 이름·표지), 고른 곡 식별 요청, 우리 DB 검색(붙여쓰기·부분·초성·오타·별칭·가로채기 방지·Last.fm 장애·바로 연결) |
+| worker | 25 | parse 통합 5(저장·중복 메시지·형식 오류·S3 시험 메시지·2.5만 건), 업로드 파일 검증 단위 5, 만료 데이터 정리 통합 5, 곡 식별 통합 3(계획·전역 캐시·표지·실패 큐), 규칙·정규화 키 단위 4, 검색 문자열 단위 3 |
 | external-fetcher | 32 | 속도 제한 3, MusicBrainz 5, Last.fm 5, 다시 정렬 7, 곡 식별 규칙 8, 표지 규칙 4 |
 | web | 6 | Takeout 거르기 (한국어·영어, 삭제 영상, 일반 영상, 검색 기록 파일 거절, 형식 오류) |
 
@@ -59,6 +59,13 @@ input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true 
 ```bash
 ( set -a; . ./.env; set +a; java -jar backend/external-fetcher/build/libs/external-fetcher-0.1.0.jar ) &   # 또는 scripts/dev-up.sh
 node tools/identify-eval/eval.mjs     # 37곡 표본, 약 3분
+```
+
+## 곡 검색 정확도
+
+```bash
+node tools/search-eval/eval.mjs                     # L1 질의 표본 33개 (k3d 또는 dev 서버의 api)
+node tools/search-eval/eval.mjs --samples backend/external-fetcher/src/test/resources/lastfm-zard-samples.json
 ```
 
 ## 3. 만료 데이터 정리 확인

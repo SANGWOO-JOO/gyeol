@@ -1,7 +1,9 @@
 package dev.gyeol.api
 
+import dev.gyeol.core.identify.AliasMethod
 import dev.gyeol.core.identify.ArtistInfo
 import dev.gyeol.core.identify.IdentifyRepository
+import dev.gyeol.core.identify.Query
 import dev.gyeol.core.identify.TrackInfo
 import dev.gyeol.core.listen.ListenEvent
 import dev.gyeol.core.listen.ListenEventRepository
@@ -346,6 +348,57 @@ class SessionApiIntegrationTest {
         assertEquals(listOf("아이유" to 5, "가수B" to 4), stats["topArtists"].toList().map { it["name"].asString() to it["plays"].asInt() })
         assertEquals(5, stats["identified"]["plays"].asInt())
         assertEquals(9, stats["identified"]["totalPlays"].asInt())
+    }
+
+    @Test
+    fun `우리 DB 곡 검색 - 붙여쓰기·부분·초성·오타·별칭, DB에 없는 곡은 가로채지 않는다`() {
+        // 식별된 곡과 사용자가 본 YouTube 표기 (worker가 하는 일을 흉내)
+        val night = identify.upsertTrack(track("밤편지 (Through the Night)", "IU", "밤편지", "2017-03-24"))
+        identify.saveAlias("밤편지|아이유 - topic", night, AliasMethod.RULE, Query("아이유", "밤편지", false))
+        val comet = identify.upsertTrack(track("혜성", "Younha", "혜성", "2006-01-01"))
+        identify.saveAlias("혜성|윤하 - topic", comet, AliasMethod.RULE, Query("윤하", "혜성", false))
+        fun search(q: String) = call("GET", "/api/tracks/search?q=${java.net.URLEncoder.encode(q, Charsets.UTF_8)}").second!!
+
+        for (q in listOf("아이유밤편지", "밤편", "ㅂㅍㅈ", "IU 밤편지", "아이유 - 밤편지!")) {
+            val first = search(q)["items"][0]
+            assertEquals(night, first["trackId"].asLong(), q)
+            assertEquals("밤편지", first["title"].asString(), "표시는 YouTube 표기") // MusicBrainz 표기 아님
+            assertEquals("아이유", first["artist"].asString())
+            assertEquals(2017, first["releaseYear"].asInt())
+        }
+        assertEquals(comet, search("윤하 헤성")["items"][0]["trackId"].asLong(), "가수가 맞는 오타")
+
+        // DB에 없는 곡: 같은 가수의 다른 곡이 1위를 가로채지 않는다 (가짜 fetcher는 늘 "Rain · 태연"을 준다)
+        val miss = search("아이유 라일락")
+        assertTrue(miss["items"][0]["trackId"].isNull)
+        assertEquals("lastfm", miss["source"].asString())
+
+        // DB와 Last.fm을 합칠 때: DB 결과가 앞, 출처는 db+lastfm
+        assertEquals("db+lastfm", search("밤편지")["source"].asString())
+
+        // Last.fm이 장애여도 DB 결과가 있으면 503이 아니다
+        fakeFetcherUp = false
+        try {
+            val (code, body) = call("GET", "/api/tracks/search?q=${java.net.URLEncoder.encode("밤편지", Charsets.UTF_8)}")
+            assertEquals(200, code)
+            assertEquals("db", body!!["source"].asString())
+        } finally {
+            fakeFetcherUp = true
+        }
+
+        // DB 곡을 고르면 식별 없이 바로 연결된다 (식별 대상이 생기지 않음)
+        val token = call("POST", "/api/sessions", mapOf("entry" to "SEEDS")).second!!["token"].asString()
+        val picks = listOf(
+            mapOf("title" to "밤편지", "artist" to "아이유", "trackId" to night),
+            mapOf("title" to "혜성", "artist" to "윤하", "trackId" to comet),
+            mapOf("title" to "없는 곡", "artist" to "가수", "trackId" to 999_999),
+        )
+        assertEquals(200, call("POST", "/api/sessions/$token/seeds", mapOf("tracks" to picks)).first)
+        val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id
+        assertEquals(1, identify.progress(sid).target, "없는 trackId만 식별에 맡긴다")
+        val seeds = call("GET", "/api/sessions/$token").second!!["seeds"]
+        assertEquals("밤편지", seeds[0]["releaseTitle"].asString())
+        assertTrue(seeds[2]["releaseTitle"].isNull)
     }
 
     @Test
