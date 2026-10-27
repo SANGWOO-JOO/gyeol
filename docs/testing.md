@@ -8,11 +8,12 @@ scripts/test-all.sh
 
 - 백엔드 단위 + 통합(Testcontainers가 PostgreSQL·LocalStack을 따로 띄움, **Docker 필요**) + 웹(Vitest). 끝에 모듈별 개수를 요약한다. 약 1분 30초.
 - 실행 중인 로컬 서버(`scripts/dev-up.sh`)와 겹치지 않는다. 테스트는 자기 컨테이너를 쓴다.
+- 메모리 16GB 맥북에서는 Java 서버를 먼저 끈다(`KEEP_DOCKER=1 scripts/dev-down.sh`). 서버 4개 + 측정용 worker + 테스트 컨테이너를 함께 띄웠다가 Docker Desktop이 내려간 적이 있다(2026-10-27, 메모리 부족으로 추정).
 
 | 모듈 | 개수 | 내용 |
 |---|---|---|
 | api | 9 | 업로드 주소 → S3 → 통계 → 삭제, 곡 저장, 400·404·409·413, 만료 세션 404, 통계 한국 시간 경계, 곡 검색·503, 식별 진행률, 곡·가수 단위 순위(합치기·표시 이름·표지), 고른 곡 식별 요청, 우리 DB 검색(붙여쓰기·부분·초성·오타·별칭·가로채기 방지·Last.fm 장애·바로 연결), 일반 영상 음악 판정(캐시·장애 시 건너뜀·상태·형식) |
-| worker | 33 | parse 통합 5(저장·중복 메시지·형식 오류·S3 시험 메시지·2.5만 건), 업로드 파일 검증 단위 5, 만료 데이터 정리 통합 5, 곡 식별 통합 3(계획·전역 캐시·표지·실패 큐), 규칙·정규화 키 단위 4, 검색 문자열 단위 3, LLM 검증·가짜 정리기 단위 5, LLM 식별 통합 1, 판정 캐시 정리 1, 지식 인입 통합 1(가수·작품 한 번만, 공유 작품 크레딧, 90일 캐시) |
+| worker | 37 | parse 통합 5(저장·중복 메시지·형식 오류·S3 시험 메시지·2.5만 건), 업로드 파일 검증 단위 5, 만료 데이터 정리 통합 5, 곡 식별 통합 3(계획·전역 캐시·표지·실패 큐), 규칙·정규화 키 단위 4, 검색 문자열 단위 3, LLM 검증·가짜 정리기 단위 5, LLM 식별 통합 1, 판정 캐시 정리 1, 지식 인입 통합 1(가수·작품 한 번만, 공유 작품 크레딧, 90일 캐시, 곡 설명 저장), 곡 설명 검증 단위 4 |
 | external-fetcher | 37 | 속도 제한 3, MusicBrainz 5, Last.fm 5, 다시 정렬 7, 곡 식별 규칙 8, 표지 규칙 4, 지식 청크 5 |
 | web | 7 | Takeout 거르기 (한국어·영어, 삭제 영상, 일반 영상, 검색 기록 파일 거절, 형식 오류, 미분류는 브라우저에 두고 상위 영상 ID만) |
 
@@ -72,6 +73,14 @@ node tools/search-eval/eval.mjs --samples backend/external-fetcher/src/test/reso
 
 ```bash
 python3 tools/knowledge-eval/measure.py   # dev 서버가 떠 있어야 한다. DB의 식별된 곡 전부, 무료 API, 몇 분
+```
+
+## 곡 설명 RAG 켬/끔 (Bedrock 비용 약 $0.6)
+
+```bash
+# 측정용 worker (큐는 듣지 않음)
+SPRING_PROFILES_ACTIVE=local PORT=18083 LLM_MODE=bedrock LLM_DEBUG_ENDPOINT=true WORKER_ROLE=none CLEANUP_ENABLED=false java -jar backend/worker/build/libs/worker-0.1.0.jar &
+node tools/describe-eval/eval.mjs          # 2곡 묶음, RAG 켬·끔, 심판 Sonnet 4.6
 ```
 
 ## 3. 만료 데이터 정리 확인

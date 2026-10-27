@@ -3,10 +3,18 @@ package dev.gyeol.worker.enrich
 import dev.gyeol.core.identify.IdentifyRepository
 import dev.gyeol.core.knowledge.Chunk
 import dev.gyeol.core.knowledge.Credit
+import dev.gyeol.core.knowledge.DescribeTarget
+import dev.gyeol.core.knowledge.DescriptorRepository
 import dev.gyeol.core.knowledge.EntityType
 import dev.gyeol.core.knowledge.KnowledgeRepository
 import dev.gyeol.core.knowledge.TrackRefs
+import dev.gyeol.core.llm.LlmCallRepository
+import dev.gyeol.core.llm.LlmUsage
 import dev.gyeol.worker.WorkerProperties
+import dev.gyeol.worker.describe.Claim
+import dev.gyeol.worker.describe.DescriptorBuilder
+import dev.gyeol.worker.describe.RawDescription
+import dev.gyeol.worker.describe.TrackDescriber
 import dev.gyeol.worker.identify.FetcherClient
 import dev.gyeol.worker.identify.retrySoonIfBusy
 import io.awspring.cloud.sqs.annotation.SqsListener
@@ -46,6 +54,9 @@ class EnrichService(
     private val json: JsonMapper,
     private val props: WorkerProperties,
     private val tx: TransactionTemplate,
+    private val descriptors: DescriptorRepository,
+    private val describer: TrackDescriber,
+    private val llmCalls: LlmCallRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -66,9 +77,12 @@ class EnrichService(
         for (id in trackIds) {
             val t = knowledge.trackRefs(id) ?: continue
             fetched += enrichTrack(t, since)
-            knowledge.finishTarget(sessionId, id, "DONE")
         }
-        log.info("보강 묶음: 세션 {}, {}곡, 새로 가져온 대상 {}개, {}ms", sessionId, trackIds.size, fetched, (System.nanoTime() - started) / 1_000_000)
+        // 곡 설명 (L3-2): 설명이 없거나 지식이 바뀐 곡만, 한 번에 묶어서
+        val toDescribe = trackIds.filter { descriptors.needsDescribe(it) }.mapNotNull { descriptors.target(it) }
+        if (toDescribe.isNotEmpty()) describe(toDescribe)
+        trackIds.forEach { knowledge.finishTarget(sessionId, it, "DONE") }
+        log.info("보강 묶음: 세션 {}, {}곡, 새로 가져온 대상 {}개, 곡 설명 {}곡, {}ms", sessionId, trackIds.size, fetched, toDescribe.size, (System.nanoTime() - started) / 1_000_000)
     }
 
     /** 곡 하나: 녹음 → 작품들 → 음반 묶음 → 가수. 90일 안에 가져온 대상은 건너뛴다. 새로 가져온 대상 수 */
@@ -110,6 +124,30 @@ class EnrichService(
             n++
         }
         return n
+    }
+
+    /** 곡 설명을 만들고 검증해 저장한다. 근거 청크가 하나도 없는 곡은 LLM을 부르지 않고 "근거 부족"으로 둔다 */
+    fun describe(targets: List<DescribeTarget>) {
+        val (withEvidence, without) = targets.partition { it.chunks.isNotEmpty() }
+        without.forEach { t ->
+            val (summary, fields) = DescriptorBuilder.build(t, RawDescription(t.trackId, emptyMap(), Claim(null, emptyList())), rag = true)
+            descriptors.save(t.trackId, "ko", summary, DescriptorBuilder.toJson(json, fields), "none", rag = true)
+        }
+        // Bedrock이 큰 요청(곡 5개면 입력 약 5,400토큰)에 503을 자주 줘서 2곡씩 부른다 (L3-2 측정)
+        withEvidence.chunked(DESCRIBE_BATCH).forEach { group ->
+            val r = describer.describe(group, rag = true)
+            if (r.model != "fake") llmCalls.record("DESCRIBE", LlmUsage(r.model, group.size, r.inputTokens, r.outputTokens, r.latencyMs))
+            val byTrack = r.items.associateBy { it.trackId }
+            group.forEach { t ->
+                val raw = byTrack[t.trackId] ?: RawDescription(t.trackId, emptyMap(), Claim(null, emptyList()))
+                val (summary, fields) = DescriptorBuilder.build(t, raw, rag = true)
+                descriptors.save(t.trackId, "ko", summary, DescriptorBuilder.toJson(json, fields), r.model, rag = true)
+            }
+        }
+    }
+
+    private companion object {
+        const val DESCRIBE_BATCH = 2
     }
 
     private fun chunks(r: JsonNode) = r.path("chunks").toList().map {

@@ -1,6 +1,10 @@
 package dev.gyeol.worker.llm
 
 import dev.gyeol.worker.WorkerProperties
+import dev.gyeol.worker.describe.BedrockDescriber
+import dev.gyeol.worker.describe.FakeDescriber
+import dev.gyeol.worker.describe.TrackDescriber
+import tools.jackson.databind.json.JsonMapper
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -14,6 +18,11 @@ class LlmConfig {
     @Bean
     fun titleCleaner(props: WorkerProperties): TitleCleaner =
         if (props.llm.mode == "bedrock") BedrockTitleCleaner(props.llm) else FakeTitleCleaner()
+
+    /** L3-2 곡 설명. 같은 모드 전환을 쓴다 */
+    @Bean
+    fun trackDescriber(props: WorkerProperties, json: JsonMapper): TrackDescriber =
+        if (props.llm.mode == "bedrock") BedrockDescriber(props.llm, json) else FakeDescriber()
 }
 
 data class CleanRequest(val model: String?, val items: List<RawTitle>)

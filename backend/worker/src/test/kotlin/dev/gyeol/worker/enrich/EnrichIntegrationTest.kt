@@ -157,11 +157,16 @@ class EnrichIntegrationTest {
         // 곡마다 편곡(녹음) + 작곡(작품) 크레딧
         assertEquals(4L, count("SELECT count(*) FROM track_credit"))
         assertEquals(listOf(UUID.fromString(WORK)), knowledge.trackRefs(a)!!.workMbids)
+        // 곡 설명 (가짜 LLM): 가수 Last.fm 태그를 장르로, 근거는 가수 단위라 신뢰도 낮음
+        val genres = jdbc.sql("SELECT fields -> 'genres' ->> 'confidence' || ':' || (fields -> 'genres' -> 'value' ->> 0) FROM track_descriptor WHERE track_id = :t").param("t", a).query(String::class.java).single()
+        assertEquals("LOW:k-pop", genres)
+        assertEquals(2L, count("SELECT count(*) FROM track_descriptor"))
 
         calls.clear()
         val second = session(listOf(a, b))
         service.plan(second)
         waitDone(second)
         assertEquals(0, calls.size, "90일 안에 가져온 대상은 다시 묻지 않는다")
+        assertEquals(2L, count("SELECT count(*) FROM track_descriptor")) // 지식이 그대로면 설명도 다시 만들지 않는다
     }
 }
