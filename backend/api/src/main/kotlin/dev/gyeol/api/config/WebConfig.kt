@@ -12,6 +12,6 @@ class WebConfig(private val props: GyeolProperties) : WebMvcConfigurer {
     override fun addCorsMappings(registry: CorsRegistry) {
         registry.addMapping("/api/**")
             .allowedOrigins(props.webOrigin)
-            .allowedMethods("GET", "POST", "DELETE")
+            .allowedMethods("GET", "POST", "PUT", "DELETE")
     }
 }

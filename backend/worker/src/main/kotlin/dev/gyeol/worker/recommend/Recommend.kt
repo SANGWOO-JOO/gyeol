@@ -174,10 +174,21 @@ class RecommendService(
         val result = reranker.rerank(facets, rSeeds, rCands, p.picks)
         if (result.model != "fake") llmCalls.record("RECOMMEND", LlmUsage(result.model, rCands.size, result.inputTokens, result.outputTokens, result.latencyMs))
         val finals = RerankValidator.validate(result, rSeeds, rCands, p.picks)
+        // L3-5: 절반은 이유를 근거 없이 다시 쓴다 (블라인드 비교). 세션마다 같은 곡이 고르도록 세션 id로 섞는다.
+        // 근거가 없어 이유를 비운 곡은 비교에서 빼야 두 쪽이 같은 조건이 된다
+        val withReason = finals.indices.filter { finals[it].reason != null }
+        val noRag = withReason.shuffled(java.util.Random(sessionId)).take(withReason.size / 2).toSet()
+        val plain = if (noRag.isEmpty()) null else reranker.reasonsWithoutEvidence(facets, rSeeds, noRag.map { finals[it].candidate })
+        if (plain != null && plain.model != "fake") llmCalls.record("RECOMMEND_NORAG", LlmUsage(plain.model, noRag.size, plain.inputTokens, plain.outputTokens, plain.latencyMs))
         val scoreOf = ranked.associate { it.input.trackId to it.score }
+        val sources = repo.candidateSources(sessionId)
         tx.executeWithoutResult {
             repo.replaceRecommendations(sessionId, finals.mapIndexed { i, f ->
-                RecRow(i + 1, f.candidate.trackId, scoreOf[f.candidate.trackId] ?: 0.0, f.reason, f.evidence, f.basedOn, result.model)
+                val c = f.candidate
+                val base = RecRow(i + 1, c.trackId, scoreOf[c.trackId] ?: 0.0, f.reason, f.evidence, f.basedOn, result.model, "RAG", c.index, sources[c.trackId])
+                // 근거 없는 이유를 못 받은 곡은 RAG 쪽 그대로 둔다 (비교군에서 빠진다)
+                val r = plain?.reasons?.get(c.index)
+                if (i in noRag && r != null) base.copy(reason = r, evidence = emptyList(), reasonVariant = "NORAG", model = plain.model) else base
             })
             repo.setSummary(sessionId, result.tasteSummary)
         }

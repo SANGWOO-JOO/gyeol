@@ -19,7 +19,14 @@ data class Candidate(
 /** 점수를 매길 후보 (식별·보강이 끝난 곡) */
 data class ScoredInput(val trackId: Long, val title: String, val artist: String, val artistMbid: String, val vector: FloatArray?, val lastfmMatch: Double, val creditOverlap: Int)
 
-data class RecRow(val rank: Int, val trackId: Long, val score: Double, val reason: String?, val evidence: List<Long>, val basedOn: List<Long>, val model: String)
+data class RecRow(
+    val rank: Int, val trackId: Long, val score: Double, val reason: String?, val evidence: List<Long>, val basedOn: List<Long>, val model: String,
+    /** L3-5: 이유를 근거와 함께(RAG) 썼는지, 근거 없이(NORAG), LLM 재정렬 전 점수 순위, 후보 경로 */
+    val reasonVariant: String = "RAG", val scoreRank: Int? = null, val source: String? = null,
+)
+
+/** L3-5 추천 평가 */
+data class Feedback(val trackId: Long, val rating: String, val reasonWrong: Boolean)
 
 /** L3-4 추천 저장소 (docs/l3-design.md 11장) */
 @Repository
@@ -154,19 +161,48 @@ class RecommendRepository(private val jdbc: JdbcClient) {
         jdbc.sql("DELETE FROM recommendation WHERE session_id = :s").param("s", sessionId).update()
         rows.forEach { r ->
             jdbc.sql(
-                "INSERT INTO recommendation (session_id, rank, track_id, score, reason, evidence, based_on, model) VALUES (:s, :r, :t, :sc, :re, :ev, :b, :m)",
+                """
+                INSERT INTO recommendation (session_id, rank, track_id, score, reason, evidence, based_on, model, reason_variant, score_rank, source)
+                VALUES (:s, :r, :t, :sc, :re, :ev, :b, :m, :v, :sr, :src)
+                """.trimIndent(),
             ).param("s", sessionId).param("r", r.rank).param("t", r.trackId).param("sc", r.score).param("re", r.reason)
-                .param("ev", r.evidence.toTypedArray()).param("b", r.basedOn.toTypedArray()).param("m", r.model).update()
+                .param("ev", r.evidence.toTypedArray()).param("b", r.basedOn.toTypedArray()).param("m", r.model)
+                .param("v", r.reasonVariant).param("sr", r.scoreRank).param("src", r.source).update()
         }
     }
 
     fun recommendations(sessionId: Long): List<RecRow> =
-        jdbc.sql("SELECT rank, track_id, score, reason, evidence, based_on, model FROM recommendation WHERE session_id = :s ORDER BY rank").param("s", sessionId)
+        jdbc.sql("SELECT rank, track_id, score, reason, evidence, based_on, model, reason_variant, score_rank, source FROM recommendation WHERE session_id = :s ORDER BY rank").param("s", sessionId)
             .query { rs, _ ->
                 @Suppress("UNCHECKED_CAST")
                 fun longs(i: Int) = (rs.getArray(i)?.array as Array<Long>?)?.toList().orEmpty()
-                RecRow(rs.getInt(1), rs.getLong(2), rs.getDouble(3), rs.getString(4), longs(5), longs(6), rs.getString(7))
+                RecRow(rs.getInt(1), rs.getLong(2), rs.getDouble(3), rs.getString(4), longs(5), longs(6), rs.getString(7), rs.getString(8), rs.getObject(9) as Int?, rs.getString(10))
             }.list()
+
+    /** 후보 곡의 경로 (LASTFM·VECTOR·BOTH) */
+    fun candidateSources(sessionId: Long): Map<Long, String> =
+        jdbc.sql("SELECT track_id, max(source) FROM rec_candidate WHERE session_id = :s AND track_id IS NOT NULL GROUP BY track_id").param("s", sessionId)
+            .query { rs, _ -> rs.getLong(1) to rs.getString(2) }.list().toMap()
+
+    // ── 평가 (L3-5) ──
+
+    /** 추천된 곡만 평가할 수 있다. 평가할 때의 추천 정보를 함께 복사한다. 추천에 없는 곡이면 false */
+    fun saveFeedback(sessionId: Long, trackId: Long, rating: String, reasonWrong: Boolean): Boolean =
+        jdbc.sql(
+            """
+            INSERT INTO rec_feedback (session_id, track_id, rating, reason_wrong, reason_variant, rank, score_rank, score, source, model)
+            SELECT session_id, track_id, :r, :w, reason_variant, rank, score_rank, score, source, model FROM recommendation WHERE session_id = :s AND track_id = :t
+            ON CONFLICT (session_id, track_id) DO UPDATE SET rating = EXCLUDED.rating, reason_wrong = EXCLUDED.reason_wrong, updated_at = now()
+            """.trimIndent(),
+        ).param("s", sessionId).param("t", trackId).param("r", rating).param("w", reasonWrong).update() == 1
+
+    fun deleteFeedback(sessionId: Long, trackId: Long) {
+        jdbc.sql("DELETE FROM rec_feedback WHERE session_id = :s AND track_id = :t").param("s", sessionId).param("t", trackId).update()
+    }
+
+    fun feedback(sessionId: Long): Map<Long, Feedback> =
+        jdbc.sql("SELECT track_id, rating, reason_wrong FROM rec_feedback WHERE session_id = :s").param("s", sessionId)
+            .query { rs, _ -> Feedback(rs.getLong(1), rs.getString(2), rs.getBoolean(3)) }.list().associateBy { it.trackId }
 
     /** 곡 id → (제목, 가수 이름). 벡터 이웃 후보의 이름을 채울 때 */
     fun trackNames(ids: Collection<Long>): Map<Long, Pair<String, String>> =

@@ -320,6 +320,37 @@ class SessionApiIntegrationTest {
         assertEquals(8, stats["period"]["days"].asInt())
     }
 
+    @Test
+    fun `추천 평가 - 추천된 곡만, 다시 누르면 바뀌고, 비교군은 응답에 없으며, 세션을 지워도 집계용으로 남는다`() {
+        val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
+        val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id
+        val a = identify.upsertTrack(track("추천 1", "가수", "음반", "2020-01-01"))
+        val b = identify.upsertTrack(track("추천 2", "가수", "음반", "2020-01-01"))
+        listOf(a to "RAG", b to "NORAG").forEachIndexed { i, (t, v) ->
+            jdbc.sql("INSERT INTO recommendation (session_id, rank, track_id, score, reason, model, reason_variant, score_rank, source) VALUES (:s, :r, :t, 0.5, '이유', 'm', :v, :r, 'LASTFM')")
+                .param("s", sid).param("r", i + 1).param("t", t).param("v", v).update()
+        }
+        val path = "/api/sessions/$token/recommendations"
+        assertEquals(204, call("PUT", "$path/$a/feedback", mapOf("rating" to "LIKE")).first)
+        assertEquals(204, call("PUT", "$path/$b/feedback", mapOf("rating" to "LIKE")).first)
+        assertEquals(204, call("PUT", "$path/$b/feedback", mapOf("rating" to "DISLIKE", "reasonWrong" to true)).first)
+        assertEquals(400, call("PUT", "$path/$b/feedback", mapOf("rating" to "MEH")).first)
+        assertEquals(404, call("PUT", "$path/999999/feedback", mapOf("rating" to "LIKE")).first)
+
+        val items = call("GET", path).second!!["items"]
+        assertEquals(listOf("LIKE", "DISLIKE"), items.toList().map { it["rating"].asString() })
+        assertTrue(items[1]["reasonWrong"].asBoolean())
+        assertTrue(items.toList().none { it.has("reasonVariant") }, "비교군은 화면에 보내지 않는다")
+
+        assertEquals(204, call("DELETE", "$path/$a/feedback").first)
+        assertTrue(call("GET", path).second!!["items"][0]["rating"].isNull)
+
+        call("DELETE", "/api/sessions/$token")
+        val left = jdbc.sql("SELECT session_id IS NULL, rating, reason_variant FROM rec_feedback WHERE track_id = :t").param("t", b)
+            .query { rs, _ -> Triple(rs.getBoolean(1), rs.getString(2), rs.getString(3)) }.single()
+        assertEquals(Triple(true, "DISLIKE", "NORAG"), left)
+    }
+
     private fun track(title: String, artist: String, release: String, date: String) = TrackInfo(
         recordingMbid = UUID.randomUUID(), title = title,
         artist = ArtistInfo(UUID.randomUUID(), artist, artist, emptyList()),

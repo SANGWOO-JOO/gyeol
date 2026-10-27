@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { api, ApiError, type Recommendations, type SessionView, type Stats } from '../api'
+import { api, ApiError, type Rating, type Recommendations, type SessionView, type Stats } from '../api'
 import { BarChart } from '../components/BarChart'
 import { Alert, Layout } from '../components/Layout'
 import { Cover, Tile } from '../components/Tile'
@@ -79,7 +79,7 @@ export function Result() {
         {session?.status === 'DONE' && session.enrich && session.enrich.done + session.enrich.failed < session.enrich.target && (
           <span className={ui.small}>추천 근거가 될 곡 정보를 모으는 중이에요 ({num(session.enrich.done + session.enrich.failed)}/{num(session.enrich.target)})</span>
         )}
-        {session?.status === 'DONE' && session.enrich && session.enrich.done + session.enrich.failed >= session.enrich.target && <Recommend token={token} />}
+        {session?.status === 'DONE' && (!session.enrich || session.enrich.done + session.enrich.failed >= session.enrich.target) && <Recommend token={token} />}
         {session?.status === 'DONE' && stats && <Report stats={stats} />}
 
         {session && (
@@ -223,11 +223,10 @@ function Report({ stats }: { stats: Stats }) {
   )
 }
 
-const SOURCE_NAMES: Record<string, string> = { WIKIPEDIA: '위키백과', WIKIDATA: '위키데이터', LASTFM: 'Last.fm', MUSICBRAINZ: 'MusicBrainz' }
-
-/** L3-4 결이 맞는 곡 20. 후보 곡 정보를 모으는 동안(수 분) 5초마다 확인한다 */
+/** L3-4 결이 맞는 곡 20 + L3-5 평가. 후보 곡 정보를 모으는 동안(수 분) 5초마다 확인한다 */
 function Recommend({ token }: { token: string }) {
   const [rec, setRec] = useState<Recommendations | null>(null)
+  const [saveError, setSaveError] = useState(false)
   useEffect(() => {
     let stop = false, timer: ReturnType<typeof setTimeout>, tries = 0
     async function tick() {
@@ -235,14 +234,29 @@ function Recommend({ token }: { token: string }) {
         const r = await api.recommendations(token)
         if (stop) return
         setRec(r)
-        if (r.status !== 'READY' && tries++ < 240) timer = setTimeout(tick, 5000) // 최대 20분
+        // 후보를 모으는 중이면 최대 20분, 추천이 아직 시작되지 않았으면(NONE, L3 이전 세션 등) 1분까지만 기다린다
+        if (r.status !== 'READY' && tries++ < (r.status === 'NONE' ? 12 : 240)) timer = setTimeout(tick, 5000)
       } catch { /* 추천은 덤: 실패해도 나머지 화면은 그대로 */ }
     }
     tick()
     return () => { stop = true; clearTimeout(timer) }
   }, [token])
 
-  if (!rec) return null
+  // 누르면 화면부터 바꾸고 저장한다. 같은 버튼을 다시 누르면 평가 취소
+  async function rate(trackId: number, rating: Rating | null, reasonWrong: boolean) {
+    if (!rec) return
+    const before = rec
+    setRec({ ...rec, items: rec.items.map(t => (t.trackId === trackId ? { ...t, rating, reasonWrong: rating ? reasonWrong : false } : t)) })
+    try {
+      if (rating) await api.feedback(token, trackId, rating, reasonWrong)
+      else await api.cancelFeedback(token, trackId)
+      setSaveError(false)
+    } catch {
+      setRec(before); setSaveError(true)
+    }
+  }
+
+  if (!rec || rec.status === 'NONE') return null
   if (rec.status !== 'READY') {
     return (
       <span className={ui.small}>
@@ -250,10 +264,16 @@ function Recommend({ token }: { token: string }) {
       </span>
     )
   }
+  const rated = rec.items.filter(t => t.rating).length
   return (
     <section className={ui.stack} style={{ gap: 8 }}>
-      <h2 style={{ fontSize: 18 }}>결이 맞는 곡 {rec.items.length}</h2>
+      <div className={ui.row} style={{ justifyContent: 'space-between' }}>
+        <h2 style={{ fontSize: 18 }}>결이 맞는 곡 {rec.items.length}</h2>
+        <span className={ui.small}>평가 {rated}/{rec.items.length}</span>
+      </div>
       {rec.summary && <p className={ui.small} style={{ margin: 0 }}>{rec.summary}</p>}
+      <p className={ui.small} style={{ margin: 0 }}>마음에 드는지 눌러 주세요. 이유에 사실과 다른 내용이 있으면 "이유가 틀렸어요"도 함께 눌러 주세요.</p>
+      {saveError && <Alert>평가를 저장하지 못했어요. 잠시 뒤 다시 눌러 주세요.</Alert>}
       <ol className={`${ui.list} ${ui.card}`} style={{ padding: '4px 16px' }}>
         {rec.items.map(t => (
           <li key={t.trackId} className={ui.listItem} style={{ alignItems: 'flex-start' }}>
@@ -262,15 +282,22 @@ function Recommend({ token }: { token: string }) {
             <div className={ui.grow}>
               <div className={ui.ellipsis}>{t.title}</div>
               <div className={`${ui.small} ${ui.ellipsis}`}>{t.artist}{t.releaseTitle ? ` · ${t.releaseTitle}` : ''}</div>
-              <div className={ui.small} style={{ marginTop: 4 }}>
-                {t.reason ?? '근거 자료가 부족해 점수로만 골랐어요.'}
-                {t.evidence.map((e, i) => (
-                  <a key={e.id} href={e.url} target="_blank" rel="noreferrer" style={{ marginLeft: 4 }}>[{SOURCE_NAMES[e.source] ?? e.source}{t.evidence.length > 1 ? ` ${i + 1}` : ''}]</a>
-                ))}
-              </div>
+              {/* 출처 링크는 숨긴다: 근거 없이 쓴 이유(비교군)와 구분되지 않게 (L3-5) */}
+              <div className={ui.small} style={{ marginTop: 4 }}>{t.reason ?? '근거 자료가 부족해 점수로만 골랐어요.'}</div>
               {t.basedOn.length > 0 && (
                 <div className={ui.small} style={{ marginTop: 2 }}>들은 곡: {t.basedOn.map(b => `${b.artist} - ${b.title}`).join(', ')}</div>
               )}
+              <div className={ui.row} style={{ gap: 6, marginTop: 6 }}>
+                <button className={ui.button} aria-pressed={t.rating === 'LIKE'} style={t.rating === 'LIKE' ? { borderColor: 'var(--accent)' } : undefined}
+                  onClick={() => rate(t.trackId, t.rating === 'LIKE' ? null : 'LIKE', t.reasonWrong)}>👍 좋아요</button>
+                <button className={ui.button} aria-pressed={t.rating === 'DISLIKE'} style={t.rating === 'DISLIKE' ? { borderColor: 'var(--accent)' } : undefined}
+                  onClick={() => rate(t.trackId, t.rating === 'DISLIKE' ? null : 'DISLIKE', t.reasonWrong)}>👎 별로</button>
+                {t.reason && t.rating && (
+                  <label className={ui.small} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <input type="checkbox" checked={t.reasonWrong} onChange={e => rate(t.trackId, t.rating, e.target.checked)} /> 이유가 틀렸어요
+                  </label>
+                )}
+              </div>
             </div>
           </li>
         ))}

@@ -37,6 +37,8 @@ export interface Stats {
   identified: { plays: number; totalPlays: number }
 }
 
+export type Rating = 'LIKE' | 'DISLIKE'
+
 /** L3-4 추천. status: NONE(시작 전) · CANDIDATES(후보 곡 정보 모으는 중) · READY */
 export interface Recommendations {
   status: 'NONE' | 'CANDIDATES' | 'READY'
@@ -47,6 +49,8 @@ export interface Recommendations {
   items: {
     rank: number; trackId: number; title: string; artist: string; releaseTitle: string | null; coverUrl: string | null; score: number
     reason: string | null; evidence: { id: number; source: string; url: string }[]; basedOn: { trackId: number; title: string; artist: string }[]
+    /** L3-5 내 평가 */
+    rating: Rating | null; reasonWrong: boolean
   }[]
 }
 
@@ -84,6 +88,9 @@ export const api = {
   videoCheck: (token: string, videoIds: string[]) =>
     call<{ musicIds: string[]; checked: number; fromCache: number; fromApi: number; skipped: boolean }>(`/sessions/${token}/video-check`, json('POST', { videoIds })),
   recommendations: (token: string) => call<Recommendations>(`/sessions/${token}/recommendations`),
+  feedback: (token: string, trackId: number, rating: Rating, reasonWrong: boolean) =>
+    call<void>(`/sessions/${token}/recommendations/${trackId}/feedback`, json('PUT', { rating, reasonWrong })),
+  cancelFeedback: (token: string, trackId: number) => call<void>(`/sessions/${token}/recommendations/${trackId}/feedback`, { method: 'DELETE' }),
   remove: (token: string) => call<void>(`/sessions/${token}`, { method: 'DELETE' }),
 }
 
