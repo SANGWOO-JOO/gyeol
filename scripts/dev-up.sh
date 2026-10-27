@@ -31,6 +31,10 @@ SPRING_PROFILES_ACTIVE=local start api 18080 "$JAVA" -jar backend/api/build/libs
 SPRING_PROFILES_ACTIVE=local start worker 18082 "$JAVA" -jar backend/worker/build/libs/worker-0.1.0.jar
 start fetcher 18081 "$JAVA" -jar backend/external-fetcher/build/libs/external-fetcher-0.1.0.jar
 
+# 3-1) embed 서비스 (L3-3, Python). 처음 한 번 의존성 설치, 모델은 Hugging Face 캐시에서
+(cd embed && uv sync -q --no-dev --python 3.13)
+start embed 18084 uv run --directory embed --no-dev uvicorn app:app --port 18084
+
 # 4) 웹 개발 서버
 [ -d web/node_modules ] || (cd web && npm install)
 start web 15173 npm --prefix web run dev

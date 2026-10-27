@@ -16,6 +16,7 @@
     (dict "name" "LLM_MODE" "value" .Values.worker.llmMode)
     (dict "name" "ENRICH_QUEUE" "value" .Values.aws.enrichQueue)
     (dict "name" "ENRICH_DLQ" "value" .Values.aws.enrichDlq)
+    (dict "name" "EMBED_URL" "value" (printf "http://gyeol-embed:%v" .Values.embed.port))
     (dict "name" "FETCHER_URL" "value" (printf "http://gyeol-fetcher:%v" .Values.fetcher.port))
     (dict "name" "CLEANUP_ENABLED" "value" (toString .Values.worker.cleanupEnabled))))
   "fetcher" (dict "cfg" .Values.fetcher "service" true "image" "external-fetcher" "env" (list

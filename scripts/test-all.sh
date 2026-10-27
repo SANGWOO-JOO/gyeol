@@ -8,6 +8,8 @@ docker info >/dev/null 2>&1 || { echo "Docker가 꺼져 있습니다 (통합 테
 started=$(date +%s)
 ./gradlew test --continue -q; back=$?
 (cd web && npx vitest run --reporter=dot); web=$?
+# embed 서비스 (Python, L3-3). 모델은 Hugging Face 캐시에 있어야 한다 (처음 한 번 내려받음)
+(cd embed && uv sync -q --python 3.13 && uv run -q pytest -q tests); embed=$?
 
 echo
 echo "== 결과 =="
@@ -25,5 +27,6 @@ print(f"{m:17} {t:3}개 {'통과' if f == 0 else f'실패 {f}'}{f', 건너뜀 {s
 PY
 done
 echo "web               $([ $web = 0 ] && echo 통과 || echo 실패)"
+echo "embed             $([ $embed = 0 ] && echo 통과 || echo 실패)"
 echo "걸린 시간 $(( $(date +%s) - started ))초"
-[ $back = 0 ] && [ $web = 0 ]
+[ $back = 0 ] && [ $web = 0 ] && [ $embed = 0 ]

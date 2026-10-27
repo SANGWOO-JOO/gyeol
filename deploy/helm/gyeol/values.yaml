@@ -47,6 +47,20 @@ worker:
 fetcher:
   replicas: 1
   port: 18081
+# L3-3 곡 설명 임베딩 (Python, e5-small ONNX). EKS 회차에서 HPA로 늘어나는 모습을 본다
+embed:
+  replicas: 1
+  port: 18084
+  threads: 2
+  resources:
+    requests: { cpu: 250m, memory: 768Mi }
+    limits: { memory: 1Gi }   # 측정: 시작 최대 약 805MB, 사용 중 약 625MB (맥북 M1)
+  hpa:
+    enabled: true
+    min: 1
+    max: 4
+    cpu: 70
+
 web:
   replicas: 1
   resources:

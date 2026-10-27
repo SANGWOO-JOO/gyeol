@@ -7,4 +7,5 @@ for f in .run/*.pid; do
 done
 pkill -f 'api-0.1.0.jar|worker-0.1.0.jar|external-fetcher-0.1.0.jar' 2>/dev/null || true
 pkill -f 'vite.*15173|gyeol/web.*vite' 2>/dev/null || true
+pkill -f 'uvicorn app:app --port 18084' 2>/dev/null || true
 [ "${KEEP_DOCKER:-0}" = 1 ] || docker compose -f local/compose.yaml stop

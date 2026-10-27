@@ -26,6 +26,7 @@ for m in api worker external-fetcher; do
   docker build -q -f deploy/docker/backend.Dockerfile --build-arg MODULE=$m -t gyeol/$m:$TAG . >/dev/null
 done
 docker build -q -f deploy/docker/web.Dockerfile -t gyeol/web:$TAG . >/dev/null
+docker build -q -f deploy/docker/embed.Dockerfile -t gyeol/embed:$TAG . >/dev/null
 lap
 
 echo "3) 클러스터"
@@ -39,7 +40,7 @@ for _ in $(seq 1 30); do
   kubectl -n kube-system get configmap coredns -o jsonpath='{.data.NodeHosts}' 2>/dev/null | grep -q host.k3d.internal && break
   sleep 2
 done
-k3d image import -c $CLUSTER gyeol/api:$TAG gyeol/worker:$TAG gyeol/external-fetcher:$TAG gyeol/web:$TAG >/dev/null
+k3d image import -c $CLUSTER gyeol/api:$TAG gyeol/worker:$TAG gyeol/external-fetcher:$TAG gyeol/web:$TAG gyeol/embed:$TAG >/dev/null
 lap
 
 echo "4) 비밀 값 (.env에서 읽음, 출력하지 않음)"
@@ -61,5 +62,5 @@ until curl -sf -m 2 -o /dev/null "http://localhost:$PORT/"; do sleep 1; done
 lap
 kubectl -n $NS get pods
 # 배포마다 새 태그로 이미지를 만들므로, 이번 태그만 남기고 이전 gyeol 이미지는 지운다 (저장 공간)
-docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^gyeol/(api|worker|external-fetcher|web):' | grep -v ":$TAG$" | xargs -r docker rmi >/dev/null 2>&1 || true
+docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^gyeol/(api|worker|external-fetcher|web|embed):' | grep -v ":$TAG$" | xargs -r docker rmi >/dev/null 2>&1 || true
 echo "접속: http://localhost:$PORT"

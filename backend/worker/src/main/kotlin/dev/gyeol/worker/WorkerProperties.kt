@@ -16,9 +16,16 @@ data class WorkerProperties(
     val cover: Cover = Cover(),
     val llm: Llm = Llm(),
     val enrich: Enrich = Enrich(),
+    val embed: Embed = Embed(),
     /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
     val busyRetry: Duration = Duration.ofSeconds(30),
 ) {
+    /** L3-3 embed 서비스 (Python, intfloat/multilingual-e5-small ONNX) */
+    data class Embed(
+        val url: String = "http://localhost:18084",
+        val timeout: Duration = Duration.ofSeconds(30),
+    )
+
     data class Enrich(
         val queue: String = "gyeol-local-enrich",
         val dlq: String = "gyeol-local-enrich-dlq",

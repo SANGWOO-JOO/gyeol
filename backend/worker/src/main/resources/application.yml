@@ -33,6 +33,9 @@ gyeol:
       mode: ${LLM_MODE:fake}
       model: ${LLM_MODEL:global.anthropic.claude-haiku-4-5-20251001-v1:0}
       debug-endpoint: ${LLM_DEBUG_ENDPOINT:false}
+    # L3-3 곡 설명 임베딩 서비스
+    embed:
+      url: ${EMBED_URL:http://localhost:18084}
     # L3-1 지식 인입
     enrich:
       queue: ${ENRICH_QUEUE:gyeol-local-enrich}

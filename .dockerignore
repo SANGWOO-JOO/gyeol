@@ -3,3 +3,4 @@
 !backend/*/build/libs/*-0.1.0.jar
 !web/dist/**
 !deploy/docker/web-nginx.conf
+!embed/app.py

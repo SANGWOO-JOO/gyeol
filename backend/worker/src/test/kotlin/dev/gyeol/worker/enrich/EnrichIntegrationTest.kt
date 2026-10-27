@@ -5,6 +5,7 @@ import dev.gyeol.core.identify.ArtistInfo
 import dev.gyeol.core.identify.IdentifyRepository
 import dev.gyeol.core.identify.TrackInfo
 import dev.gyeol.core.knowledge.KnowledgeRepository
+import dev.gyeol.core.knowledge.VectorRepository
 import dev.gyeol.core.listen.ListenEvent
 import dev.gyeol.core.listen.ListenEventRepository
 import dev.gyeol.core.listen.Source
@@ -83,8 +84,20 @@ class EnrichIntegrationTest {
                 ex.sendResponseHeaders(200, body.size.toLong())
                 ex.responseBody.use { it.write(body) }
             }
+            // 가짜 embed 서비스: 문장마다 정해진 384차원 단위 벡터 (첫 글자로 방향을 정한다)
+            createContext("/embed") { ex ->
+                val body = ex.requestBody.readAllBytes().decodeToString()
+                embedCalls += body
+                val texts = Regex("\"texts\":\\[(.*?)\\]").find(body)!!.groupValues[1].split("\",\"").size
+                val vectors = (0 until texts).joinToString(",") { i -> (0 until 384).joinToString(",", "[", "]") { d -> if (d == i % 384) "1.0" else "0.0" } }
+                val res = """{"vectors":[$vectors],"dim":384,"model":"fake-e5"}""".toByteArray()
+                ex.responseHeaders.add("Content-Type", "application/json")
+                ex.sendResponseHeaders(200, res.size.toLong())
+                ex.responseBody.use { it.write(res) }
+            }
             start()
         }
+        val embedCalls = CopyOnWriteArrayList<String>()
 
         @DynamicPropertySource
         @JvmStatic
@@ -94,6 +107,7 @@ class EnrichIntegrationTest {
             registry.add("spring.cloud.aws.credentials.access-key") { localstack.accessKey }
             registry.add("spring.cloud.aws.credentials.secret-key") { localstack.secretKey }
             registry.add("gyeol.worker.identify.fetcher-url") { "http://localhost:${fetcher.address.port}" }
+            registry.add("gyeol.worker.embed.url") { "http://localhost:${fetcher.address.port}" }
         }
 
         @BeforeAll
@@ -113,6 +127,7 @@ class EnrichIntegrationTest {
     @Autowired lateinit var uploads: UploadRepository
     @Autowired lateinit var listens: ListenEventRepository
     @Autowired lateinit var jdbc: JdbcClient
+    @Autowired lateinit var vectors: VectorRepository
 
     private val artist = ArtistInfo(UUID.randomUUID(), "가수", "가수", emptyList())
     private fun track(title: String) = identify.upsertTrack(TrackInfo(UUID.randomUUID(), title, artist, UUID.randomUUID(), UUID.randomUUID(), "$title 음반", "2020-01-01", "Single"))
@@ -161,6 +176,10 @@ class EnrichIntegrationTest {
         val genres = jdbc.sql("SELECT fields -> 'genres' ->> 'confidence' || ':' || (fields -> 'genres' -> 'value' ->> 0) FROM track_descriptor WHERE track_id = :t").param("t", a).query(String::class.java).single()
         assertEquals("LOW:k-pop", genres)
         assertEquals(2L, count("SELECT count(*) FROM track_descriptor"))
+        // 곡 설명 → 벡터 (L3-3): "query" 접두어, 두 곡을 한 번에
+        assertEquals(2L, count("SELECT count(*) FROM track_vector"))
+        assert(embedCalls.single().contains("\"kind\":\"query\"") && embedCalls.single().contains("장르: k-pop"))
+        assertEquals(listOf(b), vectors.nearest(a, 5).map { it.trackId })
 
         calls.clear()
         val second = session(listOf(a, b))
@@ -168,5 +187,6 @@ class EnrichIntegrationTest {
         waitDone(second)
         assertEquals(0, calls.size, "90일 안에 가져온 대상은 다시 묻지 않는다")
         assertEquals(2L, count("SELECT count(*) FROM track_descriptor")) // 지식이 그대로면 설명도 다시 만들지 않는다
+        assertEquals(1, embedCalls.size, "문장이 그대로면 벡터도 다시 만들지 않는다")
     }
 }

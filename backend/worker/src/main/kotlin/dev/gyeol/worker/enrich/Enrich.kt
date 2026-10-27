@@ -13,6 +13,7 @@ import dev.gyeol.core.llm.LlmUsage
 import dev.gyeol.worker.WorkerProperties
 import dev.gyeol.worker.describe.Claim
 import dev.gyeol.worker.describe.DescriptorBuilder
+import dev.gyeol.worker.describe.EmbedClient
 import dev.gyeol.worker.describe.RawDescription
 import dev.gyeol.worker.describe.TrackDescriber
 import dev.gyeol.worker.identify.FetcherClient
@@ -57,6 +58,7 @@ class EnrichService(
     private val descriptors: DescriptorRepository,
     private val describer: TrackDescriber,
     private val llmCalls: LlmCallRepository,
+    private val embed: EmbedClient,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -81,8 +83,10 @@ class EnrichService(
         // 곡 설명 (L3-2): 설명이 없거나 지식이 바뀐 곡만, 한 번에 묶어서
         val toDescribe = trackIds.filter { descriptors.needsDescribe(it) }.mapNotNull { descriptors.target(it) }
         if (toDescribe.isNotEmpty()) describe(toDescribe)
+        // 곡 설명 → 벡터 (L3-3). 문장이 바뀐 곡만
+        val embedded = embed.embedTracks(trackIds)
         trackIds.forEach { knowledge.finishTarget(sessionId, it, "DONE") }
-        log.info("보강 묶음: 세션 {}, {}곡, 새로 가져온 대상 {}개, 곡 설명 {}곡, {}ms", sessionId, trackIds.size, fetched, toDescribe.size, (System.nanoTime() - started) / 1_000_000)
+        log.info("보강 묶음: 세션 {}, {}곡, 새로 가져온 대상 {}개, 곡 설명 {}곡, 벡터 {}곡, {}ms", sessionId, trackIds.size, fetched, toDescribe.size, embedded, (System.nanoTime() - started) / 1_000_000)
     }
 
     /** 곡 하나: 녹음 → 작품들 → 음반 묶음 → 가수. 90일 안에 가져온 대상은 건너뛴다. 새로 가져온 대상 수 */
