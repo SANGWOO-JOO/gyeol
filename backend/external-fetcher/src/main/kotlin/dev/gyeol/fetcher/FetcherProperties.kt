@@ -11,6 +11,7 @@ data class FetcherProperties(
     val lastfm: LastFm = LastFm(),
     val cache: Cache = Cache(),
     val coverart: CoverArt = CoverArt(),
+    val youtube: YouTube = YouTube(),
 ) {
     data class MusicBrainz(
         val baseUrl: String = "https://musicbrainz.org/ws/2",
@@ -28,6 +29,15 @@ data class FetcherProperties(
         val minInterval: Duration = Duration.ofMillis(250),
         val maxWait: Duration = Duration.ofSeconds(2),
         val timeout: Duration = Duration.ofSeconds(3),
+    )
+
+    data class YouTube(
+        /** 비어 있으면 판정만 503으로 거절 (나머지 기능은 그대로) */
+        val apiKey: String = "",
+        val baseUrl: String = "https://www.googleapis.com/youtube/v3",
+        val minInterval: Duration = Duration.ofMillis(100),
+        val maxWait: Duration = Duration.ofSeconds(30),
+        val timeout: Duration = Duration.ofSeconds(10),
     )
 
     data class CoverArt(

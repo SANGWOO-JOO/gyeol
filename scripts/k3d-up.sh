@@ -48,6 +48,7 @@ kubectl create namespace $NS --dry-run=client -o yaml | kubectl apply -f - >/dev
   kubectl -n $NS create secret generic gyeol-secrets \
     --from-literal=DB_PASSWORD="${DB_PASSWORD:-gyeol}" \
     --from-literal=LASTFM_API_KEY="${LASTFM_API_KEY:-}" \
+    --from-literal=YOUTUBE_API_KEY="${YOUTUBE_API_KEY:-}" \
     --dry-run=client -o yaml | kubectl apply -f - >/dev/null )
 
 echo "5) 배포"

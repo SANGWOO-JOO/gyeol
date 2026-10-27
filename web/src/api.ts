@@ -66,6 +66,8 @@ export const api = {
   uploadUrl: (token: string, c: { totalCount: number; musicCount: number; unclassifiedCount: number; byteSize: number }) =>
     call<UploadTicket>(`/sessions/${token}/upload-url`, json('POST', c)),
   stats: (token: string) => call<Stats>(`/sessions/${token}/stats`),
+  videoCheck: (token: string, videoIds: string[]) =>
+    call<{ musicIds: string[]; checked: number; fromCache: number; fromApi: number; skipped: boolean }>(`/sessions/${token}/video-check`, json('POST', { videoIds })),
   remove: (token: string) => call<void>(`/sessions/${token}`, { method: 'DELETE' }),
 }
 

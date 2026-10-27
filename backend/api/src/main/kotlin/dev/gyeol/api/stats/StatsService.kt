@@ -126,7 +126,10 @@ class StatsService(private val jdbc: JdbcClient) {
     private fun topSongs(sid: Long, top: Int): List<SongCount> =
         jdbc.sql(
             """
-            SELECT g.track_id, g.title, coalesce(g.topic_artist, a.name, g.channel) AS artist,
+            SELECT g.track_id,
+                   -- 식별된 곡은 정리된 이름(캐시의 곡명·가수)을 먼저: 일반 영상 제목에는 "[MV] … _ …" 같은 장식이 붙어 있다 (L2-3)
+                   coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_title) FROM title_alias ta WHERE ta.track_id = g.track_id AND ta.status = 'MATCHED'), g.title) AS title,
+                   coalesce(g.topic_artist, (SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta WHERE ta.track_id = g.track_id AND ta.status = 'MATCHED'), a.name, g.channel) AS artist,
                    t.release_title, t.release_date, t.cover_url, g.plays
             FROM (
                 SELECT l.track_id, count(*) AS plays,
@@ -156,7 +159,11 @@ class StatsService(private val jdbc: JdbcClient) {
     private fun topArtists(sid: Long, top: Int): List<ArtistCount> =
         jdbc.sql(
             """
-            SELECT t.artist_id, coalesce($topicArtist, min(a.name), min(regexp_replace(l.channel, ' - Topic$', ''))) AS name, count(*) AS plays
+            SELECT t.artist_id,
+                   coalesce($topicArtist,
+                            (SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta JOIN track tt ON tt.id = ta.track_id WHERE tt.artist_id = t.artist_id AND ta.status = 'MATCHED'),
+                            min(a.name), min(regexp_replace(l.channel, ' - Topic$', ''))) AS name,
+                   count(*) AS plays
             FROM listen_event l
             LEFT JOIN track t ON t.id = l.track_id
             LEFT JOIN artist a ON a.id = t.artist_id

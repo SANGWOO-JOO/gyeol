@@ -5,6 +5,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 RUN=.run; mkdir -p "$RUN"
 export JAVA_HOME="${JAVA_HOME:-/Users/sangwoo/Library/Java/JavaVirtualMachines/corretto-21.0.4/Contents/Home}"
+# .env의 키·설정(LASTFM_API_KEY, YOUTUBE_API_KEY, LLM_MODE 등)을 모든 서비스에 넘긴다. 값은 출력하지 않는다
+# LLM_MODE=bedrock이면 worker가 맥북의 AWS 자격 증명으로 Bedrock을 부른다 (비용 발생, 기본은 fake)
+set -a; [ -f .env ] && . ./.env; set +a
 JAVA="$JAVA_HOME/bin/java"
 
 # 1) Docker Desktop이 꺼져 있으면 켜고 기다린다
@@ -26,7 +29,7 @@ start() { # 이름 포트 명령…
 }
 SPRING_PROFILES_ACTIVE=local start api 18080 "$JAVA" -jar backend/api/build/libs/api-0.1.0.jar
 SPRING_PROFILES_ACTIVE=local start worker 18082 "$JAVA" -jar backend/worker/build/libs/worker-0.1.0.jar
-( set -a; [ -f .env ] && . ./.env; set +a; start fetcher 18081 "$JAVA" -jar backend/external-fetcher/build/libs/external-fetcher-0.1.0.jar )
+start fetcher 18081 "$JAVA" -jar backend/external-fetcher/build/libs/external-fetcher-0.1.0.jar
 
 # 4) 웹 개발 서버
 [ -d web/node_modules ] || (cd web && npm install)

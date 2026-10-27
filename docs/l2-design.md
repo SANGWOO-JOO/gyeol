@@ -166,3 +166,24 @@ identify-worker
 - Anthropic 모델은 **사용 목적 양식**이 필요했다. 처음 한 번은 양식 없이 호출됐다가 이후 `use case details have not been submitted`로 거절됐다. CLI `aws bedrock put-use-case-for-model-access`로 제출, 약 15분 뒤 사용 가능.
 - **Haiku 5.5와 Sonnet 5는 이 계정에서 쓸 수 없다** (`not available for this account`). 그래서 비교 측정은 하지 않고 Haiku 4.5로 확정. 설계(design-v3)에서 추천 이유·대화용으로 정한 Sonnet 5도 쓸 수 없으므로 **L3에서 모델을 다시 정한다** (후보: 목록에 있는 Sonnet 4.6, 호출로 확인 필요).
 - Bedrock이 일시적으로 503(`unable to process your request`)을 줄 때가 있다. 측정 도구는 묶음마다 다시 시도하고, 운영은 SQS 재시도로 처리된다.
+
+## 11. L2-3b 구현 결과 (2026-10-27)
+
+**구성**: V9(`video_check`: 영상 ID → categoryId, 30일 뒤 정리 작업이 삭제), fetcher `POST /internal/youtube/categories`(videos.list, 50개씩, categoryId만 받음), api `POST /api/sessions/{token}/video-check`(ID 1,000개 이하, 30일 캐시, YouTube 장애·키 없음이면 `skipped`로 알리고 L1처럼 진행), 브라우저는 미분류 시청을 영상 ID별로 세어 **재생 상위 1,000개 ID만** 보내고 음악(10)으로 판정된 항목만 제목을 포함해 업로드. 판정 결과는 업로드 파일에 더해지고, 규칙으로 못 푸는 제목은 L2-3a LLM으로 정리된다.
+
+**실제 API 끝까지 확인** (맥북 dev 서버, LLM_MODE=bedrock, 실제 영상 ID)
+
+| 시청 기록 | 경로 | 결과 |
+|---|---|---|
+| [MV] IU(아이유) _ Through the Night(밤편지) · 1theK, 5회 | YouTube 판정(10) → LLM → MusicBrainz | 밤편지 (2017), 표지 |
+| Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster), 3회 | YouTube 판정(10) → LLM → MusicBrainz | Never Gonna Give You Up (1987), 표지 |
+| 사계 (Four Seasons) · 태연 - Topic, 2회 | 규칙 → MusicBrainz | Four Seasons (2019), 표지 |
+| 주말 브이로그 (없는 영상 ID), 4회 | YouTube 판정에서 걸러짐 | 올리지 않음 |
+
+- 음악 기록 2건 → 10건, 곡 확인 10/10. 업로드까지 2.2초. LLM 1번(2곡) 입력 1,481·출력 167 토큰, 1.5초. YouTube 할당량 1단위.
+
+**고친 것**
+- 표시 이름: 식별된 곡은 정리된 이름(캐시의 곡명·가수)을 먼저 쓴다. 일반 영상 제목을 그대로 쓰면 "[MV] IU(아이유) _ …"가 순위에 나왔다.
+- Bedrock 503·호출 한도 초과도 30초 뒤 다시 시도(`retrySoonIfBusy`). 처음엔 fetcher 503만 잡아서 Bedrock 503 때 메시지가 15분 동안 묶였다. Bedrock `global` 추론 프로필은 일시 503이 종종 난다(이번 회차에서 두 번).
+- dev-up이 `.env`를 모든 서비스에 넘기게 바꾸자, L1 예시에서 온 `WORKER_ROLE=parse`가 worker의 identify·cover를 꺼 버렸다. `.env`·`.env.example`을 `parse,identify,cover`로 고침.
+- k3d 파드에는 AWS 자격 증명이 없어 Bedrock을 부를 수 없다 → k3d는 `llmMode: fake`. 실제 LLM은 맥북 dev 서버나 EKS(Pod Identity)에서.

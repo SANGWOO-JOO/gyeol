@@ -24,6 +24,9 @@ gyeol:
       min-interval: 250ms
       max-wait: 2s
       timeout: 3s
+    youtube:
+      # L2-3b 일반 영상 음악 판정 (videos.list, 50개당 1단위, 하루 1만 단위 무료)
+      api-key: ${YOUTUBE_API_KEY:}
     cache:
       ttl: 10m
       max-entries: 500

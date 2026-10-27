@@ -3,6 +3,7 @@ package dev.gyeol.worker.cleanup
 import dev.gyeol.core.listen.ListenEventRepository
 import dev.gyeol.core.session.SessionRepository
 import dev.gyeol.core.upload.UploadRepository
+import dev.gyeol.core.video.VideoCheckRepository
 import dev.gyeol.worker.WorkerProperties
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -10,13 +11,14 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier
 import java.time.Instant
 
-data class CleanupResult(val files: Int, val listens: Int, val sessions: Int)
+data class CleanupResult(val files: Int, val listens: Int, val sessions: Int, val videoChecks: Int = 0)
 
 /**
  * 보관 기간이 지난 데이터를 지운다 (화면 안내 "30일 보관", 설계 "청취 기록 원본 7일").
  * 1. S3 원본 파일: 업로드 후 7일 또는 세션 만료 → 지우고 file_deleted_at 표시
  * 2. 청취 기록: listen_event.expires_at(7일) 지남
  * 3. 세션: expires_at(30일) 지남, 원본 파일을 다 지운 세션만 (연쇄 삭제)
+ * 4. 일반 영상 음악 판정 캐시: 30일 지남 (YouTube API 정책)
  * 순서가 중요하다: 세션을 먼저 지우면 S3 키를 잃어 파일이 고아로 남는다.
  * 여러 번 돌거나 워커 여러 대가 동시에 돌아도 결과가 같다 (S3 삭제는 없는 키도 성공).
  */
@@ -27,6 +29,7 @@ class CleanupService(
     private val listens: ListenEventRepository,
     private val s3: S3Client,
     private val props: WorkerProperties,
+    private val videoChecks: VideoCheckRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -35,8 +38,10 @@ class CleanupService(
         val files = deleteFiles(now)
         val listens = repeatUntilDone { listens.deleteExpired(now, BATCH) }
         val sessions = repeatUntilDone { sessions.deleteExpired(now, BATCH) }
-        val result = CleanupResult(files, listens, sessions)
-        log.info("정리 완료: 원본 파일 {}개, 청취 기록 {}건, 세션 {}개, {}ms", files, listens, sessions, (System.nanoTime() - started) / 1_000_000)
+        // YouTube API 정책: 판정 결과(카테고리)는 30일 안에 지운다 (L2-3b)
+        val checks = videoChecks.deleteOlderThan(now.minus(java.time.Duration.ofDays(30)))
+        val result = CleanupResult(files, listens, sessions, checks)
+        log.info("정리 완료: 원본 파일 {}개, 청취 기록 {}건, 세션 {}개, 음악 판정 {}건, {}ms", files, listens, sessions, checks, (System.nanoTime() - started) / 1_000_000)
         return result
     }
 

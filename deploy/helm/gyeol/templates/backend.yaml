@@ -12,6 +12,7 @@
     (dict "name" "IDENTIFY_DLQ" "value" .Values.aws.identifyDlq)
     (dict "name" "IDENTIFY_TOP_N" "value" (toString .Values.worker.identifyTopN))
     (dict "name" "COVER_QUEUE" "value" .Values.aws.coverQueue)
+    (dict "name" "LLM_MODE" "value" .Values.worker.llmMode)
     (dict "name" "FETCHER_URL" "value" (printf "http://gyeol-fetcher:%v" .Values.fetcher.port))
     (dict "name" "CLEANUP_ENABLED" "value" (toString .Values.worker.cleanupEnabled))))
   "fetcher" (dict "cfg" .Values.fetcher "service" true "image" "external-fetcher" "env" (list
@@ -52,6 +53,8 @@ spec:
             {{- if eq $name "fetcher" }}
             - name: LASTFM_API_KEY
               valueFrom: { secretKeyRef: { name: {{ $root.Values.secretName }}, key: LASTFM_API_KEY, optional: true } }
+            - name: YOUTUBE_API_KEY
+              valueFrom: { secretKeyRef: { name: {{ $root.Values.secretName }}, key: YOUTUBE_API_KEY, optional: true } }
             {{- end }}
           resources: {{- toYaml $root.Values.javaResources | nindent 12 }}
           {{- include "gyeol.springProbes" $root | nindent 10 }}

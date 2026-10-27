@@ -65,7 +65,21 @@ class SessionApiIntegrationTest {
         // 가짜 external-fetcher: 켜져 있으면 고정 결과, 꺼져 있으면 503
         @Volatile var fakeFetcherUp = true
         val fetcherQueries = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val youtubeAsked = java.util.concurrent.CopyOnWriteArrayList<String>()
         private val fakeFetcher = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress(0), 0).apply {
+            // 가짜 YouTube 판정: "m"으로 시작하는 ID는 음악(10), 나머지는 22, "x"로 시작하면 응답에 없음(삭제된 영상)
+            createContext("/internal/youtube/categories") { ex ->
+                val ids = Regex("\"([\\w-]{6,32})\"").findAll(ex.requestBody.readAllBytes().decodeToString()).map { it.groupValues[1] }.filter { it != "videoIds" }.toList()
+                youtubeAsked += ids
+                val cats = ids.filter { !it.startsWith("x") }.joinToString(",") { "\"$it\":\"${if (it.startsWith("m")) "10" else "22"}\"" }
+                val body = """{"categories":{$cats},"calls":1,"ms":5}""".toByteArray()
+                if (fakeFetcherUp) {
+                    ex.responseHeaders.add("Content-Type", "application/json")
+                    ex.sendResponseHeaders(200, body.size.toLong()); ex.responseBody.use { it.write(body) }
+                } else {
+                    ex.sendResponseHeaders(503, -1); ex.close()
+                }
+            }
             createContext("/internal/lastfm/search") { ex ->
                 fetcherQueries += ex.requestURI.rawQuery
                 val body = """{"items":[{"title":"Rain","artist":"태연","mbid":null,"listeners":123456,"releaseYear":null}],"source":"lastfm","cached":false}""".toByteArray()
@@ -399,6 +413,40 @@ class SessionApiIntegrationTest {
         val seeds = call("GET", "/api/sessions/$token").second!!["seeds"]
         assertEquals("밤편지", seeds[0]["releaseTitle"].asString())
         assertTrue(seeds[2]["releaseTitle"].isNull)
+    }
+
+    @Test
+    fun `일반 영상 음악 판정 - ID만 받아 음악인 것만 돌려주고, 30일 캐시, 판정 실패면 건너뛴다`() {
+        val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
+        fun check(ids: List<String>) = call("POST", "/api/sessions/$token/video-check", mapOf("videoIds" to ids))
+
+        val first = check(listOf("m-music-01", "v-vlog-001", "x-deleted1")).second!!
+        assertEquals(listOf("m-music-01"), first["musicIds"].toList().map { it.asString() })
+        assertEquals(3, first["fromApi"].asInt())
+        assertEquals(false, first["skipped"].asBoolean())
+
+        // 두 번째는 캐시 (삭제된 영상도 다시 묻지 않음), 새 ID만 YouTube로
+        youtubeAsked.clear()
+        val second = check(listOf("m-music-01", "x-deleted1", "m-music-02")).second!!
+        assertEquals(listOf("m-music-01", "m-music-02"), second["musicIds"].toList().map { it.asString() })
+        assertEquals(2, second["fromCache"].asInt())
+        assertEquals(listOf("m-music-02"), youtubeAsked.toList())
+
+        // YouTube 쪽 장애: 오류가 아니라 판정을 건너뛰었다고 알려 준다 (캐시에 있는 것은 그대로)
+        fakeFetcherUp = false
+        try {
+            val skipped = check(listOf("m-music-01", "m-music-03")).second!!
+            assertTrue(skipped["skipped"].asBoolean())
+            assertEquals(listOf("m-music-01"), skipped["musicIds"].toList().map { it.asString() })
+        } finally {
+            fakeFetcherUp = true
+        }
+
+        assertEquals("VALIDATION", check(listOf("잘못된 id!")).second!!["code"].asString())
+        assertEquals("VALIDATION", check((1..1001).map { "m-video-%04d".format(it) }).second!!["code"].asString())
+        // 업로드를 시작한 세션에서는 판정하지 않는다
+        call("POST", "/api/sessions/$token/upload-url", mapOf("totalCount" to 1, "musicCount" to 1, "unclassifiedCount" to 0, "byteSize" to 10))
+        assertEquals("INVALID_STATE", check(listOf("m-music-01")).second!!["code"].asString())
     }
 
     @Test

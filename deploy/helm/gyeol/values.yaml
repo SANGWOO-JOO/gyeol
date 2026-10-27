@@ -21,7 +21,7 @@ aws:
   # 브라우저가 올릴 S3 주소가 서버와 다를 때만 (k3d)
   publicEndpoint: ""
 
-# 비밀 값은 차트 밖에서 만든다: kubectl create secret generic gyeol-secrets (DB_PASSWORD, LASTFM_API_KEY)
+# 비밀 값은 차트 밖에서 만든다: kubectl create secret generic gyeol-secrets (DB_PASSWORD, LASTFM_API_KEY, YOUTUBE_API_KEY)
 secretName: gyeol-secrets
 contact: https://github.com/SANGWOO-JOO
 
@@ -40,6 +40,8 @@ worker:
   role: parse,identify,cover
   cleanupEnabled: true
   identifyTopN: 300
+  # fake | bedrock. bedrock은 파드에 Bedrock 권한(EKS: Pod Identity)이 있어야 한다. k3d에는 AWS 자격 증명이 없어 fake
+  llmMode: fake
 fetcher:
   replicas: 1
   port: 18081

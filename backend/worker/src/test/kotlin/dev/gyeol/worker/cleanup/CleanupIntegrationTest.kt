@@ -159,6 +159,15 @@ class CleanupIntegrationTest {
     }
 
     @Test
+    fun `음악 판정 캐시는 30일이 지나면 지운다 (YouTube API 정책)`() {
+        jdbc.sql("INSERT INTO video_check (video_id, category_id, checked_at) VALUES ('old-video-1', '10', :t), ('new-video-1', '10', :n)")
+            .param("t", Timestamp.from(t0)).param("n", Timestamp.from(t0.plus(Duration.ofDays(20)))).update()
+        assertEquals(1, cleanup.run(t0.plus(Duration.ofDays(31))).videoChecks)
+        assertEquals(listOf("new-video-1"), jdbc.sql("SELECT video_id FROM video_check").query { rs, _ -> rs.getString(1) }.list())
+        jdbc.sql("DELETE FROM video_check").update()
+    }
+
+    @Test
     fun `청취 기록이 많아도 나눠서 모두 지운다`() {
         val (sid, _) = uploaded(12_000)
         assertEquals(12_000, cleanup.run(t0.plus(Duration.ofDays(8))).listens)
