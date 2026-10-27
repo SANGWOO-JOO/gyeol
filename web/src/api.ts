@@ -37,6 +37,19 @@ export interface Stats {
   identified: { plays: number; totalPlays: number }
 }
 
+/** L3-4 추천. status: NONE(시작 전) · CANDIDATES(후보 곡 정보 모으는 중) · READY */
+export interface Recommendations {
+  status: 'NONE' | 'CANDIDATES' | 'READY'
+  candidatesDone: number
+  candidatesTotal: number
+  summary: string | null
+  model: string | null
+  items: {
+    rank: number; trackId: number; title: string; artist: string; releaseTitle: string | null; coverUrl: string | null; score: number
+    reason: string | null; evidence: { id: number; source: string; url: string }[]; basedOn: { trackId: number; title: string; artist: string }[]
+  }[]
+}
+
 export class ApiError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) { super(message) }
 }
@@ -70,6 +83,7 @@ export const api = {
   stats: (token: string) => call<Stats>(`/sessions/${token}/stats`),
   videoCheck: (token: string, videoIds: string[]) =>
     call<{ musicIds: string[]; checked: number; fromCache: number; fromApi: number; skipped: boolean }>(`/sessions/${token}/video-check`, json('POST', { videoIds })),
+  recommendations: (token: string) => call<Recommendations>(`/sessions/${token}/recommendations`),
   remove: (token: string) => call<void>(`/sessions/${token}`, { method: 'DELETE' }),
 }
 

@@ -59,6 +59,7 @@ class EnrichService(
     private val describer: TrackDescriber,
     private val llmCalls: LlmCallRepository,
     private val embed: EmbedClient,
+    private val recommendTrigger: dev.gyeol.worker.recommend.RecommendTrigger,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -74,6 +75,18 @@ class EnrichService(
 
     fun enrich(sessionId: Long, trackIds: List<Long>) {
         val started = System.nanoTime()
+        val r = enrichTracks(trackIds)
+        trackIds.forEach { knowledge.finishTarget(sessionId, it, "DONE") }
+        log.info("보강 묶음: 세션 {}, {}곡, 새로 가져온 대상 {}개, 곡 설명 {}곡, 벡터 {}곡, {}ms", sessionId, trackIds.size, r.fetched, r.described, r.embedded, (System.nanoTime() - started) / 1_000_000)
+        // 세션 보강이 다 끝났으면 추천 시작 (L3-4)
+        val p = knowledge.progress(sessionId)
+        if (p.target > 0 && p.done + p.failed == p.target) recommendTrigger.start(sessionId)
+    }
+
+    data class EnrichResult(val fetched: Int, val described: Int, val embedded: Int)
+
+    /** 지식 인입 → 곡 설명 → 벡터. 세션 보강과 추천 후보 보강(L3-4)이 함께 쓴다 */
+    fun enrichTracks(trackIds: List<Long>): EnrichResult {
         val since = Instant.now().minus(props.enrich.refresh)
         var fetched = 0
         for (id in trackIds) {
@@ -85,8 +98,7 @@ class EnrichService(
         if (toDescribe.isNotEmpty()) describe(toDescribe)
         // 곡 설명 → 벡터 (L3-3). 문장이 바뀐 곡만
         val embedded = embed.embedTracks(trackIds)
-        trackIds.forEach { knowledge.finishTarget(sessionId, it, "DONE") }
-        log.info("보강 묶음: 세션 {}, {}곡, 새로 가져온 대상 {}개, 곡 설명 {}곡, 벡터 {}곡, {}ms", sessionId, trackIds.size, fetched, toDescribe.size, embedded, (System.nanoTime() - started) / 1_000_000)
+        return EnrichResult(fetched, toDescribe.size, embedded)
     }
 
     /** 곡 하나: 녹음 → 작품들 → 음반 묶음 → 가수. 90일 안에 가져온 대상은 건너뛴다. 새로 가져온 대상 수 */

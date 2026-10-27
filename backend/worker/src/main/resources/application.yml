@@ -15,8 +15,8 @@ spring:
 
 gyeol:
   worker:
-    # 이 워커가 처리할 큐 역할. 쉼표로 여러 개 (parse, identify, cover, enrich)
-    role: ${WORKER_ROLE:parse,identify,cover,enrich}
+    # 이 워커가 처리할 큐 역할. 쉼표로 여러 개 (parse, identify, cover, enrich, recommend)
+    role: ${WORKER_ROLE:parse,identify,cover,enrich,recommend}
     parse-queue: ${PARSE_QUEUE:gyeol-local-parse}
     parse-dlq: ${PARSE_DLQ:gyeol-local-parse-dlq}
     upload-bucket: ${UPLOAD_BUCKET:gyeol-local-uploads}
@@ -33,6 +33,11 @@ gyeol:
       mode: ${LLM_MODE:fake}
       model: ${LLM_MODEL:global.anthropic.claude-haiku-4-5-20251001-v1:0}
       debug-endpoint: ${LLM_DEBUG_ENDPOINT:false}
+    # L3-4 추천
+    recommend:
+      queue: ${RECOMMEND_QUEUE:gyeol-local-recommend}
+      dlq: ${RECOMMEND_DLQ:gyeol-local-recommend-dlq}
+      model: ${RECOMMEND_MODEL:}
     # L3-3 곡 설명 임베딩 서비스
     embed:
       url: ${EMBED_URL:http://localhost:18084}

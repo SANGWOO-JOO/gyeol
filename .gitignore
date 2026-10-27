@@ -46,6 +46,7 @@ coverage/
 # 로그·실험 결과
 *.log
 tools/results/
+tools/*/results/
 
 # 개인 청취 기록 (실제 Takeout 파일은 절대 커밋하지 않는다. 가상 데이터만 tools/fixtures에 둔다)
 watch-history*.json

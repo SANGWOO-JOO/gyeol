@@ -17,9 +17,27 @@ data class WorkerProperties(
     val llm: Llm = Llm(),
     val enrich: Enrich = Enrich(),
     val embed: Embed = Embed(),
+    val recommend: Recommend = Recommend(),
     /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
     val busyRetry: Duration = Duration.ofSeconds(30),
 ) {
+    /** L3-4 추천 (docs/l3-design.md 11장) */
+    data class Recommend(
+        val queue: String = "gyeol-local-recommend",
+        val dlq: String = "gyeol-local-recommend-dlq",
+        val candidates: Int = 50,
+        val picks: Int = 20,
+        val perArtist: Int = 2,
+        /** 점수 가중치: 프로필 벡터 유사도 · Last.fm 유사도 · 같은 작곡가·프로듀서 (L3-5 피드백으로 조정) */
+        val wVector: Double = 0.5,
+        val wLastfm: Double = 0.3,
+        val wCredit: Double = 0.2,
+        /** 후보 보강 메시지 하나에 담는 곡 수 */
+        val batch: Int = 5,
+        /** 재정렬 모델 (비우면 gyeol.worker.llm.model) */
+        val model: String = "",
+    )
+
     /** L3-3 embed 서비스 (Python, intfloat/multilingual-e5-small ONNX) */
     data class Embed(
         val url: String = "http://localhost:18084",

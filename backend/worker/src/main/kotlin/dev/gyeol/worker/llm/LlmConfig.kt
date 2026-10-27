@@ -23,6 +23,11 @@ class LlmConfig {
     @Bean
     fun trackDescriber(props: WorkerProperties, json: JsonMapper): TrackDescriber =
         if (props.llm.mode == "bedrock") BedrockDescriber(props.llm, json) else FakeDescriber()
+
+    /** L3-4 추천 재정렬 */
+    @Bean
+    fun reranker(props: WorkerProperties, json: JsonMapper): dev.gyeol.worker.recommend.Reranker =
+        if (props.llm.mode == "bedrock") dev.gyeol.worker.recommend.BedrockReranker(props, json) else dev.gyeol.worker.recommend.FakeReranker()
 }
 
 data class CleanRequest(val model: String?, val items: List<RawTitle>)

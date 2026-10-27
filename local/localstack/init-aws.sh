@@ -47,6 +47,15 @@ EQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
 awslocal sqs create-queue --queue-name "$EQ" --region "$REGION" \
   --attributes "{\"VisibilityTimeout\":\"900\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$EQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
 
+# 추천 큐 (L3-4). 후보 5곡 식별·보강이 한 메시지라 15분
+RQ=gyeol-local-recommend
+awslocal sqs create-queue --queue-name "$RQ-dlq" --region "$REGION" >/dev/null
+RQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
+  --queue-url "$(awslocal sqs get-queue-url --queue-name "$RQ-dlq" --region "$REGION" --query QueueUrl --output text)" \
+  --attribute-names QueueArn --query Attributes.QueueArn --output text)
+awslocal sqs create-queue --queue-name "$RQ" --region "$REGION" \
+  --attributes "{\"VisibilityTimeout\":\"900\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$RQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
+
 # 업로드 버킷. 브라우저가 서명 URL로 직접 올리므로 로컬 웹 주소(Vite 15173, k3d 18000)에 CORS를 열어 둔다.
 awslocal s3 mb "s3://$BUCKET" --region "$REGION" >/dev/null
 awslocal s3api put-bucket-cors --bucket "$BUCKET" --cors-configuration '{

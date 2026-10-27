@@ -10,6 +10,8 @@ aws:
   coverQueue: gyeol-local-cover
   enrichQueue: gyeol-local-enrich
   enrichDlq: gyeol-local-enrich-dlq
+  recommendQueue: gyeol-local-recommend
+  recommendDlq: gyeol-local-recommend-dlq
   endpoint: http://host.k3d.internal:4566
   publicEndpoint: http://localhost:4566
   localstack: true

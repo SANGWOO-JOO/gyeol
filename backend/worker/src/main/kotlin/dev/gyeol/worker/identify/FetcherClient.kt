@@ -38,6 +38,11 @@ class FetcherClient(props: WorkerProperties) {
             b.path("/internal/knowledge/$type/$mbid").apply { artist?.let { queryParam("artist", it) }; title?.let { queryParam("title", it) } }.build()
         }.retrieve().body(JsonNode::class.java) ?: error("fetcher 응답이 비어 있습니다")
 
+    /** L3-4 추천 후보 (Last.fm): 비슷한 곡 / 비슷한 가수 / 가수 인기곡 */
+    fun lastfm(path: String, params: Map<String, Any>): JsonNode =
+        http.get().uri { b -> b.path("/internal/lastfm/$path").apply { params.forEach { (k, v) -> queryParam(k, v) } }.build() }
+            .retrieve().body(JsonNode::class.java) ?: error("fetcher 응답이 비어 있습니다")
+
     /** 찾으면 곡 정보, 못 찾으면 null */
     fun identify(artist: String, title: String): TrackInfo? {
         val r = http.post().uri("/internal/musicbrainz/identify")

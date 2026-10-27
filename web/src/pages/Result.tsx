@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { api, ApiError, type SessionView, type Stats } from '../api'
+import { api, ApiError, type Recommendations, type SessionView, type Stats } from '../api'
 import { BarChart } from '../components/BarChart'
 import { Alert, Layout } from '../components/Layout'
 import { Cover, Tile } from '../components/Tile'
@@ -79,6 +79,7 @@ export function Result() {
         {session?.status === 'DONE' && session.enrich && session.enrich.done + session.enrich.failed < session.enrich.target && (
           <span className={ui.small}>추천 근거가 될 곡 정보를 모으는 중이에요 ({num(session.enrich.done + session.enrich.failed)}/{num(session.enrich.target)})</span>
         )}
+        {session?.status === 'DONE' && session.enrich && session.enrich.done + session.enrich.failed >= session.enrich.target && <Recommend token={token} />}
         {session?.status === 'DONE' && stats && <Report stats={stats} />}
 
         {session && (
@@ -219,5 +220,61 @@ function Report({ stats }: { stats: Stats }) {
         </span>
       )}
     </div>
+  )
+}
+
+const SOURCE_NAMES: Record<string, string> = { WIKIPEDIA: '위키백과', WIKIDATA: '위키데이터', LASTFM: 'Last.fm', MUSICBRAINZ: 'MusicBrainz' }
+
+/** L3-4 결이 맞는 곡 20. 후보 곡 정보를 모으는 동안(수 분) 5초마다 확인한다 */
+function Recommend({ token }: { token: string }) {
+  const [rec, setRec] = useState<Recommendations | null>(null)
+  useEffect(() => {
+    let stop = false, timer: ReturnType<typeof setTimeout>, tries = 0
+    async function tick() {
+      try {
+        const r = await api.recommendations(token)
+        if (stop) return
+        setRec(r)
+        if (r.status !== 'READY' && tries++ < 240) timer = setTimeout(tick, 5000) // 최대 20분
+      } catch { /* 추천은 덤: 실패해도 나머지 화면은 그대로 */ }
+    }
+    tick()
+    return () => { stop = true; clearTimeout(timer) }
+  }, [token])
+
+  if (!rec) return null
+  if (rec.status !== 'READY') {
+    return (
+      <span className={ui.small}>
+        결이 맞는 곡을 찾는 중이에요{rec.candidatesTotal ? ` (후보 ${num(rec.candidatesDone)}/${num(rec.candidatesTotal)}곡 확인)` : ''}
+      </span>
+    )
+  }
+  return (
+    <section className={ui.stack} style={{ gap: 8 }}>
+      <h2 style={{ fontSize: 18 }}>결이 맞는 곡 {rec.items.length}</h2>
+      {rec.summary && <p className={ui.small} style={{ margin: 0 }}>{rec.summary}</p>}
+      <ol className={`${ui.list} ${ui.card}`} style={{ padding: '4px 16px' }}>
+        {rec.items.map(t => (
+          <li key={t.trackId} className={ui.listItem} style={{ alignItems: 'flex-start' }}>
+            <span className={ui.rank}>{t.rank}</span>
+            <Cover url={t.coverUrl} text={t.artist} />
+            <div className={ui.grow}>
+              <div className={ui.ellipsis}>{t.title}</div>
+              <div className={`${ui.small} ${ui.ellipsis}`}>{t.artist}{t.releaseTitle ? ` · ${t.releaseTitle}` : ''}</div>
+              <div className={ui.small} style={{ marginTop: 4 }}>
+                {t.reason ?? '근거 자료가 부족해 점수로만 골랐어요.'}
+                {t.evidence.map((e, i) => (
+                  <a key={e.id} href={e.url} target="_blank" rel="noreferrer" style={{ marginLeft: 4 }}>[{SOURCE_NAMES[e.source] ?? e.source}{t.evidence.length > 1 ? ` ${i + 1}` : ''}]</a>
+                ))}
+              </div>
+              {t.basedOn.length > 0 && (
+                <div className={ui.small} style={{ marginTop: 2 }}>들은 곡: {t.basedOn.map(b => `${b.artist} - ${b.title}`).join(', ')}</div>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
   )
 }

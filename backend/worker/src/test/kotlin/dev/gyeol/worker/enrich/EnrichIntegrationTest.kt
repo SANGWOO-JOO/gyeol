@@ -50,6 +50,7 @@ import kotlin.test.assertEquals
         "gyeol.worker.enrich.dlq=gyeol-test-enrich-dlq",
         "gyeol.worker.parse-dlq=gyeol-test-parse-dlq",
         "gyeol.worker.identify.dlq=gyeol-test-identify-dlq",
+        "gyeol.worker.recommend.queue=gyeol-test-recommend",
     ],
 )
 class EnrichIntegrationTest {
@@ -115,7 +116,7 @@ class EnrichIntegrationTest {
         fun queues() {
             SqsClient.builder().endpointOverride(localstack.endpoint).region(Region.of(localstack.region))
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localstack.accessKey, localstack.secretKey))).build().use { sqs ->
-                    listOf("gyeol-test-enrich", "gyeol-test-enrich-dlq", "gyeol-test-parse-dlq", "gyeol-test-identify-dlq").forEach { q -> sqs.createQueue { it.queueName(q) } }
+                    listOf("gyeol-test-enrich", "gyeol-test-enrich-dlq", "gyeol-test-parse-dlq", "gyeol-test-identify-dlq", "gyeol-test-recommend").forEach { q -> sqs.createQueue { it.queueName(q) } }
                 }
         }
     }
