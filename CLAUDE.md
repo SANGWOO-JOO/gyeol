@@ -39,8 +39,8 @@ gyeol/
 | 리전 | 서울(ap-northeast-2). CloudFront용 ACM 인증서만 us-east-1 |
 | 프론트 배포 | S3 + CloudFront, `/api/*`는 `origin-api.<도메인>`의 ALB로 전달 |
 | 도메인 | 선택. 쓰면 Route 53 저가 확장자 (이름 미정, 대안 is-a.dev). 등록 전에는 CloudFront 기본 주소로 진행 |
-| LLM | Bedrock Claude. 대량 작업(제목 정리, 곡 설명)은 Haiku 4.5(`anthropic.claude-haiku-4-5`), 추천 이유와 대화는 Sonnet 5(`anthropic.claude-sonnet-5`). Anthropic Java SDK + `BedrockMantleBackend` |
-| Bedrock 제약 | structured outputs 미지원 → tool use 스키마로 받고 자체 검증. citations·프롬프트 캐싱은 지원 |
+| LLM | Bedrock Claude, AWS SDK Converse API. 대량 작업(제목 정리, 곡 설명)은 Haiku 4.5 — 추론 프로필 `global.anthropic.claude-haiku-4-5-20251001-v1:0`로만 호출 가능. 추천 이유와 대화용으로 정했던 Sonnet 5·Haiku 5.5는 이 계정에서 쓸 수 없음(2026-10-27 확인) → L3에서 다시 정함 |
+| Bedrock 제약 | structured outputs 미지원 → tool use 스키마로 받고 자체 검증. citations·프롬프트 캐싱은 지원. Anthropic 사용 목적 양식 제출 완료(2026-10-26, CLI). 모델 사용 가능 여부는 목록 조회가 아니라 짧은 호출로 확인 |
 | 임베딩 | 클러스터 안 CPU 다국어 소형 모델 (후보, 첫날 확인) |
 | 노드 | x86 (시스템 t3.medium × 2, 워커는 Karpenter 스팟). 퍼블릭 서브넷, NAT 없음 |
 | 데이터 보관 | 청취 기록 원본 7일, 분석 결과 30일, 즉시 삭제 버튼, 계정 없이 토큰 링크 |
@@ -62,7 +62,7 @@ gyeol/
 - 설계 v4 반영(`docs/design-v3.md`). 코드와 인프라는 아직 없음.
 - 완료: 로컬 AWS 자격 증명(IAM 사용자 `sangwoo-cli`, `default` 프로필), 예산 알림, 비용 이상 탐지, IAM 결제 정보 접근, Cost Explorer.
 - L1 진행 중 (설계 `docs/l1-design.md`, 2026-10-24 승인). 끝난 단계: ① 저장소 뼈대(Gradle 멀티 모듈) ② 로컬 환경(`local/compose.yaml`: PostgreSQL+pgvector, LocalStack S3·SQS, S3→SQS 알림 확인) ③ 첫 마이그레이션(`V1__init.sql`) ④ 가상 Takeout 생성기(`tools/fake-takeout`, 실제 파일 통계와 2% 안으로 일치, 테스트용 작은 파일은 `tools/fixtures/`) ⑤ API(세션·곡 저장·업로드 주소·상태·통계·삭제) ⑥ external-fetcher(Last.fm 검색 + 다시 정렬, MusicBrainz는 L2 곡 식별용, 속도 제한·캐시, 실제 Last.fm API 33개 표본에서 원곡 1위 17 → 28(85%), 응답 중앙값 약 300ms) + 검색 API, 고른 곡 mbid 선택 값(V2). Last.fm 키는 `.env`의 `LASTFM_API_KEY`. ⑦ parse 워커(SQS → S3 읽기 → 검증 → 한 트랜잭션 저장, 영구 오류는 FAILED·일시 오류는 재시도, 통합 테스트 5개, 로컬 전체 흐름 확인: 음악 2만 5천 건 업로드부터 DONE까지 4.5초) ⑧ 웹 화면(`web/`: React 19 + TypeScript + Vite, react-router, 직접 그린 SVG 막대, CSS 모듈 + 색 토큰·다크 모드. 화면 `/`·`/pick`·`/upload`·`/r/:token`. Takeout 거르기는 Web Worker, 실제 규모 가상 파일 9.6만 건을 0.8초에 걸러 음악 25,362건만 전송. Vitest 6개. 브라우저에서 두 입구·결과·삭제·휴대폰 너비 확인). 앨범 표지는 L2에서 MusicBrainz 원곡 음반으로(`docs/l1-design.md` 4-3). ⑨ 테스트 정리(`scripts/test-all.sh` 한 번에 백엔드 41개 + 웹 6개, 업로드 파일 검증 단위·만료 세션·한국 시간 경계 테스트 추가, 만료 데이터 정리 작업(worker 매일 04:00, V3 `upload.file_deleted_at`), 점검표 `docs/testing.md`). ⑩ k3d(`scripts/k3d-up.sh`, Helm 차트 `deploy/helm/gyeol`, 접속 18000. 같은 흐름 확인: 업로드 → 결과 7.1초, 삭제 시 S3까지 삭제, api 파드 삭제 후 17초 만에 복구). **L1 완료.**
-- L2 진행 중 (설계 `docs/l2-design.md`, 2026-10-26 승인, 순서 L2-1 → L2-2 → L2-4 → L2-3). 끝난 것: **L2-1 식별 파이프라인**(V4, fetcher `/identify`, worker 계획·identify·실패 큐, 진행률. 정확도 28/29, 두 번째 세션 0.4초, 상위 300곡 476초). **L2-2 곡 단위 결과 화면과 앨범 표지**(V5, fetcher 표지 규칙, cover 큐, topSongs·topArtists, 고른 곡 식별, 표지 37/37, 외부 503은 30초 뒤 재시도). **L2-4 우리 DB 곡 검색**(V6·V7, DB 먼저 + Last.fm, 표본 33/33, DB에 없는 곡 가로채기 0/10, DB 곡은 고르면 바로 연결). 다음: L2-3 LLM 제목 정리 + 일반 영상 음악 판정 (Bedrock·YouTube API 키 필요, 비용 확인 후)
+- L2 진행 중 (설계 `docs/l2-design.md`, 2026-10-26 승인, 순서 L2-1 → L2-2 → L2-4 → L2-3). 끝난 것: **L2-1 식별 파이프라인**(V4, fetcher `/identify`, worker 계획·identify·실패 큐, 진행률. 정확도 28/29, 두 번째 세션 0.4초, 상위 300곡 476초). **L2-2 곡 단위 결과 화면과 앨범 표지**(V5, fetcher 표지 규칙, cover 큐, topSongs·topArtists, 고른 곡 식별, 표지 37/37, 외부 503은 30초 뒤 재시도). **L2-4 우리 DB 곡 검색**(V6·V7, DB 먼저 + Last.fm, 표본 33/33, DB에 없는 곡 가로채기 0/10, DB 곡은 고르면 바로 연결). **L2-3a LLM 제목 정리**(V8, Bedrock Converse + 도구 호출 스키마, 검증, 기본 fake. Haiku 4.5 실측: 식별할 곡 28/28, 곡당 약 $0.0005). 다음: L2-3b 일반 영상 음악 판정 (YouTube Data API 키 필요)
 
 로컬에서 fetcher 실행: `( set -a; . ./.env; set +a; java -jar backend/external-fetcher/build/libs/external-fetcher-0.1.0.jar )` (`.env`는 커밋 제외, 값을 출력하지 말 것) → ⑥ external-fetcher → ⑦ parse 워커 → ⑧ 웹 → ⑨ 테스트 → ⑩ k3d(설치 필요).
 

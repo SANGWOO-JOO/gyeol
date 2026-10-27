@@ -22,7 +22,13 @@ for (let i = 0; i < cases.length; i += BATCH) {
   const batch = cases.slice(i, i + BATCH);
   const items = batch.map((c, j) => ({ index: j, title: c.title, channel: c.channel }));
   const t0 = performance.now();
-  const r = await fetch(`${WORKER}/internal/llm/clean`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: MODEL, items }) }).then(x => x.json());
+  // Bedrock이 일시적으로 503을 줄 때가 있어 묶음마다 세 번까지 다시 시도한다
+  let r;
+  for (let a = 0; a < 3 && !r?.raw; a++) {
+    if (a) await new Promise(x => setTimeout(x, 5000 * a));
+    r = await fetch(`${WORKER}/internal/llm/clean`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: MODEL, items }) }).then(x => x.json()).catch(() => null);
+  }
+  if (!r?.raw) { console.error(`묶음 ${i / BATCH + 1} 실패, 건너뜀`); continue; }
   ms += performance.now() - t0; inTok += r.raw.inputTokens; outTok += r.raw.outputTokens;
   batch.forEach((c, j) => {
     const raw = r.raw.items.find(x => x.index === j);
