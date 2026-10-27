@@ -1,0 +1,67 @@
+{
+  "_설명": "임베딩 모델 비교용 (2026-10-27). 곡 설명 문장을 분위기·장르 묶음 6개 × 6문장으로 직접 만들었다 (한·영·일 섞음). queries는 짧은 요청과 정답 묶음.",
+  "groups": {
+    "ballad": [
+      "피아노 반주 위로 담담하게 이별을 노래하는 느린 발라드",
+      "애절한 보컬이 돋보이는 슬픈 분위기의 한국 발라드",
+      "A slow, heartfelt ballad with soft piano and an emotional vocal about lost love",
+      "Melancholic piano ballad, sparse arrangement, aching vocals",
+      "ピアノを中心にした切ないバラードで、別れの気持ちを静かに歌う",
+      "현악기가 서서히 쌓이며 감정이 고조되는 이별 발라드"
+    ],
+    "dance": [
+      "강한 비트와 중독성 있는 후렴의 신나는 댄스 팝",
+      "여름에 어울리는 밝고 경쾌한 걸그룹 댄스곡",
+      "An upbeat dance-pop track with a punchy beat and catchy hook",
+      "Energetic EDM-influenced pop made for the dance floor",
+      "ノリのいいビートとキャッチーなサビのアップテンポなダンスポップ",
+      "빠른 템포의 신스와 베이스가 몸을 들썩이게 하는 클럽 음악"
+    ],
+    "indie_dreamy": [
+      "몽환적인 기타 리버브와 나른한 보컬의 인디 록",
+      "흐릿하고 꿈결 같은 사운드의 드림팝",
+      "Dreamy indie track with hazy reverb-drenched guitars and whispered vocals",
+      "Shoegaze-tinged dream pop, washed-out and atmospheric",
+      "リバーブのかかったギターが夢のように漂うインディーロック",
+      "새벽 공기처럼 아련하고 몽롱한 분위기의 인디 음악"
+    ],
+    "rock": [
+      "거친 기타 리프와 폭발하는 드럼의 하드 록",
+      "강렬한 디스토션과 샤우팅 보컬의 록 밴드 곡",
+      "Loud, aggressive rock song with distorted guitar riffs and pounding drums",
+      "High-energy punk rock anthem with shouted choruses",
+      "激しいギターリフと力強いドラムのハードロック",
+      "무대 위 라이브처럼 에너지가 넘치는 밴드 사운드"
+    ],
+    "acoustic": [
+      "어쿠스틱 기타 한 대와 따뜻한 목소리의 포크 송",
+      "잔잔한 통기타 반주에 일상을 담은 따뜻한 노래",
+      "Warm acoustic folk song with fingerpicked guitar and gentle vocals",
+      "Cozy singer-songwriter tune, just voice and acoustic guitar",
+      "アコースティックギターと温かい歌声のフォークソング",
+      "카페에서 흘러나올 것 같은 편안한 어쿠스틱 곡"
+    ],
+    "citypop": [
+      "80년대 느낌의 세련된 신스와 그루브가 있는 시티팝",
+      "밤의 도시 드라이브에 어울리는 레트로 시티팝",
+      "Retro 80s city pop with glossy synths, funky bass and a late-night groove",
+      "Smooth Japanese city pop with jazzy chords and a breezy feel",
+      "80年代のシティポップらしい洗練されたシンセとグルーヴ",
+      "펑키한 베이스와 브라스가 어우러진 복고풍 도시 음악"
+    ]
+  },
+  "queries": [
+    {"q": "새벽에 혼자 듣기 좋은 슬픈 노래", "group": "ballad"},
+    {"q": "heartbreak piano song", "group": "ballad"},
+    {"q": "운동할 때 듣는 신나는 노래", "group": "dance"},
+    {"q": "upbeat song for a summer party", "group": "dance"},
+    {"q": "몽환적이고 나른한 음악", "group": "indie_dreamy"},
+    {"q": "hazy atmospheric guitar music", "group": "indie_dreamy"},
+    {"q": "스트레스 풀리는 시끄러운 밴드 음악", "group": "rock"},
+    {"q": "heavy guitar riffs", "group": "rock"},
+    {"q": "통기타 잔잔한 노래", "group": "acoustic"},
+    {"q": "calm acoustic music for a cafe", "group": "acoustic"},
+    {"q": "밤에 드라이브하면서 듣는 레트로 음악", "group": "citypop"},
+    {"q": "夜のドライブに合うシティポップ", "group": "citypop"}
+  ]
+}

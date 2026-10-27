@@ -60,4 +60,6 @@ kubectl -n kube-system rollout status deploy/traefik --timeout=120s >/dev/null
 until curl -sf -m 2 -o /dev/null "http://localhost:$PORT/"; do sleep 1; done
 lap
 kubectl -n $NS get pods
+# 배포마다 새 태그로 이미지를 만들므로, 이번 태그만 남기고 이전 gyeol 이미지는 지운다 (저장 공간)
+docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^gyeol/(api|worker|external-fetcher|web):' | grep -v ":$TAG$" | xargs -r docker rmi >/dev/null 2>&1 || true
 echo "접속: http://localhost:$PORT"

@@ -1,0 +1,6 @@
+[project]
+name = "gyeol-embed-eval"
+version = "0.1.0"
+description = "임베딩 모델 비교 (L3-0)"
+requires-python = ">=3.12"
+dependencies = ["sentence-transformers>=3", "numpy"]
