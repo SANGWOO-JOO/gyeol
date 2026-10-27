@@ -8,6 +8,8 @@ aws:
   identifyQueue: gyeol-local-identify
   identifyDlq: gyeol-local-identify-dlq
   coverQueue: gyeol-local-cover
+  enrichQueue: gyeol-local-enrich
+  enrichDlq: gyeol-local-enrich-dlq
   endpoint: http://host.k3d.internal:4566
   publicEndpoint: http://localhost:4566
   localstack: true

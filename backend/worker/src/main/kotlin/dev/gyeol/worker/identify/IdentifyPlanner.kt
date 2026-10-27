@@ -5,6 +5,7 @@ import dev.gyeol.core.identify.IdentifyRepository
 import dev.gyeol.core.identify.PlayGroup
 import dev.gyeol.core.identify.TargetStatus
 import dev.gyeol.worker.WorkerProperties
+import dev.gyeol.worker.enrich.EnrichTrigger
 import io.awspring.cloud.sqs.operations.SqsTemplate
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -29,6 +30,7 @@ class IdentifyPlanner(
     private val json: JsonMapper,
     private val props: WorkerProperties,
     private val tx: TransactionTemplate,
+    private val enrichTrigger: EnrichTrigger,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -66,6 +68,7 @@ class IdentifyPlanner(
 
         val batches = queue.chunked(props.identify.batch)
         batches.forEach { keys -> sqs.send { it.queue(props.identify.queue).payload(json.writeValueAsString(IdentifyMessage(sessionId, keys))) } }
+        if (batches.isEmpty()) enrichTrigger.afterIdentify(sessionId) // 모두 캐시로 끝났으면 바로 지식 인입 (L3-1)
         log.info("식별 계획: 세션 {}, 대상 {}곡 (캐시 적중 {}, 큐 {}곡 / 메시지 {}개)", sessionId, groups.size, hits, queue.size, batches.size)
         return Plan(groups.size, hits, queue.size, batches.size)
     }

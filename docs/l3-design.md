@@ -92,3 +92,26 @@
 - 곡 설명은 LLM이 한 언어로 만들게 한다 (같은 언어끼리 비교가 더 정확).
 - 메모리 약 850MB는 PyTorch 탓. L3-3 컨테이너에서는 ONNX Runtime으로 줄이는 것을 검토 (추정).
 - 더 큰 `multilingual-e5-base`(약 1.1GB)는 저장 공간(남은 약 9GB)과 CPU 서빙 부담 때문에 비교하지 않았다. MiniLM 모델은 지웠다.
+
+## 8. L3-1 지식 인입 결과 (2026-10-27)
+
+**구성**: V10(`knowledge_chunk`·`knowledge_fetch`·`track_credit`·`enrich_target`, `track.work_mbids`), fetcher `GET /internal/knowledge/{recording|work|release-group|artist}/{mbid}`(MusicBrainz 관계·장르·태그 → 문장 청크, Wikidata → Wikipedia 한·영·일 첫 요약, Last.fm 위키·태그, HTML·"Read more" 제거, 1,200자 문장 단위), worker `EnrichService`·`EnrichListener`(식별이 끝난 세션의 재생 상위 50곡 + 고른 곡, 5곡씩, 대상별 90일 캐시, 외부 503은 30초 뒤, 실패 큐 → FAILED), api `enrich` 진행률, 결과 화면 진행 문구. 고른 곡이 모두 DB 곡이면 api가 바로 보강을 맡긴다.
+
+**채움률** (`tools/knowledge-eval/measure.py`, 실제 API, DB의 실제 곡 41개)
+
+| 대상·출처 | 채움률 |
+|---|---|
+| Wikipedia 가수 (아무 언어 / 한국어 / 영어 / 일본어) | **100%** / 100% / 97% / 82% |
+| Last.fm 가수 | 97% |
+| Last.fm 음반 / Wikipedia 음반 | 78% / 73% |
+| 작곡·작사 크레딧 (MusicBrainz) | 65% |
+| MusicBrainz 녹음 (편곡·프로듀서·태그) | 56% |
+| Last.fm 곡 / Wikipedia 곡(작품) | 24% / 21% |
+| **곡·음반 단위 설명 근거** (곡·작품·음반의 위키 또는 Last.fm 본문 80자 이상) | **75%** |
+
+- 41곡, 331초(곡당 8.1초, 가수·작품 캐시 포함), 청크 379개. 외부 연결 시간 초과 2번 → 30초 뒤 다시 시도해 모두 완료.
+- 청크 평균 길이: Wikipedia 영어 407자 · 한국어 174자 · 일본어 98자, Last.fm 348자, MusicBrainz 문장 81자.
+- **곡 단위 지식은 얇다** (곡 문서는 유명곡만). 설계 14장의 위험("국내 곡 데이터가 얇음")이 숫자로 확인됐다 → L3-2 곡 설명은 **근거 단위(곡/음반/가수)를 칸마다 표시**하고, 가수 단위로만 근거가 있으면 신뢰도를 낮게 둔다.
+- 이 41곡은 표본으로 고른 유명곡이라 실제 사용자 기록(덜 알려진 곡 포함)에서는 채움률이 더 낮을 것이다 (추정).
+
+**고친 것**: 같은 작품(work)을 공유하는 두 번째 곡에 작곡 크레딧이 붙지 않았다(작품을 캐시로 건너뛰면서). 이미 가져온 작품이면 같은 작품을 공유하는 다른 곡의 작곡·작사 크레딧을 복사한다 — 통합 테스트로 잡음.

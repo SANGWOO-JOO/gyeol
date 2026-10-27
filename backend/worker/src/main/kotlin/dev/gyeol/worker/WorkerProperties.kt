@@ -15,9 +15,21 @@ data class WorkerProperties(
     val identify: Identify = Identify(),
     val cover: Cover = Cover(),
     val llm: Llm = Llm(),
+    val enrich: Enrich = Enrich(),
     /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
     val busyRetry: Duration = Duration.ofSeconds(30),
 ) {
+    data class Enrich(
+        val queue: String = "gyeol-local-enrich",
+        val dlq: String = "gyeol-local-enrich-dlq",
+        /** 청취 기록 세션에서 보강할 곡 수 (재생 상위). 고른 곡은 전부 */
+        val topN: Int = 50,
+        /** 메시지 하나에 담는 곡 수 (곡 하나에 MusicBrainz 몇 번 + 위키·Last.fm 몇 번) */
+        val batch: Int = 5,
+        /** 지식을 다시 가져오기까지 */
+        val refresh: Duration = Duration.ofDays(90),
+    )
+
     data class Llm(
         /** fake: 흔한 제목 형태만 규칙으로 흉내 (테스트·부하 실험), bedrock: 실제 호출 */
         val mode: String = "fake",

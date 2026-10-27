@@ -76,6 +76,9 @@ export function Result() {
 
         {session?.status === 'DONE' && session.entry === 'SEEDS' && <Seeds session={session} />}
         {session?.status === 'DONE' && session.entry === 'TAKEOUT' && session.identify && <IdentifyProgress p={session.identify} />}
+        {session?.status === 'DONE' && session.enrich && session.enrich.done + session.enrich.failed < session.enrich.target && (
+          <span className={ui.small}>추천 근거가 될 곡 정보를 모으는 중이에요 ({num(session.enrich.done + session.enrich.failed)}/{num(session.enrich.target)})</span>
+        )}
         {session?.status === 'DONE' && stats && <Report stats={stats} />}
 
         {session && (
@@ -92,7 +95,8 @@ export function Result() {
   )
 }
 
-const identifying = (s: SessionView) => !!s.identify && s.identify.done + s.identify.failed < s.identify.target
+const identifying = (s: SessionView) =>
+  (!!s.identify && s.identify.done + s.identify.failed < s.identify.target) || (!!s.enrich && s.enrich.done + s.enrich.failed < s.enrich.target)
 // 표지는 식별 뒤 따로 붙는다: 찾은 고른 곡에 표지 확인이 남아 있으면 조금 더 기다린다
 const coverPending = (s: SessionView) => !!s.seeds?.some(x => x.releaseTitle && !x.coverUrl)
 

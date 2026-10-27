@@ -10,6 +10,8 @@ data class GyeolProperties(
     val fetcherUrl: String = "http://localhost:18081",
     /** 고른 곡 식별을 맡기는 큐 (worker의 identify 큐와 같음) */
     val identifyQueue: String = "gyeol-local-identify",
+    /** 고른 곡이 모두 이미 식별된 곡이면 바로 지식 인입을 맡긴다 (L3-1) */
+    val enrichQueue: String = "gyeol-local-enrich",
     val upload: Upload = Upload(),
 ) {
     data class Upload(

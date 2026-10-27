@@ -7,6 +7,7 @@ import dev.gyeol.api.session.UploadTicket
 import dev.gyeol.api.stats.Stats
 import dev.gyeol.api.stats.StatsService
 import dev.gyeol.core.identify.IdentifyRepository
+import dev.gyeol.core.knowledge.KnowledgeRepository
 import dev.gyeol.core.session.Entry
 import dev.gyeol.core.session.Session
 import org.springframework.http.HttpStatus
@@ -43,6 +44,9 @@ data class SeedView(val mbid: String?, val title: String, val artist: String, va
 /** L2-1 곡 식별 진행률 (재생 상위 곡). 대상이 없으면 응답에서 빠진다 */
 data class IdentifyView(val target: Int, val done: Int, val matched: Int, val notFound: Int, val failed: Int)
 
+/** L3-1 지식 인입 진행률 (보강할 곡). 대상이 없으면 응답에서 빠진다 */
+data class EnrichView(val target: Int, val done: Int, val failed: Int)
+
 data class SessionView(
     val entry: Entry,
     val status: String,
@@ -50,6 +54,7 @@ data class SessionView(
     val period: PeriodDates?,
     val seeds: List<SeedView>?,
     val identify: IdentifyView?,
+    val enrich: EnrichView?,
     val error: String?,
     val createdAt: Instant,
     val expiresAt: Instant,
@@ -61,6 +66,7 @@ class SessionController(
     private val service: SessionService,
     private val stats: StatsService,
     private val identify: IdentifyRepository,
+    private val knowledge: KnowledgeRepository,
 ) {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -112,6 +118,7 @@ class SessionController(
                 list.map { val c = cards[it.position]; SeedView(it.mbid?.toString(), it.title, it.artist, c?.releaseTitle, c?.releaseYear, c?.coverUrl) }
             },
             identify = identify.progress(s.id).takeIf { it.target > 0 }?.let { IdentifyView(it.target, it.done, it.matched, it.notFound, it.failed) },
+            enrich = knowledge.progress(s.id).takeIf { it.target > 0 }?.let { EnrichView(it.target, it.done, it.failed) },
             error = s.errorMessage,
             createdAt = s.createdAt,
             expiresAt = s.expiresAt,

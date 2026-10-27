@@ -12,8 +12,8 @@ scripts/test-all.sh
 | 모듈 | 개수 | 내용 |
 |---|---|---|
 | api | 9 | 업로드 주소 → S3 → 통계 → 삭제, 곡 저장, 400·404·409·413, 만료 세션 404, 통계 한국 시간 경계, 곡 검색·503, 식별 진행률, 곡·가수 단위 순위(합치기·표시 이름·표지), 고른 곡 식별 요청, 우리 DB 검색(붙여쓰기·부분·초성·오타·별칭·가로채기 방지·Last.fm 장애·바로 연결), 일반 영상 음악 판정(캐시·장애 시 건너뜀·상태·형식) |
-| worker | 32 | parse 통합 5(저장·중복 메시지·형식 오류·S3 시험 메시지·2.5만 건), 업로드 파일 검증 단위 5, 만료 데이터 정리 통합 5, 곡 식별 통합 3(계획·전역 캐시·표지·실패 큐), 규칙·정규화 키 단위 4, 검색 문자열 단위 3, LLM 검증·가짜 정리기 단위 5, LLM 식별 통합 1, 판정 캐시 정리 1 |
-| external-fetcher | 32 | 속도 제한 3, MusicBrainz 5, Last.fm 5, 다시 정렬 7, 곡 식별 규칙 8, 표지 규칙 4 |
+| worker | 33 | parse 통합 5(저장·중복 메시지·형식 오류·S3 시험 메시지·2.5만 건), 업로드 파일 검증 단위 5, 만료 데이터 정리 통합 5, 곡 식별 통합 3(계획·전역 캐시·표지·실패 큐), 규칙·정규화 키 단위 4, 검색 문자열 단위 3, LLM 검증·가짜 정리기 단위 5, LLM 식별 통합 1, 판정 캐시 정리 1, 지식 인입 통합 1(가수·작품 한 번만, 공유 작품 크레딧, 90일 캐시) |
+| external-fetcher | 37 | 속도 제한 3, MusicBrainz 5, Last.fm 5, 다시 정렬 7, 곡 식별 규칙 8, 표지 규칙 4, 지식 청크 5 |
 | web | 7 | Takeout 거르기 (한국어·영어, 삭제 영상, 일반 영상, 검색 기록 파일 거절, 형식 오류, 미분류는 브라우저에 두고 상위 영상 ID만) |
 
 모듈 하나만: `./gradlew :backend:worker:test`, `cd web && npm test`
@@ -66,6 +66,12 @@ node tools/identify-eval/eval.mjs     # 37곡 표본, 약 3분
 ```bash
 node tools/search-eval/eval.mjs                     # L1 질의 표본 33개 (k3d 또는 dev 서버의 api)
 node tools/search-eval/eval.mjs --samples backend/external-fetcher/src/test/resources/lastfm-zard-samples.json
+```
+
+## 지식 인입 채움률
+
+```bash
+python3 tools/knowledge-eval/measure.py   # dev 서버가 떠 있어야 한다. DB의 식별된 곡 전부, 무료 API, 몇 분
 ```
 
 ## 3. 만료 데이터 정리 확인

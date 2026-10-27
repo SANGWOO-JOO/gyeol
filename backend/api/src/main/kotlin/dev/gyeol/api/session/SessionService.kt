@@ -116,13 +116,20 @@ class SessionService(
             val channel = "${s.artist} - Topic"
             AliasKey.of(s.title, channel) to PlayGroup(s.title, channel, Source.YOUTUBE, 1)
         }.distinctBy { it.first }
-        if (targets.isEmpty()) return
+        if (targets.isEmpty()) {
+            // 모두 우리 DB에서 고른 곡: 식별 없이 바로 지식 인입 (식별이 있으면 worker가 식별을 마친 뒤 시작)
+            afterCommit(props.enrichQueue, json.writeValueAsString(mapOf("type" to "PLAN", "sessionId" to sessionId)), sessionId)
+            return
+        }
         identify.insertTargets(sessionId, targets)
-        val body = json.writeValueAsString(mapOf("sessionId" to sessionId, "keys" to targets.map { it.first }))
+        afterCommit(props.identifyQueue, json.writeValueAsString(mapOf("sessionId" to sessionId, "keys" to targets.map { it.first })), sessionId)
+    }
+
+    private fun afterCommit(queue: String, body: String, sessionId: Long) {
         TransactionSynchronizationManager.registerSynchronization(object : TransactionSynchronization {
             override fun afterCommit() {
-                runCatching { sqs.send { it.queue(props.identifyQueue).payload(body) } }
-                    .onFailure { log.error("고른 곡 식별 요청 실패 (세션 {})", sessionId, it) }
+                runCatching { sqs.send { it.queue(queue).payload(body) } }
+                    .onFailure { log.error("큐 요청 실패: {} (세션 {})", queue, sessionId, it) }
             }
         })
     }

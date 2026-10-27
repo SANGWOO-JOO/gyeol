@@ -3,7 +3,8 @@
   "api" (dict "cfg" .Values.api "service" true "env" (list
     (dict "name" "FETCHER_URL" "value" (printf "http://gyeol-fetcher:%v" .Values.fetcher.port))
     (dict "name" "GYEOL_UPLOAD_PUBLICENDPOINT" "value" .Values.aws.publicEndpoint)
-    (dict "name" "IDENTIFY_QUEUE" "value" .Values.aws.identifyQueue)))
+    (dict "name" "IDENTIFY_QUEUE" "value" .Values.aws.identifyQueue)
+    (dict "name" "ENRICH_QUEUE" "value" .Values.aws.enrichQueue)))
   "worker" (dict "cfg" .Values.worker "service" false "env" (list
     (dict "name" "WORKER_ROLE" "value" .Values.worker.role)
     (dict "name" "PARSE_QUEUE" "value" .Values.aws.parseQueue)
@@ -13,6 +14,8 @@
     (dict "name" "IDENTIFY_TOP_N" "value" (toString .Values.worker.identifyTopN))
     (dict "name" "COVER_QUEUE" "value" .Values.aws.coverQueue)
     (dict "name" "LLM_MODE" "value" .Values.worker.llmMode)
+    (dict "name" "ENRICH_QUEUE" "value" .Values.aws.enrichQueue)
+    (dict "name" "ENRICH_DLQ" "value" .Values.aws.enrichDlq)
     (dict "name" "FETCHER_URL" "value" (printf "http://gyeol-fetcher:%v" .Values.fetcher.port))
     (dict "name" "CLEANUP_ENABLED" "value" (toString .Values.worker.cleanupEnabled))))
   "fetcher" (dict "cfg" .Values.fetcher "service" true "image" "external-fetcher" "env" (list

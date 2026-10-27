@@ -2,9 +2,12 @@ package dev.gyeol.worker
 
 import dev.gyeol.core.identify.IdentifyRepository
 import dev.gyeol.core.identify.TargetStatus
+import dev.gyeol.core.knowledge.KnowledgeRepository
 import dev.gyeol.core.session.SessionRepository
 import dev.gyeol.core.upload.UploadRepository
 import dev.gyeol.core.upload.UploadStatus
+import dev.gyeol.worker.enrich.EnrichMessage
+import dev.gyeol.worker.enrich.EnrichTrigger
 import dev.gyeol.worker.identify.IdentifyMessage
 import io.awspring.cloud.sqs.annotation.SqsListener
 import org.slf4j.LoggerFactory
@@ -20,13 +23,15 @@ import java.net.URLDecoder
  * 큐를 듣는 워커(parse·identify 역할)에서만 켠다.
  */
 @Component
-@ConditionalOnExpression("'\${gyeol.worker.role:parse}'.contains('parse') or '\${gyeol.worker.role:parse}'.contains('identify')")
+@ConditionalOnExpression("'\${gyeol.worker.role:parse}'.contains('parse') or '\${gyeol.worker.role:parse}'.contains('identify') or '\${gyeol.worker.role:parse}'.contains('enrich')")
 class DeadLetterListener(
     private val uploads: UploadRepository,
     private val sessions: SessionRepository,
     private val identify: IdentifyRepository,
     private val json: JsonMapper,
     private val tx: TransactionTemplate,
+    private val knowledge: KnowledgeRepository,
+    private val enrichTrigger: EnrichTrigger,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -51,5 +56,14 @@ class DeadLetterListener(
         val msg = json.readValue(body, IdentifyMessage::class.java)
         val n = msg.keys.count { identify.finishTarget(msg.sessionId, it, TargetStatus.FAILED) }
         log.error("identify 실패 큐: 세션 {}, {}곡을 FAILED로 표시", msg.sessionId, n)
+        enrichTrigger.afterIdentify(msg.sessionId)
+    }
+
+    /** enrich 실패: 묶음의 곡을 FAILED로 (곡 설명은 "근거 부족"으로 남는다) */
+    @SqsListener("\${gyeol.worker.enrich.dlq}")
+    fun onEnrichDeadLetter(body: String) {
+        val msg = json.readValue(body, EnrichMessage::class.java)
+        val n = msg.trackIds.count { knowledge.finishTarget(msg.sessionId, it, "FAILED") }
+        log.error("enrich 실패 큐: 세션 {}, {}곡을 FAILED로 표시", msg.sessionId, n)
     }
 }

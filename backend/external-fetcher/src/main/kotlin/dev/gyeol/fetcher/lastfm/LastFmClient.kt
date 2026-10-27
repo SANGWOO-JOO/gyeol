@@ -98,6 +98,24 @@ class LastFmClient(private val props: FetcherProperties) {
         }
     }
 
+    /**
+     * track.getInfo · album.getInfo · artist.getInfo (L3-1 지식 인입). 위키 요약과 태그를 쓴다.
+     * 키가 없거나 결과가 없으면 null. 오류 응답이 200으로 올 때도 null
+     */
+    fun info(method: String, params: Map<String, String>): JsonNode? {
+        if (props.lastfm.apiKey.isBlank()) return null
+        gate.acquire(Duration.ofSeconds(30))
+        val body = try {
+            http.get()
+                .uri { b -> b.queryParam("method", method).apply { params.forEach { (k, v) -> queryParam(k, v) } }
+                    .queryParam("autocorrect", 1).queryParam("api_key", props.lastfm.apiKey).queryParam("format", "json").build() }
+                .retrieve().body(JsonNode::class.java)
+        } catch (e: RestClientResponseException) {
+            throw UpstreamException("Last.fm이 ${e.statusCode.value()}을(를) 돌려주었습니다", e)
+        }
+        return body?.takeIf { !it.has("error") }
+    }
+
     private fun parse(body: JsonNode): List<TrackHit> =
         body.path("results").path("trackmatches").path("track").mapNotNull { t ->
             val title = t.path("name").asString("").trim()

@@ -14,6 +14,8 @@ export interface SessionView {
   seeds: { mbid: string | null; title: string; artist: string; releaseTitle?: string | null; releaseYear?: number | null; coverUrl?: string | null }[] | null
   /** L2-1 곡 식별 진행률 (재생 상위 곡). 대상이 없으면 null */
   identify: { target: number; done: number; matched: number; notFound: number; failed: number } | null
+  /** L3-1 곡 정보(지식) 모으기 진행률. 대상이 없으면 null */
+  enrich: { target: number; done: number; failed: number } | null
   error: string | null
   createdAt: string
   expiresAt: string

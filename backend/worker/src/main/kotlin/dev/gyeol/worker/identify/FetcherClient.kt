@@ -32,6 +32,12 @@ class FetcherClient(props: WorkerProperties) {
             .body(JsonNode::class.java)
             ?.path("url")?.asString("")?.ifEmpty { null }
 
+    /** 지식 인입 (L3-1): type은 recording·work·release-group·artist */
+    fun knowledge(type: String, mbid: String, artist: String? = null, title: String? = null): JsonNode =
+        http.get().uri { b ->
+            b.path("/internal/knowledge/$type/$mbid").apply { artist?.let { queryParam("artist", it) }; title?.let { queryParam("title", it) } }.build()
+        }.retrieve().body(JsonNode::class.java) ?: error("fetcher 응답이 비어 있습니다")
+
     /** 찾으면 곡 정보, 못 찾으면 null */
     fun identify(artist: String, title: String): TrackInfo? {
         val r = http.post().uri("/internal/musicbrainz/identify")

@@ -9,6 +9,7 @@ import dev.gyeol.core.identify.TargetStatus
 import dev.gyeol.core.llm.LlmCallRepository
 import dev.gyeol.core.llm.LlmUsage
 import dev.gyeol.worker.WorkerProperties
+import dev.gyeol.worker.enrich.EnrichTrigger
 import dev.gyeol.worker.llm.CleanedValidator
 import dev.gyeol.worker.llm.RawTitle
 import dev.gyeol.worker.llm.TitleCleaner
@@ -35,6 +36,7 @@ class IdentifyService(
     private val json: JsonMapper,
     private val cleaner: TitleCleaner,
     private val llmCalls: LlmCallRepository,
+    private val enrichTrigger: EnrichTrigger,
 ) {
     private companion object {
         val IDENTIFIABLE = setOf(Version.ORIGINAL, Version.LIVE, Version.REMIX)
@@ -64,6 +66,7 @@ class IdentifyService(
         // 표지를 아직 확인하지 않은 곡은 표지 큐로 (식별과 따로, 늦게 붙어도 곡 이름은 먼저 보인다)
         val needCover = found.distinct().filter { repo.coverTarget(it)?.checkedAt == null }
         if (needCover.isNotEmpty()) sqs.send { it.queue(props.cover.queue).payload(json.writeValueAsString(CoverMessage(needCover))) }
+        enrichTrigger.afterIdentify(msg.sessionId) // 식별이 다 끝났으면 지식 인입 시작 (L3-1)
         log.info("식별 묶음: 세션 {}, {}곡 중 찾음 {} (LLM {}곡, 표지 확인 {}), {}ms", msg.sessionId, msg.keys.size, found.size, forLlm.size, needCover.size, (System.nanoTime() - started) / 1_000_000)
     }
 
