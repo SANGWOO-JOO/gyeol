@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 CLUSTER=gyeol NS=gyeol PORT=18000
 TAG=$(date +%Y%m%d%H%M%S)
-export JAVA_HOME="${JAVA_HOME:-/Users/sangwoo/Library/Java/JavaVirtualMachines/corretto-21.0.4/Contents/Home}"
+export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 21 2>/dev/null)}"
 t0=$(date +%s); lap() { echo "  ($(( $(date +%s) - t0 ))초)"; }
 
 docker info >/dev/null 2>&1 || { echo "Docker가 꺼져 있습니다. scripts/dev-up.sh 또는 Docker Desktop을 먼저 켜세요."; exit 1; }

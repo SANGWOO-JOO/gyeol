@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 RUN=.run; mkdir -p "$RUN"
-export JAVA_HOME="${JAVA_HOME:-/Users/sangwoo/Library/Java/JavaVirtualMachines/corretto-21.0.4/Contents/Home}"
+export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 21 2>/dev/null)}"
 # .env의 키·설정(LASTFM_API_KEY, YOUTUBE_API_KEY, LLM_MODE 등)을 모든 서비스에 넘긴다. 값은 출력하지 않는다
 # LLM_MODE=bedrock이면 worker가 맥북의 AWS 자격 증명으로 Bedrock을 부른다 (비용 발생, 기본은 fake)
 set -a; [ -f .env ] && . ./.env; set +a

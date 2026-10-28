@@ -2,7 +2,7 @@
 # 테스트 전체: 백엔드(단위 + Testcontainers 통합, Docker 필요) + 웹(Vitest). 끝에 모듈별 개수 요약
 set -uo pipefail
 cd "$(dirname "$0")/.."
-export JAVA_HOME="${JAVA_HOME:-/Users/sangwoo/Library/Java/JavaVirtualMachines/corretto-21.0.4/Contents/Home}"
+export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 21 2>/dev/null)}"
 docker info >/dev/null 2>&1 || { echo "Docker가 꺼져 있습니다 (통합 테스트에 필요). Docker Desktop을 켜고 다시 실행하세요."; exit 1; }
 
 started=$(date +%s)

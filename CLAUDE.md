@@ -5,7 +5,7 @@
 - 설계 문서: `docs/design-v3.md` (내용은 v4, 2026-10-20 개정. 작업 전 반드시 먼저 읽는다. 구조·데이터 모델·AI·인프라·일정·위험이 모두 여기 있다)
 - 목적: ① 면접에서 말할 EKS·AI 경험(실측 수치 포함) ② 실제 사용자 (선택, 시연 회차에 측정)
 - 기간: 2026-10-20 재시작. 날짜 대신 회차 단위 — 로컬 개발(L1~L4) + EKS 측정 회차 5번(①~⑤), 설계 12장
-- 예산: AWS 계정 700419978873, **크레딧 없음 → 전부 카드 결제**. 프로젝트 전체 약 $10~25 목표. 예산 알림 월 $20·$50·$100, 비용 이상 탐지 설정 완료
+- 예산: **크레딧 없음 → 전부 카드 결제**. 프로젝트 전체 약 $10~25 목표. 예산 알림 월 $20·$50·$100, 비용 이상 탐지 설정 완료
 
 ## 작업 규칙
 
@@ -30,7 +30,7 @@ gyeol/
 ```
 
 - 이 폴더는 자체 git 저장소다(`main` 브랜치). 홈 폴더(`~`)도 별도 git 저장소이므로, 이 폴더 밖에서 git 명령을 쓰지 않는다.
-- GitHub 원격 저장소는 아직 없다. 사용자가 만들어 연결한다 (GitHub Actions·Argo CD를 붙이는 회차 ④ 전까지).
+- GitHub 원격 저장소는 공개(Public)다. 연결과 push는 사용자가 한다. 계정 ID·키·실제 청취 기록을 커밋하지 않는다.
 
 ## 확정된 선택
 
@@ -58,9 +58,9 @@ gyeol/
 
 ## 현재 상태 (2026-10-20)
 
-- 9/27~10/4 일정은 착수하지 못했고, 예전 계정(382243539616)은 무료 플랜 종료 후 접근 불가. 새 계정 700419978873으로 재시작.
+- 개인 AWS 계정으로 진행(계정 ID는 저장소에 적지 않는다).
 - 설계 v4 반영(`docs/design-v3.md`). 코드와 인프라는 아직 없음.
-- 완료: 로컬 AWS 자격 증명(IAM 사용자 `sangwoo-cli`, `default` 프로필), 예산 알림, 비용 이상 탐지, IAM 결제 정보 접근, Cost Explorer.
+- 완료: 로컬 AWS 자격 증명(`default` 프로필), 예산 알림, 비용 이상 탐지, IAM 결제 정보 접근, Cost Explorer.
 - L1 진행 중 (설계 `docs/l1-design.md`, 2026-10-24 승인). 끝난 단계: ① 저장소 뼈대(Gradle 멀티 모듈) ② 로컬 환경(`local/compose.yaml`: PostgreSQL+pgvector, LocalStack S3·SQS, S3→SQS 알림 확인) ③ 첫 마이그레이션(`V1__init.sql`) ④ 가상 Takeout 생성기(`tools/fake-takeout`, 실제 파일 통계와 2% 안으로 일치, 테스트용 작은 파일은 `tools/fixtures/`) ⑤ API(세션·곡 저장·업로드 주소·상태·통계·삭제) ⑥ external-fetcher(Last.fm 검색 + 다시 정렬, MusicBrainz는 L2 곡 식별용, 속도 제한·캐시, 실제 Last.fm API 33개 표본에서 원곡 1위 17 → 28(85%), 응답 중앙값 약 300ms) + 검색 API, 고른 곡 mbid 선택 값(V2). Last.fm 키는 `.env`의 `LASTFM_API_KEY`. ⑦ parse 워커(SQS → S3 읽기 → 검증 → 한 트랜잭션 저장, 영구 오류는 FAILED·일시 오류는 재시도, 통합 테스트 5개, 로컬 전체 흐름 확인: 음악 2만 5천 건 업로드부터 DONE까지 4.5초) ⑧ 웹 화면(`web/`: React 19 + TypeScript + Vite, react-router, 직접 그린 SVG 막대, CSS 모듈 + 색 토큰·다크 모드. 화면 `/`·`/pick`·`/upload`·`/r/:token`. Takeout 거르기는 Web Worker, 실제 규모 가상 파일 9.6만 건을 0.8초에 걸러 음악 25,362건만 전송. Vitest 6개. 브라우저에서 두 입구·결과·삭제·휴대폰 너비 확인). 앨범 표지는 L2에서 MusicBrainz 원곡 음반으로(`docs/l1-design.md` 4-3). ⑨ 테스트 정리(`scripts/test-all.sh` 한 번에 백엔드 41개 + 웹 6개, 업로드 파일 검증 단위·만료 세션·한국 시간 경계 테스트 추가, 만료 데이터 정리 작업(worker 매일 04:00, V3 `upload.file_deleted_at`), 점검표 `docs/testing.md`). ⑩ k3d(`scripts/k3d-up.sh`, Helm 차트 `deploy/helm/gyeol`, 접속 18000. 같은 흐름 확인: 업로드 → 결과 7.1초, 삭제 시 S3까지 삭제, api 파드 삭제 후 17초 만에 복구). **L1 완료.**
 - L2 진행 중 (설계 `docs/l2-design.md`, 2026-10-26 승인, 순서 L2-1 → L2-2 → L2-4 → L2-3). 끝난 것: **L2-1 식별 파이프라인**(V4, fetcher `/identify`, worker 계획·identify·실패 큐, 진행률. 정확도 28/29, 두 번째 세션 0.4초, 상위 300곡 476초). **L2-2 곡 단위 결과 화면과 앨범 표지**(V5, fetcher 표지 규칙, cover 큐, topSongs·topArtists, 고른 곡 식별, 표지 37/37, 외부 503은 30초 뒤 재시도). **L2-4 우리 DB 곡 검색**(V6·V7, DB 먼저 + Last.fm, 표본 33/33, DB에 없는 곡 가로채기 0/10, DB 곡은 고르면 바로 연결). **L2-3a LLM 제목 정리**(V8, Bedrock Converse + 도구 호출 스키마, 검증, 기본 fake. Haiku 4.5 실측: 식별할 곡 28/28, 곡당 약 $0.0005). **L2-3b 일반 영상 음악 판정**(V9 video_check 30일, 미분류 재생 상위 1,000개 ID만 YouTube로, 음악만 업로드. 실제 API로 MV 2곡 → LLM → MusicBrainz → 표지까지 확인). **L2 완료.**
 - L3 진행 중 (설계 `docs/l3-design.md`, 2026-10-27 승인). 끝난 것: **L3-0 모델 정하기**(임베딩 `intfloat/multilingual-e5-small` 확정: 짧은 요청 → 곡 설명 12/12, 1문장 18ms. 추천 이유 후보 Sonnet 4.6 호출 확인). **L3-1 지식 인입**(V10, fetcher 지식 API, enrich 큐·worker, 가수 위키 100%·곡·음반 단위 근거 75%·곡당 8.1초). **L3-2 곡 설명 보강**(V11, Haiku 2곡씩, 근거 단위·신뢰도를 인용한 청크로 계산. RAG 켬 근거 뒷받침 80% vs 끔 13%, 곡당 약 $0.0026. Bedrock global 503이 잦아 작은 묶음+재시도). **L3-3 embed 서비스**(`embed/` Python+ONNX fp32, 18084, V12 track_vector HNSW, 1문장 8.4ms·최대 805MB, k3d HPA 동작, 이미지 1.25GB). 다음: L3-4 추천과 이유. 맥북 남은 저장 공간 약 4.6GB(2026-10-27), 메모리 16GB라 테스트·k3d 전에 Java 서버를 끈다
@@ -85,5 +85,5 @@ cd web && npm test                               # Takeout 거르기 단위 테�
 
 - 포트: PostgreSQL 15432, LocalStack 4566, api 18080, external-fetcher 18081, worker 18082, embed 18084, 웹 15173, k3d 입구 18000 (다른 프로젝트와 겹치지 않게)
 - 환경 변수 예시는 `.env.example`
-- Google Takeout: 2026-10-24 18:44 요청 완료(YouTube 및 YouTube Music → 시청 기록만, JSON, .zip, 1회). 완료 메일 대기, 링크는 1주일 유효. 받은 파일은 저장소 밖에 보관. 이 과정을 사용자용 안내로 `docs/user-guide/takeout.md`에 기록(4·5단계는 파일 도착·서비스 완성 후 보완, 한국어 설정일 때 파일 이름 확인 필요).
-- 사용자 사전 준비 남음: 루트 MFA·전화번호 `+82 10…` 형식, GitHub 저장소, (선택) 도메인. (Bedrock Haiku 4.5·Last.fm·YouTube API 키는 준비됨. YouTube 키는 Google Cloud 프로젝트 `gyeol-512900`, YouTube Data API v3만 허용)
+- Google Takeout 받는 방법은 `docs/user-guide/takeout.md`. 받은 파일은 저장소 밖에 보관한다.
+- 사용자 사전 준비 남음: 루트 MFA, (선택) 도메인. Bedrock Haiku 4.5·Last.fm·YouTube Data API 키는 준비됨(YouTube 키는 YouTube Data API v3만 허용).

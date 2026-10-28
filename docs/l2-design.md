@@ -161,7 +161,7 @@ identify-worker
 - 정답 세트가 깔끔한 형태라 실제 사용자 기록보다 쉬울 수 있다. 실제 기록으로 다시 잴 것.
 - 사용자 한 명 추정: 상위 300곡 중 규칙으로 못 푸는 곡만 LLM → 많아야 약 $0.15.
 
-**Bedrock 접근에서 알게 된 것** (계정 700419978873, 서울)
+**Bedrock 접근에서 알게 된 것** (계정 <계정 ID>, 서울)
 - 모델 목록·가용성 조회(`AUTHORIZED`, `AVAILABLE`)만으로는 실제 호출 가능 여부를 알 수 없다. 반드시 짧은 호출로 확인한다.
 - Anthropic 모델은 **사용 목적 양식**이 필요했다. 처음 한 번은 양식 없이 호출됐다가 이후 `use case details have not been submitted`로 거절됐다. CLI `aws bedrock put-use-case-for-model-access`로 제출, 약 15분 뒤 사용 가능.
 - **Haiku 5.5와 Sonnet 5는 이 계정에서 쓸 수 없다** (`not available for this account`). 그래서 비교 측정은 하지 않고 Haiku 4.5로 확정. 설계(design-v3)에서 추천 이유·대화용으로 정한 Sonnet 5도 쓸 수 없으므로 **L3에서 모델을 다시 정한다** (후보: 목록에 있는 Sonnet 4.6, 호출로 확인 필요).
