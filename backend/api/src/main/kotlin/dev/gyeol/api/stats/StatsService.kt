@@ -129,6 +129,8 @@ class StatsService(private val jdbc: JdbcClient) {
     private fun topSongs(sid: Long, top: Int): List<SongCount> =
         jdbc.sql(
             """
+            WITH $knownName,
+            $guessed
             SELECT g.track_id,
                    -- 식별된 곡은 정리된 이름(캐시의 곡명·가수)을 먼저: 일반 영상 제목에는 "[MV] … _ …" 같은 장식이 붙어 있다 (L2-3)
                    coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_title) FROM title_alias ta WHERE ta.track_id = g.track_id AND ta.status = 'MATCHED'), g.title) AS title,
@@ -139,7 +141,11 @@ class StatsService(private val jdbc: JdbcClient) {
                        mode() WITHIN GROUP (ORDER BY l.title) AS title,
                        $topicArtist AS topic_artist,
                        min(regexp_replace(l.channel, ' - Topic$', '')) AS channel
-                FROM listen_event l WHERE l.session_id = :sid
+                FROM (
+                    SELECT coalesce(e.track_id, m.track_id) AS track_id, e.title, e.channel
+                    FROM listen_event e LEFT JOIN guess m ON m.title = e.title AND m.channel = e.channel
+                    WHERE e.session_id = :sid
+                ) l
                 -- 식별된 곡은 곡으로, 못 찾은 곡은 제목+채널로 묶는다
                 GROUP BY l.track_id, CASE WHEN l.track_id IS NULL THEN l.title END, CASE WHEN l.track_id IS NULL THEN l.channel END
             ) g
@@ -159,17 +165,46 @@ class StatsService(private val jdbc: JdbcClient) {
             )
         }.list()
 
+    private fun nameKey(expr: String) = "lower(regexp_replace($expr, '[[:space:][:punct:]’]', '', 'g'))"
+
+    /** 이 세션에서 원곡 식별로 확인된 가수의 이름·별칭 (다른 가수와 겹치는 이름은 쓰지 않는다) */
+    private val knownName = """
+        known_name AS (
+            SELECT ${nameKey("n")} AS key, min(a.id) AS artist_id
+            FROM artist a CROSS JOIN LATERAL unnest(ARRAY[a.name, a.sort_name] || a.aliases) AS n
+            WHERE n IS NOT NULL AND a.id IN (SELECT t.artist_id FROM listen_event l JOIN track t ON t.id = l.track_id WHERE l.session_id = :sid)
+            GROUP BY 1 HAVING count(DISTINCT a.id) = 1
+        )
+    """.trimIndent()
+
+    /** 방송·일반 채널 영상에서 LLM이 뽑은 가수·곡을 확인된 가수와 그 가수의 식별된 곡에 잇는다. 커버는 가수에만 더한다 */
+    private val guessed = """
+        track_key AS (
+            SELECT t.artist_id, ${nameKey("p")} AS key, min(t.id) AS track_id
+            FROM track t CROSS JOIN LATERAL unnest(array_append(regexp_split_to_array(t.title, '\s*[/(（)）]\s*'), t.title)) AS p
+            WHERE p <> '' AND t.id IN (SELECT track_id FROM listen_event WHERE session_id = :sid AND track_id IS NOT NULL)
+            GROUP BY 1, 2 HAVING count(DISTINCT t.id) = 1
+        ),
+        guess AS (
+            SELECT g.title, g.channel, coalesce(ka.artist_id, kb.artist_id) AS artist_id,
+                   CASE WHEN g.version <> 'COVER' THEN coalesce(ta.track_id, tb.track_id) END AS track_id
+            FROM title_guess g
+            JOIN (SELECT DISTINCT title, channel FROM listen_event WHERE session_id = :sid AND track_id IS NULL AND channel IS NOT NULL) s ON s.title = g.title AND s.channel = g.channel
+            LEFT JOIN known_name ka ON ka.key = ${nameKey("g.artist")}
+            LEFT JOIN known_name kb ON kb.key = ${nameKey("g.artist_alt")}
+            LEFT JOIN track_key ta ON ta.artist_id = coalesce(ka.artist_id, kb.artist_id) AND ta.key = ${nameKey("g.song")}
+            LEFT JOIN track_key tb ON tb.artist_id = coalesce(ka.artist_id, kb.artist_id) AND tb.key = ${nameKey("g.song_alt")}
+            WHERE g.artist IS NOT NULL
+        )
+    """.trimIndent()
+
     /**
      * 재생마다 가수를 정한다. 원곡 식별 → 같은 Topic 채널에서 식별된 가수 → LLM이 뽑은 가수 → 가수 이름과 같은 채널 순.
      * LLM 가수와 채널 이름은 이 세션에서 원곡 식별로 확인된 가수와 이름이 같을 때만 인정한다 (프로그램 진행자를 가수로 잘못 뽑는 경우를 막는다).
      */
-    private val artistResolved = """
-        WITH known_name AS (
-            SELECT lower(regexp_replace(n, '\s', '', 'g')) AS key, min(a.id) AS artist_id
-            FROM artist a CROSS JOIN LATERAL unnest(ARRAY[a.name, a.sort_name] || a.aliases) AS n
-            WHERE n IS NOT NULL AND a.id IN (SELECT t.artist_id FROM listen_event l JOIN track t ON t.id = l.track_id WHERE l.session_id = :sid)
-            GROUP BY 1 HAVING count(DISTINCT a.id) = 1
-        ),
+    private val artistResolved get() = """
+        WITH $knownName,
+        $guessed,
         topic AS (
             SELECT l.channel, mode() WITHIN GROUP (ORDER BY t.artist_id) AS artist_id
             FROM listen_event l JOIN track t ON t.id = l.track_id
@@ -182,13 +217,14 @@ class StatsService(private val jdbc: JdbcClient) {
             WHERE it.session_id = :sid AND ta.method = 'LLM' AND ta.status = 'NOT_FOUND' AND ta.reason = 'NOT_IN_MUSICBRAINZ'
         ),
         resolved AS (
-            SELECT l.channel, coalesce(t.artist_id, tp.artist_id, ln.artist_id, cn.artist_id) AS artist_id
+            SELECT l.channel, coalesce(t.artist_id, tp.artist_id, ln.artist_id, g.artist_id, cn.artist_id) AS artist_id
             FROM listen_event l
             LEFT JOIN track t ON t.id = l.track_id
             LEFT JOIN topic tp ON tp.channel = l.channel
             LEFT JOIN llm ON llm.title = l.title AND llm.channel IS NOT DISTINCT FROM l.channel
-            LEFT JOIN known_name ln ON ln.key = lower(regexp_replace(llm.query_artist, '\s', '', 'g'))
-            LEFT JOIN known_name cn ON cn.key = lower(regexp_replace(l.channel, '\s', '', 'g'))
+            LEFT JOIN known_name ln ON ln.key = ${nameKey("llm.query_artist")}
+            LEFT JOIN guess g ON g.title = l.title AND g.channel = l.channel
+            LEFT JOIN known_name cn ON cn.key = ${nameKey("l.channel")}
             WHERE l.session_id = :sid
         )
     """.trimIndent()

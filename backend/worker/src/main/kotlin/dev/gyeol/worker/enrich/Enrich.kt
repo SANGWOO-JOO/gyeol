@@ -16,6 +16,7 @@ import dev.gyeol.worker.describe.DescriptorBuilder
 import dev.gyeol.worker.describe.EmbedClient
 import dev.gyeol.worker.describe.RawDescription
 import dev.gyeol.worker.describe.TrackDescriber
+import dev.gyeol.worker.guess.GuessPlanner
 import dev.gyeol.worker.identify.FetcherClient
 import dev.gyeol.worker.identify.retrySoonIfBusy
 import io.awspring.cloud.sqs.annotation.SqsListener
@@ -39,10 +40,17 @@ data class EnrichMessage(val type: String, val sessionId: Long, val trackIds: Li
  * 여러 번 불려도 된다: 대상은 이미 있으면 그대로, 보강은 대상·출처별 90일 캐시를 본다.
  */
 @Component
-class EnrichTrigger(private val identify: IdentifyRepository, private val sqs: SqsTemplate, private val json: JsonMapper, private val props: WorkerProperties) {
+class EnrichTrigger(
+    private val identify: IdentifyRepository,
+    private val sqs: SqsTemplate,
+    private val json: JsonMapper,
+    private val props: WorkerProperties,
+    private val guess: GuessPlanner,
+) {
     fun afterIdentify(sessionId: Long) {
         val p = identify.progress(sessionId)
         if (p.target == 0 || p.done + p.failed < p.target) return
+        guess.plan(sessionId)
         sqs.send { it.queue(props.enrich.queue).payload(json.writeValueAsString(EnrichMessage("PLAN", sessionId))) }
     }
 }

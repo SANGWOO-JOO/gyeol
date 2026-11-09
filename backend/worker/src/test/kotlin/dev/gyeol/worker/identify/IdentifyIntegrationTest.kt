@@ -45,7 +45,8 @@ import kotlin.test.assertNull
     properties = [
         "spring.flyway.enabled=true",
         "spring.flyway.locations=classpath:db/migration",
-        "gyeol.worker.role=identify,cover",
+        "gyeol.worker.role=identify,cover,guess",
+        "gyeol.worker.guess.queue=gyeol-test-guess",
         "gyeol.worker.cover.queue=gyeol-test-cover",
         "gyeol.worker.cleanup.enabled=false",
         "gyeol.worker.parse-dlq=gyeol-test-parse-dlq",
@@ -124,6 +125,7 @@ class IdentifyIntegrationTest {
         fun queues() {
             parseDlqUrl = sqs.createQueue { it.queueName("gyeol-test-parse-dlq") }.queueUrl()
             sqs.createQueue { it.queueName("gyeol-test-cover") }
+            sqs.createQueue { it.queueName("gyeol-test-guess") }
             val dlqUrl = sqs.createQueue { it.queueName("gyeol-test-identify-dlq") }.queueUrl()
             val dlqArn = sqs.getQueueAttributes { it.queueUrl(dlqUrl).attributeNames(QueueAttributeName.QUEUE_ARN) }.attributes()[QueueAttributeName.QUEUE_ARN]
             sqs.createQueue {
@@ -256,6 +258,26 @@ class IdentifyIntegrationTest {
         assertEquals(5L, linked(sid, "곡1"))
         assertEquals(1, fetcherCalls.count { it.contains("곡2") }, "재시도하지 않아야 합니다")
         assertEquals(0L, jdbc.sql("SELECT count(*) FROM title_alias WHERE query_title = '곡2'").query(Long::class.java).single(), "캐시에 남기지 않습니다")
+    }
+
+    @Test
+    fun `식별이 끝나면 많이 들은 일반 채널 영상의 가수·곡을 뽑아 저장한다`() {
+        val sid = sessions.create(Tokens.hash(Tokens.newToken()), Entry.TAKEOUT, Instant.now().plus(30, ChronoUnit.DAYS))
+        val uploadId = UUID.randomUUID()
+        uploads.create(uploadId, sid, "uploads/$uploadId.json")
+        val t0 = Instant.parse("2026-10-01T00:00:00Z")
+        fun ev(title: String, channel: String, n: Int) = (0 until n).map { ListenEvent("v", title, channel, t0.plusSeconds(it * 60L), Source.YOUTUBE) }
+        // 상위 3곡이 식별 대상이고, 그 아래 일반 채널 영상이 뽑기 대상이다 (2회 영상은 기준 미달)
+        val events = ev("곡4", "가수B - Topic", 9) + ev("곡5", "가수C - Topic", 8) + ev("곡6", "가수D - Topic", 7) +
+            ev("가수A - 무대곡 [방송]", "방송국", 5) + ev("가수A - 적게 본 곡", "방송국", 2)
+        listens.insertBatch(sid, uploadId, events, Instant.now().plus(7, ChronoUnit.DAYS))
+
+        planner.plan(sid)
+        waitDone(sid)
+        val deadline = System.nanoTime() + Duration.ofSeconds(20).toNanos()
+        fun guesses() = jdbc.sql("SELECT title || ':' || coalesce(artist, '-') || ':' || coalesce(song, '-') FROM title_guess WHERE channel = '방송국'").query(String::class.java).list()
+        while (guesses().isEmpty() && System.nanoTime() < deadline) Thread.sleep(200)
+        assertEquals(listOf("가수A - 무대곡 [방송]:가수A:무대곡"), guesses())
     }
 
     @Test

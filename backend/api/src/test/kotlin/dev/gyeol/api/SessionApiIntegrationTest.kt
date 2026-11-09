@@ -427,6 +427,39 @@ class SessionApiIntegrationTest {
     }
 
     @Test
+    fun `LLM이 뽑은 가수·곡 - 확인된 가수의 곡이면 가수·곡 순위에 더하고, 커버와 확인 안 된 가수는 다르게 처리한다`() {
+        val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
+        val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id
+        val uploadId = UUID.randomUUID()
+        uploads.create(uploadId, sid, "uploads/$uploadId.json")
+        val t0 = Instant.parse("2026-10-01T00:00:00Z")
+        fun ev(title: String, channel: String, n: Int) = (0 until n).map { ListenEvent("v", title, channel, t0.plusSeconds(it * 60L), Source.YOUTUBE) }
+        val suffix = UUID.randomUUID().toString().take(8)
+        val live = "무대 $suffix"; val other = "다른 곡 무대 $suffix"; val cover = "커버 $suffix"; val stranger = "낯선 가수 $suffix"
+        listens.insertBatch(
+            sid, uploadId,
+            ev("별빛", "가수E - Topic", 3) + ev(live, "방송국", 5) + ev(other, "방송국", 4) + ev(cover, "방송국", 2) + ev(stranger, "방송국", 7),
+            Instant.now().plus(7, ChronoUnit.DAYS),
+        )
+        sessions.markDone(sid, 21, t0, t0)
+        val trackId = identify.upsertTrack(track("별빛 (Starlight)", "Singer E", "앨범", "2020-01-01"))
+        jdbc.sql("UPDATE listen_event SET track_id = :t WHERE session_id = :sid AND title = '별빛'").param("t", trackId).param("sid", sid).update()
+
+        fun guess(title: String, artist: String, song: String, version: String) =
+            jdbc.sql("INSERT INTO title_guess (title, channel, artist, song, version) VALUES (:t, '방송국', :a, :s, :v)").param("t", title).param("a", artist).param("s", song).param("v", version).update()
+        guess(live, "Singer E", "Starlight", "LIVE")
+        guess(other, "singer-e", "없는 곡", "LIVE")
+        guess(cover, "Singer E", "별빛", "COVER")
+        guess(stranger, "낯선 사람", "노래", "LIVE")
+
+        val stats = call("GET", "/api/sessions/$token/stats").second!!
+        assertEquals(listOf("가수E" to 14), stats["topArtists"].toList().map { it["name"].asString() to it["plays"].asInt() })
+        assertEquals(7, stats["excludedChannelPlays"].asInt())
+        val star = stats["topSongs"].toList().single { it["trackId"].asLong() == trackId }
+        assertEquals(8, star["plays"].asInt()) // 원곡 3 + 일치한 무대 5, 커버는 곡에 더하지 않는다
+    }
+
+    @Test
     fun `우리 DB 곡 검색 - 붙여쓰기·부분·초성·오타·별칭, DB에 없는 곡은 가로채지 않는다`() {
         // 식별된 곡과 사용자가 본 YouTube 표기 (worker가 하는 일을 흉내)
         val night = identify.upsertTrack(track("밤편지 (Through the Night)", "IU", "밤편지", "2017-03-24"))

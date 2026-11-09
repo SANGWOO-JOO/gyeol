@@ -18,9 +18,21 @@ data class WorkerProperties(
     val enrich: Enrich = Enrich(),
     val embed: Embed = Embed(),
     val recommend: Recommend = Recommend(),
+    val guess: Guess = Guess(),
     /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
     val busyRetry: Duration = Duration.ofSeconds(30),
 ) {
+    /** 방송·일반 채널 영상에서 LLM으로 가수·곡 뽑기 */
+    data class Guess(
+        val queue: String = "gyeol-local-guess",
+        /** 이만큼 들은 영상만 (5회 이상이 일반 채널 미식별 재생의 약 85%) */
+        val minPlays: Int = 5,
+        /** 세션마다 LLM에 보내는 영상 수 상한 (비용 제한) */
+        val maxVideos: Int = 500,
+        val batch: Int = 10,
+        val retry: Duration = Duration.ofDays(30),
+    )
+
     /** L3-4 추천 (docs/l3-design.md 11장) */
     data class Recommend(
         val queue: String = "gyeol-local-recommend",

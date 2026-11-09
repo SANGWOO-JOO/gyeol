@@ -22,21 +22,24 @@ export function Result() {
   // 처리 중이면 2초마다 상태 확인, 끝나면 통계를 한 번 가져온다
   useEffect(() => {
     // 곡 확인이 진행되면 순위가 바뀌므로 통계를 다시 받는다 (실제 규모 통계는 약 1초라 10초에 한 번, 끝나면 한 번 더)
-    let stop = false, lastDone = -1, lastFetch = 0, coverWaits = 0, timer: ReturnType<typeof setTimeout>
+    let stop = false, lastDone = -1, lastFetch = 0, coverWaits = 0, sawIdentifying = false, settleTicks = 0, timer: ReturnType<typeof setTimeout>
     async function tick() {
       try {
         const s = await api.session(token)
         if (stop) return
         setSession(s)
+        if (identifying(s)) sawIdentifying = true
         const done = s.identify ? s.identify.done + s.identify.failed : 0
         const due = !identifying(s) || Date.now() - lastFetch > 10_000
-        if (s.status === 'DONE' && s.entry === 'TAKEOUT' && done !== lastDone && due) {
+        // 식별이 끝난 직후 약 2분은 방송 영상의 가수·곡 뽑기 결과가 순위에 더해지므로 10초마다 다시 받는다
+        const settling = sawIdentifying && !identifying(s) && settleTicks++ < 60
+        if (s.status === 'DONE' && s.entry === 'TAKEOUT' && ((done !== lastDone && due) || (settling && Date.now() - lastFetch > 10_000))) {
           lastDone = done; lastFetch = Date.now()
           setStats(await api.stats(token))
         }
         // 처리 중이거나, 통계는 나왔지만 곡 확인(식별)이 아직 진행 중이면 계속 확인
         const waitCover = coverPending(s) && coverWaits++ < 30 // 최대 1분 (표지가 없는 곡도 있음)
-        if ((s.status !== 'DONE' && s.status !== 'FAILED') || identifying(s) || waitCover) timer = setTimeout(tick, POLL_MS)
+        if ((s.status !== 'DONE' && s.status !== 'FAILED') || identifying(s) || waitCover || settling) timer = setTimeout(tick, POLL_MS)
       } catch (e) {
         if (!stop) setError(e instanceof ApiError && e.status === 404 ? '결과를 찾을 수 없어요. 링크가 틀렸거나 기간이 지나 삭제되었어요.' : '결과를 불러오지 못했어요.')
       }
