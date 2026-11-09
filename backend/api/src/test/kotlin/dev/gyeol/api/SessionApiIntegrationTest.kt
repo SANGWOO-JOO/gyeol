@@ -396,6 +396,37 @@ class SessionApiIntegrationTest {
     }
 
     @Test
+    fun `가수 순위 - Topic 채널·LLM 가수·같은 이름 채널은 합치고, 확인되지 않은 가수와 방송 채널은 뺀다`() {
+        val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
+        val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id
+        val uploadId = UUID.randomUUID()
+        uploads.create(uploadId, sid, "uploads/$uploadId.json")
+        val t0 = Instant.parse("2026-10-01T00:00:00Z")
+        fun ev(title: String, channel: String, n: Int) = (0 until n).map { ListenEvent("v", title, channel, t0.plusSeconds(it * 60L), Source.YOUTUBE) }
+        listens.insertBatch(
+            sid, uploadId,
+            ev("곡A", "가수A - Topic", 3) + ev("곡B", "가수A - Topic", 2) + ev("무대", "Singer A", 1) +
+                ev("가수A - 곡C [방송]", "방송국", 2) + ev("가수D - 곡E [진행자의 러브레터]", "방송국", 5) + ev("다른 영상", "방송국", 1) + ev("곡F", "가수C - Topic", 4),
+            Instant.now().plus(7, ChronoUnit.DAYS),
+        )
+        sessions.markDone(sid, 18, t0, t0)
+        val trackId = identify.upsertTrack(track("곡A", "Singer A", "앨범", "2020-01-01"))
+        jdbc.sql("UPDATE listen_event SET track_id = :t WHERE session_id = :sid AND title = '곡A'").param("t", trackId).param("sid", sid).update()
+
+        fun llmNotFound(title: String, artist: String) {
+            val key = UUID.randomUUID().toString()
+            jdbc.sql("INSERT INTO identify_target (session_id, alias_key, title, channel, source, plays) VALUES (:sid, :k, :t, '방송국', 'YOUTUBE', 1)").param("sid", sid).param("k", key).param("t", title).update()
+            jdbc.sql("INSERT INTO title_alias (alias_key, status, method, query_artist, query_title, reason) VALUES (:k, 'NOT_FOUND', 'LLM', :a, '곡', 'NOT_IN_MUSICBRAINZ')").param("k", key).param("a", artist).update()
+        }
+        llmNotFound("가수A - 곡C [방송]", "singer a") // 이 세션에서 확인된 가수 (대소문자·띄어쓰기 무시)
+        llmNotFound("가수D - 곡E [진행자의 러브레터]", "진행자") // 확인되지 않은 가수는 인정하지 않는다
+
+        val stats = call("GET", "/api/sessions/$token/stats").second!!
+        assertEquals(listOf("가수A" to 8, "가수C" to 4), stats["topArtists"].toList().map { it["name"].asString() to it["plays"].asInt() })
+        assertEquals(6, stats["excludedChannelPlays"].asInt())
+    }
+
+    @Test
     fun `우리 DB 곡 검색 - 붙여쓰기·부분·초성·오타·별칭, DB에 없는 곡은 가로채지 않는다`() {
         // 식별된 곡과 사용자가 본 YouTube 표기 (worker가 하는 일을 흉내)
         val night = identify.upsertTrack(track("밤편지 (Through the Night)", "IU", "밤편지", "2017-03-24"))

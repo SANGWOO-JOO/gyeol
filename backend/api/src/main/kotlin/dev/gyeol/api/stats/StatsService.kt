@@ -35,6 +35,8 @@ data class Stats(
     val coverage: Coverage,
     val topSongs: List<SongCount>,
     val topArtists: List<ArtistCount>,
+    /** 가수를 정하지 못해 가수 순위에서 뺀 방송·일반 채널 재생 수 */
+    val excludedChannelPlays: Int,
     val identified: Identified,
 )
 
@@ -115,6 +117,7 @@ class StatsService(private val jdbc: JdbcClient) {
             coverage = Coverage(session.musicCount, session.unclassifiedCount),
             topSongs = topSongs(sid, top),
             topArtists = topArtists(sid, top),
+            excludedChannelPlays = excludedChannelPlays(sid),
             identified = jdbc.sql("SELECT count(track_id), count(*) FROM listen_event WHERE session_id = :sid").param("sid", sid)
                 .query { rs, _ -> Identified(rs.getInt(1), rs.getInt(2)) }.single(),
         )
@@ -156,24 +159,62 @@ class StatsService(private val jdbc: JdbcClient) {
             )
         }.list()
 
+    /**
+     * 재생마다 가수를 정한다. 원곡 식별 → 같은 Topic 채널에서 식별된 가수 → LLM이 뽑은 가수 → 가수 이름과 같은 채널 순.
+     * LLM 가수와 채널 이름은 이 세션에서 원곡 식별로 확인된 가수와 이름이 같을 때만 인정한다 (프로그램 진행자를 가수로 잘못 뽑는 경우를 막는다).
+     */
+    private val artistResolved = """
+        WITH known_name AS (
+            SELECT lower(regexp_replace(n, '\s', '', 'g')) AS key, min(a.id) AS artist_id
+            FROM artist a CROSS JOIN LATERAL unnest(ARRAY[a.name, a.sort_name] || a.aliases) AS n
+            WHERE n IS NOT NULL AND a.id IN (SELECT t.artist_id FROM listen_event l JOIN track t ON t.id = l.track_id WHERE l.session_id = :sid)
+            GROUP BY 1 HAVING count(DISTINCT a.id) = 1
+        ),
+        topic AS (
+            SELECT l.channel, mode() WITHIN GROUP (ORDER BY t.artist_id) AS artist_id
+            FROM listen_event l JOIN track t ON t.id = l.track_id
+            WHERE l.session_id = :sid AND l.channel LIKE '% - Topic'
+            GROUP BY l.channel
+        ),
+        llm AS (
+            SELECT it.title, it.channel, ta.query_artist
+            FROM identify_target it JOIN title_alias ta ON ta.alias_key = it.alias_key
+            WHERE it.session_id = :sid AND ta.method = 'LLM' AND ta.status = 'NOT_FOUND' AND ta.reason = 'NOT_IN_MUSICBRAINZ'
+        ),
+        resolved AS (
+            SELECT l.channel, coalesce(t.artist_id, tp.artist_id, ln.artist_id, cn.artist_id) AS artist_id
+            FROM listen_event l
+            LEFT JOIN track t ON t.id = l.track_id
+            LEFT JOIN topic tp ON tp.channel = l.channel
+            LEFT JOIN llm ON llm.title = l.title AND llm.channel IS NOT DISTINCT FROM l.channel
+            LEFT JOIN known_name ln ON ln.key = lower(regexp_replace(llm.query_artist, '\s', '', 'g'))
+            LEFT JOIN known_name cn ON cn.key = lower(regexp_replace(l.channel, '\s', '', 'g'))
+            WHERE l.session_id = :sid
+        )
+    """.trimIndent()
+
     private fun topArtists(sid: Long, top: Int): List<ArtistCount> =
         jdbc.sql(
             """
-            SELECT t.artist_id,
+            $artistResolved
+            SELECT l.artist_id,
                    coalesce($topicArtist,
-                            (SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta JOIN track tt ON tt.id = ta.track_id WHERE tt.artist_id = t.artist_id AND ta.status = 'MATCHED'),
+                            (SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta JOIN track tt ON tt.id = ta.track_id WHERE tt.artist_id = l.artist_id AND ta.status = 'MATCHED'),
                             min(a.name), min(regexp_replace(l.channel, ' - Topic$', ''))) AS name,
                    count(*) AS plays
-            FROM listen_event l
-            LEFT JOIN track t ON t.id = l.track_id
-            LEFT JOIN artist a ON a.id = t.artist_id
-            WHERE l.session_id = :sid AND (t.artist_id IS NOT NULL OR l.channel IS NOT NULL)
-            -- 식별된 가수는 가수로(같은 가수의 여러 채널이 합쳐짐), 나머지는 채널 이름으로
-            GROUP BY t.artist_id, CASE WHEN t.artist_id IS NULL THEN regexp_replace(l.channel, ' - Topic$', '') END
+            FROM resolved l
+            LEFT JOIN artist a ON a.id = l.artist_id
+            -- 가수를 정하지 못한 Topic 채널은 채널 이름이 곧 가수다. 방송·일반 채널은 가수가 아니므로 뺀다
+            WHERE l.artist_id IS NOT NULL OR l.channel LIKE '% - Topic'
+            GROUP BY l.artist_id, CASE WHEN l.artist_id IS NULL THEN regexp_replace(l.channel, ' - Topic$', '') END
             ORDER BY plays DESC, name LIMIT :top
             """.trimIndent(),
         ).param("sid", sid).param("top", top)
             .query { rs, _ -> ArtistCount(rs.getObject("artist_id") as Long?, rs.getString("name"), rs.getInt("plays")) }.list()
+
+    private fun excludedChannelPlays(sid: Long): Int =
+        jdbc.sql("$artistResolved SELECT count(*) FROM resolved WHERE artist_id IS NULL AND channel IS NOT NULL AND channel NOT LIKE '% - Topic'")
+            .param("sid", sid).query(Int::class.java).single()
 
     /** 빈 칸 없이 범위 전체를 채운 개수 목록 (예: 0~23시) */
     private fun buckets(sid: Long, expr: String, range: IntRange): List<Int> {

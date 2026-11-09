@@ -194,6 +194,9 @@ function Report({ stats }: { stats: Stats }) {
             </li>
           ))}
         </ol>
+        {stats.excludedChannelPlays > 0 && (
+          <span className={ui.small}>방송·일반 채널 재생 {num(stats.excludedChannelPlays)}회는 가수 순위에서 제외했어요.</span>
+        )}
       </section>
 
       <section className={`${ui.card} ${ui.stack}`}>

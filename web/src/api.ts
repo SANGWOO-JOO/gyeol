@@ -34,6 +34,7 @@ export interface Stats {
   /** L2-2 곡 단위 순위. trackId가 없으면 아직 못 찾은 곡 ("제목 + 채널" 그대로) */
   topSongs: { trackId: number | null; title: string; artist: string | null; release: { title: string | null; year: number | null } | null; coverUrl: string | null; plays: number }[]
   topArtists: { artistId: number | null; name: string; plays: number }[]
+  excludedChannelPlays: number
   identified: { plays: number; totalPlays: number }
 }
 
