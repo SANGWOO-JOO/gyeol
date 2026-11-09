@@ -35,7 +35,7 @@ class CoverListener(
         msg.trackIds.distinct().forEach { id ->
             val t = repo.coverTarget(id) ?: return@forEach
             if (t.checkedAt?.isAfter(retryBefore) == true) return@forEach
-            val url = fetcher.cover(t)
+            val url = if (t.releaseMbid == null && t.releaseGroupMbid == null) null else fetcher.cover(t) // 음반 없이 식별된 곡은 글자 타일로 둔다
             repo.saveCover(id, url)
             if (url != null) found++
         }

@@ -45,12 +45,15 @@ class MusicBrainzIdentifier(
         val call = { path: String, params: Map<String, Any> -> calls++; mb(path, params) }
         fun done(r: IdentifyResult) = r.copy(calls = calls, ms = (System.nanoTime() - started) / 1_000_000)
 
-        val artists = findArtists(artistName, call)
+        // "지오디 (god)"처럼 괄호로 병기한 가수는 전체로 못 찾으면 부분으로 다시 찾는다
+        val artists = findArtists(artistName, call).ifEmpty {
+            TitleMatch.searchParts(artistName).filter { it != artistName }.firstNotNullOfOrNull { findArtists(it, call).ifEmpty { null } }.orEmpty()
+        }
         if (artists.isEmpty()) return done(IdentifyResult("NOT_FOUND", reason = "ARTIST"))
 
         var alt: String? = null
         var altChecked = false
-        var sawRecording = false
+        var withoutRelease: Pair<IdArtist, JsonNode>? = null
         for (artist in artists) {
             var recs = recordings(artist.mbid, title, null, call)
             if (recs.isEmpty() && !altChecked) {
@@ -60,22 +63,30 @@ class MusicBrainzIdentifier(
             }
             if (recs.isEmpty()) recs = scanArtist(artist.mbid, title, call)
             if (recs.isEmpty()) continue
-            sawRecording = true
 
-            val best = earliestRelease(recs) ?: continue
+            val best = earliestRelease(recs)
+            if (best == null) {
+                if (withoutRelease == null) withoutRelease = artist to recs.minBy { isVariantRecording(it) }
+                continue
+            }
             return done(IdentifyResult("MATCHED", recording = best.first, artist = artist, release = best.second))
         }
-        return done(IdentifyResult("NOT_FOUND", reason = if (sawRecording) "RELEASE" else "RECORDING"))
+        // 곡은 확인했지만 원곡 음반이 없으면(컴필레이션뿐 등) 음반 없이 곡으로 인정한다. 다른 음반 표지로 대신하지 않으려고 음반은 비운다
+        withoutRelease?.let { (artist, rec) ->
+            return done(IdentifyResult("MATCHED", recording = IdRecording(rec.path("id").asString(), rec.path("title").asString()), artist = artist))
+        }
+        return done(IdentifyResult("NOT_FOUND", reason = "RECORDING"))
     }
 
     private fun findArtists(name: String, call: (String, Map<String, Any>) -> JsonNode): List<IdArtist> {
         val q = esc(name)
         val body = call("/artist", mapOf("query" to "artist:\"$q\" OR alias:\"$q\"", "limit" to 10))
         val wanted = TitleMatch.norm(name)
+        val wantedWords = TitleMatch.nameWords(name)
         return body.path("artists").toList()
             .filter { a ->
                 val names = listOf(a.path("name").asString(""), a.path("sort-name").asString("")) + a.path("aliases").toList().map { it.path("name").asString("") }
-                names.any { TitleMatch.norm(it) == wanted }
+                names.any { TitleMatch.norm(it) == wanted || (wantedWords.size > 1 && TitleMatch.nameWords(it) == wantedWords) }
             }
             .sortedByDescending { it.path("score").asInt(0) }
             .take(3)

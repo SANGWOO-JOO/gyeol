@@ -139,13 +139,37 @@ class MusicBrainzIdentifierTest {
     }
 
     @Test
-    fun `녹음은 있는데 쓸 만한 음반이 없으면 RELEASE`() {
+    fun `녹음은 있는데 원곡 음반이 없으면 음반 없이 곡으로 인정한다`() {
         val r = identifier(
             listOf(artist("z", "ZARD")),
             mapOf("負けないで" to listOf(recording("m", "負けないで", release("Best", "2000-01-01", secondary = listOf("Compilation"))))),
         ).identify("ZARD", "負けないで")
-        assertEquals("RELEASE", r.reason)
+        assertEquals("MATCHED", r.status)
+        assertEquals("m", r.recording!!.mbid)
         assertNull(r.release)
+    }
+
+    @Test
+    fun `괄호로 병기한 가수와 이름 순서만 다른 가수를 찾는다`() {
+        val god = identifier(
+            listOf(artist("g", "god", aliases = listOf("지오디"))),
+            mapOf("왜" to listOf(recording("w", "왜", release("앨범", "2001-01-01")))),
+        ).identify("지오디 (god)", "왜")
+        assertEquals("MATCHED", god.status)
+
+        val kim = identifier(
+            listOf(artist("k", "김종국", aliases = listOf("Kim Jong-kook"))),
+            mapOf("사랑" to listOf(recording("l", "사랑", release("앨범", "2005-01-01")))),
+        ).identify("Jong-Kook Kim", "사랑")
+        assertEquals("MATCHED", kim.status)
+    }
+
+    @Test
+    fun `괄호 없이 병기한 제목도 나눠 비교한다`() {
+        assertTrue(TitleMatch.sameTitle("편지", "다비치코드 - 편지"))
+        assertTrue(TitleMatch.sameTitle("흔들리는 꽃들 속에서", "흔들리는 꽃들 속에서 Your Shampoo Scent"))
+        assertTrue(TitleMatch.sameTitle("꼬마 - I cry", "꼬마 - I Cry"))
+        assertFalse(TitleMatch.sameTitle("다른 곡", "다비치코드 - 편지"))
     }
 
     @Test

@@ -7,7 +7,9 @@ object TitleMatch {
     private val STRIP = Regex("""[\s()\[\]~～\-'’.,!?:&]""")
     private val SPLIT = Regex("""\s*[/(（]\s*|\s*[)）]\s*""")
     private val HANGUL = Regex("""[가-힣]""")
-    private val FEAT_TAIL = Regex("""\s+(?:feat\.?|ft\.?)\s+.*$""", RegexOption.IGNORE_CASE)
+    private val DASH = Regex("""\s+[-–]\s+""")
+    private val MIXED = Regex("""^([가-힣][가-힣\s\d.,!?…]*?)\s+([A-Za-z].*)$""")
+    private val FEAT_TAIL =Regex("""\s+(?:feat\.?|ft\.?)\s+.*$""", RegexOption.IGNORE_CASE)
     private val NOT_TITLE = Regex(
         """^(?:feat\.?|ft\.?|with|prod\.?)(?:\s|$)|^bonus\s*track$|^(?:live|remix|inst\.?|instrumental|acoustic|mr)$|\b(?:ver\.?|version)$""",
         RegexOption.IGNORE_CASE,
@@ -23,10 +25,19 @@ object TitleMatch {
      * 피처링·버전 표시는 곡명이 아니므로 빼고, 여러 부분이면 한 글자 조각도 뺀다. 남는 게 없으면 원문 그대로.
      */
     fun searchParts(s: String): List<String> {
-        val pieces = s.split(SPLIT).map { it.replace(FEAT_TAIL, "").trim() }.filter { norm(it).isNotEmpty() && !NOT_TITLE.containsMatchIn(it) }
+        val pieces = s.split(SPLIT).flatMap(::alternatives).map { it.replace(FEAT_TAIL, "").trim() }.filter { norm(it).isNotEmpty() && !NOT_TITLE.containsMatchIn(it) }
         val named = if (pieces.size > 1) pieces.filter { norm(it).length >= 2 } else pieces
         return named.distinctBy(::norm).ifEmpty { listOf(s) }
     }
+
+    /** 괄호 없이 병기한 제목을 나눈다 ("앨범 - 곡", "한글 제목 English Title") */
+    private fun alternatives(piece: String): List<String> = piece.split(DASH).flatMap { part ->
+        MIXED.find(part.trim())?.destructured?.toList() ?: listOf(part)
+    }
+
+    /** 이름 순서만 다른 표기를 같게 본다 (Jong-Kook Kim = Kim Jong-kook) */
+    fun nameWords(s: String): List<String> =
+        Normalizer.normalize(s, Normalizer.Form.NFKC).lowercase().split(Regex("""[^\p{L}\p{N}]+""")).filter { it.isNotEmpty() }.sorted()
 
     /** MusicBrainz 제목 [candidate]가 찾는 제목 [wanted]와 같은 곡인지. 한글 제목은 로마자 표기도 비교 (난춘 → NAN CHUN) */
     fun sameTitle(candidate: String, wanted: String): Boolean {

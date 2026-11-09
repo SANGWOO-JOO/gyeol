@@ -194,6 +194,9 @@ class IdentifyIntegrationTest {
         assertEquals(3, plan.targets) // 곡3(1회)은 상위 3곡 밖
         assertEquals(0, plan.cacheHits)
         assertEquals(2, plan.messages) // 2곡씩 묶음
+        // 재생 많은 곡부터 묶이고 처리된다
+        val keys = jdbc.sql("SELECT alias_key FROM identify_target WHERE session_id = :sid").param("sid", first).query { rs, _ -> rs.getString(1) }.list()
+        assertEquals(listOf(5, 3, 2), repo.targets(first, keys).map { it.plays })
 
         assertEquals(IdentifyProgress(target = 3, done = 3, matched = 1, notFound = 2, failed = 0), waitDone(first))
         assertEquals(5L, linked(first, "곡1"))
@@ -248,9 +251,9 @@ class IdentifyIntegrationTest {
         val sid = session()
         planner.plan(sid)
         val p = waitDone(sid, Duration.ofSeconds(60))
-        // 묶음 단위로 다시 시도하므로, fetcher가 필요 없는 일반 영상(LLM 몫)도 같은 묶음이면 함께 실패로 끝난다
-        assertEquals(0, p.done)
-        assertEquals(3, p.failed)
+        // 재생 순으로 2곡씩 묶이므로 곡1·곡2 묶음만 실패하고, fetcher가 필요 없는 일반 영상(LLM 몫)은 다음 묶음에서 끝난다
+        assertEquals(1, p.done)
+        assertEquals(2, p.failed)
         assert(fetcherCalls.size >= 2) { "실패 큐로 가기 전에 다시 시도해야 합니다" }
     }
 

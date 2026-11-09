@@ -126,7 +126,7 @@ class IdentifyRepository(private val jdbc: JdbcClient, private val search: Track
 
     fun targets(sessionId: Long, keys: Collection<String>): List<Target> {
         if (keys.isEmpty()) return emptyList()
-        return jdbc.sql("SELECT session_id, alias_key, title, channel, source, plays, status FROM identify_target WHERE session_id = :sid AND alias_key IN (:keys)")
+        return jdbc.sql("SELECT session_id, alias_key, title, channel, source, plays, status FROM identify_target WHERE session_id = :sid AND alias_key IN (:keys) ORDER BY plays DESC, alias_key")
             .param("sid", sessionId).param("keys", keys)
             .query { rs, _ ->
                 Target(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), Source.valueOf(rs.getString(5)), rs.getInt(6), TargetStatus.valueOf(rs.getString(7)))
