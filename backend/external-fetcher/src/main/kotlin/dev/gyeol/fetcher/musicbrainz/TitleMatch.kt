@@ -42,7 +42,8 @@ object TitleMatch {
     /** MusicBrainz 제목 [candidate]가 찾는 제목 [wanted]와 같은 곡인지. 한글 제목은 로마자 표기도 비교 (난춘 → NAN CHUN) */
     fun sameTitle(candidate: String, wanted: String): Boolean {
         val p = parts(candidate)
-        return (searchParts(wanted).map(::norm) + norm(wanted)).any { it in p || (HANGUL.containsMatchIn(it) && norm(roman(it)) in p) }
+        val whole = wanted.split(SPLIT).filter { !NOT_TITLE.containsMatchIn(it.trim()) }.map(::norm).filter { it.isNotEmpty() } // "꼬마 - I Cry"처럼 " - "까지가 곡명인 경우
+        return (searchParts(wanted).map(::norm) + whole + norm(wanted)).any { it in p || (HANGUL.containsMatchIn(it) && norm(roman(it)) in p) }
     }
 
     // 국어의 로마자 표기법 (음운 변화는 무시)

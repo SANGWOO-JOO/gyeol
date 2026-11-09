@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { api, ApiError, type Rating, type Recommendations, type SessionView, type Stats } from '../api'
+import { api, ApiError, type RankPage, type Rating, type Recommendations, type SessionView, type Stats } from '../api'
 import { BarChart } from '../components/BarChart'
 import { Alert, Layout } from '../components/Layout'
 import { Cover, Tile } from '../components/Tile'
@@ -83,7 +83,7 @@ export function Result() {
           <span className={ui.small}>추천 근거가 될 곡 정보를 모으는 중이에요 ({num(session.enrich.done + session.enrich.failed)}/{num(session.enrich.target)})</span>
         )}
         {session?.status === 'DONE' && (!session.enrich || session.enrich.done + session.enrich.failed >= session.enrich.target) && <Recommend token={token} />}
-        {session?.status === 'DONE' && stats && <Report stats={stats} />}
+        {session?.status === 'DONE' && stats && <Report stats={stats} token={token} />}
 
         {session && (
           <div className={ui.row} style={{ justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
@@ -145,7 +145,57 @@ function Seeds({ session }: { session: SessionView }) {
   )
 }
 
-function Report({ stats }: { stats: Stats }) {
+const RANK_SIZE = 10
+
+/** 순위 목록의 페이지 넘김. 1페이지는 통계 응답을 그대로 쓰고(식별 중에도 갱신), 2페이지부터 서버에서 받는다 */
+function RankList<T>({ first, total, load, row }: {
+  first: T[]
+  total: number
+  load: (page: number) => Promise<RankPage<T>>
+  row: (item: T, rank: number) => ReactNode
+}) {
+  const [page, setPage] = useState(1)
+  const [items, setItems] = useState<T[] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const latest = useRef(0)
+  const pages = Math.max(1, Math.ceil(total / RANK_SIZE))
+
+  async function go(next: number) {
+    const id = ++latest.current
+    setFailed(false)
+    if (next === 1) { setPage(1); setItems(null); setBusy(false); return }
+    setBusy(true)
+    try {
+      const r = await load(next)
+      if (id !== latest.current) return
+      setItems(r.items); setPage(next)
+    } catch {
+      if (id === latest.current) setFailed(true)
+    } finally {
+      if (id === latest.current) setBusy(false)
+    }
+  }
+
+  const shown = page === 1 ? first.slice(0, RANK_SIZE) : items ?? []
+  return (
+    <>
+      <ol className={`${ui.list} ${ui.card}`} style={{ padding: '4px 16px' }}>
+        {shown.map((item, i) => row(item, (page - 1) * RANK_SIZE + i + 1))}
+      </ol>
+      {failed && <Alert>목록을 불러오지 못했어요. 잠시 뒤 다시 눌러 주세요.</Alert>}
+      {pages > 1 && (
+        <div className={ui.row} style={{ justifyContent: 'center' }}>
+          <button className={ui.button} onClick={() => go(page - 1)} disabled={busy || page === 1}>이전</button>
+          <span className={ui.small}>{num(page)} / {num(pages)}</span>
+          <button className={ui.button} onClick={() => go(page + 1)} disabled={busy || page >= pages}>다음</button>
+        </div>
+      )}
+    </>
+  )
+}
+
+function Report({ stats, token }: { stats: Stats; token: string }) {
   const { period, totals, coverage } = stats
   const years = period.days ? period.days / 365 : 0
   const span = years >= 1 ? `${years.toFixed(1)}년` : `${period.days ?? 0}일`
@@ -168,10 +218,13 @@ function Report({ stats }: { stats: Stats }) {
           <h2 style={{ fontSize: 18 }}>많이 들은 곡</h2>
           {identifiedShare > 0 && <span className={ui.small}>곡 확인: 재생의 {identifiedShare}%</span>}
         </div>
-        <ol className={`${ui.list} ${ui.card}`} style={{ padding: '4px 16px' }}>
-          {stats.topSongs.slice(0, 10).map((t, i) => (
-            <li key={i} className={ui.listItem}>
-              <span className={ui.rank}>{i + 1}</span>
+        <RankList
+          first={stats.topSongs}
+          total={stats.topSongsTotal}
+          load={page => api.topSongs(token, page, RANK_SIZE)}
+          row={(t, rank) => (
+            <li key={rank} className={ui.listItem}>
+              <span className={ui.rank}>{rank}</span>
               <Cover url={t.coverUrl} text={t.artist ?? t.title} />
               <div className={ui.grow}>
                 <div className={ui.ellipsis}>{t.title}</div>
@@ -181,22 +234,25 @@ function Report({ stats }: { stats: Stats }) {
               </div>
               <span className={ui.count}>{num(t.plays)}회</span>
             </li>
-          ))}
-        </ol>
+          )}
+        />
       </section>
 
       <section className={ui.stack} style={{ gap: 8 }}>
         <h2 style={{ fontSize: 18 }}>많이 들은 가수</h2>
-        <ol className={`${ui.list} ${ui.card}`} style={{ padding: '4px 16px' }}>
-          {stats.topArtists.slice(0, 10).map((a, i) => (
-            <li key={i} className={ui.listItem}>
-              <span className={ui.rank}>{i + 1}</span>
+        <RankList
+          first={stats.topArtists}
+          total={stats.topArtistsTotal}
+          load={page => api.topArtists(token, page, RANK_SIZE)}
+          row={(a, rank) => (
+            <li key={rank} className={ui.listItem}>
+              <span className={ui.rank}>{rank}</span>
               <Tile text={a.name} size={32} />
               <div className={`${ui.grow} ${ui.ellipsis}`}>{a.name}</div>
               <span className={ui.count}>{num(a.plays)}회</span>
             </li>
-          ))}
-        </ol>
+          )}
+        />
         {stats.excludedChannelPlays > 0 && (
           <span className={ui.small}>방송·일반 채널 재생 {num(stats.excludedChannelPlays)}회는 가수 순위에서 제외했어요.</span>
         )}

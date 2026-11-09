@@ -21,6 +21,10 @@ export interface SessionView {
   expiresAt: string
 }
 export interface UploadTicket { uploadId: string; url: string; method: 'PUT'; headers: Record<string, string>; expiresAt: string }
+export interface TopSong { trackId: number | null; title: string; artist: string | null; release: { title: string | null; year: number | null } | null; coverUrl: string | null; plays: number }
+export interface TopArtist { artistId: number | null; name: string; plays: number }
+export interface RankPage<T> { items: T[]; page: number; size: number; total: number }
+
 export interface Stats {
   period: { start: string | null; end: string | null; days: number | null }
   totals: { plays: number; uniqueTitles: number; uniqueChannels: number }
@@ -32,8 +36,10 @@ export interface Stats {
   bySource: { musicApp: number; youtube: number }
   coverage: { music: number | null; unclassified: number | null }
   /** L2-2 곡 단위 순위. trackId가 없으면 아직 못 찾은 곡 ("제목 + 채널" 그대로) */
-  topSongs: { trackId: number | null; title: string; artist: string | null; release: { title: string | null; year: number | null } | null; coverUrl: string | null; plays: number }[]
-  topArtists: { artistId: number | null; name: string; plays: number }[]
+  topSongs: TopSong[]
+  topSongsTotal: number
+  topArtists: TopArtist[]
+  topArtistsTotal: number
   excludedChannelPlays: number
   identified: { plays: number; totalPlays: number }
 }
@@ -86,6 +92,8 @@ export const api = {
   uploadUrl: (token: string, c: { totalCount: number; musicCount: number; unclassifiedCount: number; byteSize: number }) =>
     call<UploadTicket>(`/sessions/${token}/upload-url`, json('POST', c)),
   stats: (token: string) => call<Stats>(`/sessions/${token}/stats`),
+  topSongs: (token: string, page: number, size: number) => call<RankPage<TopSong>>(`/sessions/${token}/top-songs?page=${page}&size=${size}`),
+  topArtists: (token: string, page: number, size: number) => call<RankPage<TopArtist>>(`/sessions/${token}/top-artists?page=${page}&size=${size}`),
   videoCheck: (token: string, videoIds: string[]) =>
     call<{ musicIds: string[]; checked: number; fromCache: number; fromApi: number; skipped: boolean }>(`/sessions/${token}/video-check`, json('POST', { videoIds })),
   recommendations: (token: string) => call<Recommendations>(`/sessions/${token}/recommendations`),

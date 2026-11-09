@@ -34,11 +34,18 @@ data class Stats(
     val bySource: SourceCount,
     val coverage: Coverage,
     val topSongs: List<SongCount>,
+    val topSongsTotal: Int,
     val topArtists: List<ArtistCount>,
+    val topArtistsTotal: Int,
     /** 가수를 정하지 못해 가수 순위에서 뺀 방송·일반 채널 재생 수 */
     val excludedChannelPlays: Int,
     val identified: Identified,
 )
+
+/** 순위 목록의 한 페이지. total은 전체 항목 수 */
+data class RankPage<T>(val items: List<T>, val page: Int, val size: Int, val total: Int)
+
+private data class Ranked<T>(val items: List<T>, val total: Int)
 
 /**
  * 기본 통계 (시간은 한국 시간 기준).
@@ -51,10 +58,29 @@ class StatsService(private val jdbc: JdbcClient) {
     private val kst = "AT TIME ZONE 'Asia/Seoul'"
     private val channelName = "regexp_replace(channel, ' - Topic$', '')"
 
-    fun of(session: Session, top: Int = 20): Stats {
+    private fun requireReady(session: Session) {
         if (session.entry == Entry.SEEDS) throw ApiException.invalidState("곡 고르기 세션에는 통계가 없습니다")
         if (session.status != SessionStatus.DONE) throw ApiException.notReady()
+    }
+
+    fun songs(session: Session, page: Int, size: Int): RankPage<SongCount> = paged(session, page, size) { limit, offset -> songRows(session.id, limit, offset) }
+
+    fun artists(session: Session, page: Int, size: Int): RankPage<ArtistCount> = paged(session, page, size) { limit, offset -> artistRows(session.id, limit, offset) }
+
+    private fun <T> paged(session: Session, page: Int, size: Int, rows: (Int, Int) -> Ranked<T>): RankPage<T> {
+        requireReady(session)
+        if (page < 1 || size !in 1..50) throw ApiException.validation("page는 1 이상, size는 1~50이어야 합니다")
+        val r = rows(size, (page - 1) * size)
+        // 범위를 벗어난 페이지는 행이 없어 전체 수를 따로 구한다
+        val total = if (r.items.isEmpty() && page > 1) rows(1, 0).total else r.total
+        return RankPage(r.items, page, size, total)
+    }
+
+    fun of(session: Session, top: Int = 20): Stats {
+        requireReady(session)
         val sid = session.id
+        val songs = songRows(sid, top, 0)
+        val artists = artistRows(sid, top, 0)
 
         val totals = jdbc.sql(
             """
@@ -115,8 +141,10 @@ class StatsService(private val jdbc: JdbcClient) {
             byMonth = byMonth,
             bySource = bySource,
             coverage = Coverage(session.musicCount, session.unclassifiedCount),
-            topSongs = topSongs(sid, top),
-            topArtists = topArtists(sid, top),
+            topSongs = songs.items,
+            topSongsTotal = songs.total,
+            topArtists = artists.items,
+            topArtistsTotal = artists.total,
             excludedChannelPlays = excludedChannelPlays(sid),
             identified = jdbc.sql("SELECT count(track_id), count(*) FROM listen_event WHERE session_id = :sid").param("sid", sid)
                 .query { rs, _ -> Identified(rs.getInt(1), rs.getInt(2)) }.single(),
@@ -126,12 +154,13 @@ class StatsService(private val jdbc: JdbcClient) {
     // Topic 채널에서 얻은 가수 이름 (YouTube 표기). 일반 채널은 가수 이름이 아닐 수 있어 쓰지 않는다
     private val topicArtist = "mode() WITHIN GROUP (ORDER BY regexp_replace(l.channel, ' - Topic$', '')) FILTER (WHERE l.channel LIKE '% - Topic')"
 
-    private fun topSongs(sid: Long, top: Int): List<SongCount> =
-        jdbc.sql(
+    private fun songRows(sid: Long, limit: Int, offset: Int): Ranked<SongCount> {
+        var total = 0
+        val items = jdbc.sql(
             """
             WITH $knownName,
             $guessed
-            SELECT g.track_id,
+            SELECT g.track_id, count(*) OVER () AS total,
                    -- 식별된 곡은 정리된 이름(캐시의 곡명·가수)을 먼저: 일반 영상 제목에는 "[MV] … _ …" 같은 장식이 붙어 있다 (L2-3)
                    coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_title) FROM title_alias ta WHERE ta.track_id = g.track_id AND ta.status = 'MATCHED'), g.title) AS title,
                    coalesce(g.topic_artist, (SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta WHERE ta.track_id = g.track_id AND ta.status = 'MATCHED'), a.name, g.channel) AS artist,
@@ -151,9 +180,10 @@ class StatsService(private val jdbc: JdbcClient) {
             ) g
             LEFT JOIN track t ON t.id = g.track_id
             LEFT JOIN artist a ON a.id = t.artist_id
-            ORDER BY g.plays DESC, g.title LIMIT :top
+            ORDER BY g.plays DESC, g.title, g.track_id NULLS LAST, g.channel LIMIT :top OFFSET :offset
             """.trimIndent(),
-        ).param("sid", sid).param("top", top).query { rs, _ ->
+        ).param("sid", sid).param("top", limit).param("offset", offset).query { rs, _ ->
+            total = rs.getInt("total")
             val trackId = rs.getObject("track_id") as Long?
             SongCount(
                 trackId = trackId,
@@ -164,6 +194,8 @@ class StatsService(private val jdbc: JdbcClient) {
                 plays = rs.getInt("plays"),
             )
         }.list()
+        return Ranked(items, total)
+    }
 
     private fun nameKey(expr: String) = "lower(regexp_replace($expr, '[[:space:][:punct:]’]', '', 'g'))"
 
@@ -229,11 +261,12 @@ class StatsService(private val jdbc: JdbcClient) {
         )
     """.trimIndent()
 
-    private fun topArtists(sid: Long, top: Int): List<ArtistCount> =
-        jdbc.sql(
+    private fun artistRows(sid: Long, limit: Int, offset: Int): Ranked<ArtistCount> {
+        var total = 0
+        val items = jdbc.sql(
             """
             $artistResolved
-            SELECT l.artist_id,
+            SELECT l.artist_id, count(*) OVER () AS total,
                    coalesce($topicArtist,
                             (SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta JOIN track tt ON tt.id = ta.track_id WHERE tt.artist_id = l.artist_id AND ta.status = 'MATCHED'),
                             min(a.name), min(regexp_replace(l.channel, ' - Topic$', ''))) AS name,
@@ -243,10 +276,15 @@ class StatsService(private val jdbc: JdbcClient) {
             -- 가수를 정하지 못한 Topic 채널은 채널 이름이 곧 가수다. 방송·일반 채널은 가수가 아니므로 뺀다
             WHERE l.artist_id IS NOT NULL OR l.channel LIKE '% - Topic'
             GROUP BY l.artist_id, CASE WHEN l.artist_id IS NULL THEN regexp_replace(l.channel, ' - Topic$', '') END
-            ORDER BY plays DESC, name LIMIT :top
+            ORDER BY plays DESC, name, l.artist_id NULLS LAST LIMIT :top OFFSET :offset
             """.trimIndent(),
-        ).param("sid", sid).param("top", top)
-            .query { rs, _ -> ArtistCount(rs.getObject("artist_id") as Long?, rs.getString("name"), rs.getInt("plays")) }.list()
+        ).param("sid", sid).param("top", limit).param("offset", offset)
+            .query { rs, _ ->
+                total = rs.getInt("total")
+                ArtistCount(rs.getObject("artist_id") as Long?, rs.getString("name"), rs.getInt("plays"))
+            }.list()
+        return Ranked(items, total)
+    }
 
     private fun excludedChannelPlays(sid: Long): Int =
         jdbc.sql("$artistResolved SELECT count(*) FROM resolved WHERE artist_id IS NULL AND channel IS NOT NULL AND channel NOT LIKE '% - Topic'")

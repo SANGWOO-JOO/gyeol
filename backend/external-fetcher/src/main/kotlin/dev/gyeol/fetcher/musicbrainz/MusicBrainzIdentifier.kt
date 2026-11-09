@@ -49,28 +49,36 @@ class MusicBrainzIdentifier(
         val artists = findArtists(artistName, call).ifEmpty {
             TitleMatch.searchParts(artistName).filter { it != artistName }.firstNotNullOfOrNull { findArtists(it, call).ifEmpty { null } }.orEmpty()
         }
-        if (artists.isEmpty()) return done(IdentifyResult("NOT_FOUND", reason = "ARTIST"))
 
         var alt: String? = null
         var altChecked = false
         var withoutRelease: Pair<IdArtist, JsonNode>? = null
-        for (artist in artists) {
-            var recs = recordings(artist.mbid, title, null, call)
-            if (recs.isEmpty() && !altChecked) {
-                altChecked = true
-                alt = spellings(artistName, title).firstOrNull { TitleMatch.norm(it) == TitleMatch.norm(title) && it != title }
-                if (alt != null) recs = recordings(artist.mbid, title, alt, call)
-            }
-            if (recs.isEmpty()) recs = scanArtist(artist.mbid, title, call)
-            if (recs.isEmpty()) continue
+        fun tryArtists(candidates: List<IdArtist>): IdentifyResult? {
+            for (artist in candidates) {
+                var recs = recordings(artist.mbid, title, null, call)
+                if (recs.isEmpty() && !altChecked) {
+                    altChecked = true
+                    alt = spellings(artistName, title).firstOrNull { TitleMatch.norm(it) == TitleMatch.norm(title) && it != title }
+                    if (alt != null) recs = recordings(artist.mbid, title, alt, call)
+                }
+                if (recs.isEmpty()) recs = scanArtist(artist.mbid, title, call)
+                if (recs.isEmpty()) continue
 
-            val best = earliestRelease(recs)
-            if (best == null) {
-                if (withoutRelease == null) withoutRelease = artist to recs.minBy { isVariantRecording(it) }
-                continue
+                val best = earliestRelease(recs)
+                if (best == null) {
+                    if (withoutRelease == null) withoutRelease = artist to recs.minBy { isVariantRecording(it) }
+                    continue
+                }
+                return done(IdentifyResult("MATCHED", recording = best.first, artist = artist, release = best.second))
             }
-            return done(IdentifyResult("MATCHED", recording = best.first, artist = artist, release = best.second))
+            return null
         }
+
+        tryArtists(artists)?.let { return it }
+        // 흔한 이름은 필드 검색 상위 10명에 실제 가수가 없을 수 있다 ("Buzz"의 버즈). 넓은 검색으로 이름이 정확히 같은 다른 후보를 한 번 더 본다
+        val wider = findArtists(artistName, call, wide = true).filter { w -> artists.none { it.mbid == w.mbid } }
+        tryArtists(wider)?.let { return it }
+        if (artists.isEmpty() && wider.isEmpty()) return done(IdentifyResult("NOT_FOUND", reason = "ARTIST"))
         // 곡은 확인했지만 원곡 음반이 없으면(컴필레이션뿐 등) 음반 없이 곡으로 인정한다. 다른 음반 표지로 대신하지 않으려고 음반은 비운다
         withoutRelease?.let { (artist, rec) ->
             return done(IdentifyResult("MATCHED", recording = IdRecording(rec.path("id").asString(), rec.path("title").asString()), artist = artist))
@@ -78,9 +86,11 @@ class MusicBrainzIdentifier(
         return done(IdentifyResult("NOT_FOUND", reason = "RECORDING"))
     }
 
-    private fun findArtists(name: String, call: (String, Map<String, Any>) -> JsonNode): List<IdArtist> {
+    private fun findArtists(name: String, call: (String, Map<String, Any>) -> JsonNode, wide: Boolean = false): List<IdArtist> {
         val q = esc(name)
-        val body = call("/artist", mapOf("query" to "artist:\"$q\" OR alias:\"$q\"", "limit" to 10))
+        val query = if (wide) name.replace(luceneSpecial, " ").trim() else "artist:\"$q\" OR alias:\"$q\""
+        if (query.isEmpty()) return emptyList()
+        val body = call("/artist", mapOf("query" to query, "limit" to 10))
         val wanted = TitleMatch.norm(name)
         val wantedWords = TitleMatch.nameWords(name)
         return body.path("artists").toList()

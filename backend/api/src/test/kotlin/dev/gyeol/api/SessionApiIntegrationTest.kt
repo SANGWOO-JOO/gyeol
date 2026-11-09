@@ -427,6 +427,37 @@ class SessionApiIntegrationTest {
     }
 
     @Test
+    fun `곡·가수 순위 페이지 - 순서가 이어지고, 범위를 벗어나면 빈 목록, 잘못된 값은 거절한다`() {
+        val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
+        val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id
+        val uploadId = UUID.randomUUID()
+        uploads.create(uploadId, sid, "uploads/$uploadId.json")
+        val t0 = Instant.parse("2026-10-01T00:00:00Z")
+        val events = (1..12).flatMap { i -> (0 until 13 - i).map { ListenEvent("v", "곡$i", "가수$i - Topic", t0.plusSeconds(it * 60L), Source.YOUTUBE) } }
+        listens.insertBatch(sid, uploadId, events, Instant.now().plus(7, ChronoUnit.DAYS))
+        sessions.markDone(sid, events.size, t0, t0)
+
+        val stats = call("GET", "/api/sessions/$token/stats").second!!
+        assertEquals(12, stats["topSongsTotal"].asInt())
+        assertEquals(12, stats["topArtistsTotal"].asInt())
+
+        val songs = call("GET", "/api/sessions/$token/top-songs?page=2&size=5").second!!
+        assertEquals(listOf("곡6", "곡7", "곡8", "곡9", "곡10"), songs["items"].toList().map { it["title"].asString() })
+        assertEquals(12, songs["total"].asInt())
+        assertEquals(2, songs["page"].asInt())
+
+        val artists = call("GET", "/api/sessions/$token/top-artists?page=3&size=5").second!!
+        assertEquals(listOf("가수11", "가수12"), artists["items"].toList().map { it["name"].asString() })
+
+        val past = call("GET", "/api/sessions/$token/top-songs?page=9&size=5").second!!
+        assertEquals(0, past["items"].size())
+        assertEquals(12, past["total"].asInt())
+
+        assertEquals(400, call("GET", "/api/sessions/$token/top-songs?page=0").first)
+        assertEquals(400, call("GET", "/api/sessions/$token/top-artists?size=51").first)
+    }
+
+    @Test
     fun `LLM이 뽑은 가수·곡 - 확인된 가수의 곡이면 가수·곡 순위에 더하고, 커버와 확인 안 된 가수는 다르게 처리한다`() {
         val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
         val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id

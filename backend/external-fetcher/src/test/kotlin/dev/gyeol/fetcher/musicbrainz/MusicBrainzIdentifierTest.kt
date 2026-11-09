@@ -165,10 +165,33 @@ class MusicBrainzIdentifierTest {
     }
 
     @Test
+    fun `흔한 이름은 넓은 검색으로 실제 가수를 찾고, 이름이 다른 후보는 쓰지 않는다`() {
+        fun run(wideHits: List<Map<String, Any>>) = MusicBrainzIdentifier(
+            mb = { path, params ->
+                val q = params["query"].toString()
+                val body: Any = when {
+                    path == "/artist" && q.contains("alias:") -> mapOf("artists" to listOf(artist("other", "Buzz Brass", aliases = listOf("Buzz"))))
+                    path == "/artist" -> mapOf("artists" to wideHits)
+                    q.startsWith("arid:real") -> mapOf("recordings" to listOf(recording("m", "Monologue", release("Morning of Buzz", "2003-01-01"))))
+                    else -> mapOf("recordings" to emptyList<Any>())
+                }
+                json.valueToTree<JsonNode>(body)
+            },
+            spellings = { _, _ -> emptyList() },
+        ).identify("Buzz", "Monologue")
+
+        val found = run(listOf(artist("real", "버즈", aliases = listOf("Buzz"))))
+        assertEquals("real", found.artist!!.mbid)
+        assertEquals("Morning of Buzz", found.release!!.title)
+        assertEquals("RECORDING", run(listOf(artist("real", "버즈"))).reason)
+    }
+
+    @Test
     fun `괄호 없이 병기한 제목도 나눠 비교한다`() {
         assertTrue(TitleMatch.sameTitle("편지", "다비치코드 - 편지"))
         assertTrue(TitleMatch.sameTitle("흔들리는 꽃들 속에서", "흔들리는 꽃들 속에서 Your Shampoo Scent"))
         assertTrue(TitleMatch.sameTitle("꼬마 - I cry", "꼬마 - I Cry"))
+        assertTrue(TitleMatch.sameTitle("꼬마 - I cry", "꼬마 - I Cry (꼬마 - I Cry)"))
         assertFalse(TitleMatch.sameTitle("다른 곡", "다비치코드 - 편지"))
     }
 

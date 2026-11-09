@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
@@ -96,6 +97,14 @@ class SessionController(
 
     @GetMapping("/{token}/stats")
     fun stats(@PathVariable token: String): Stats = stats.of(service.find(token))
+
+    @GetMapping("/{token}/top-songs")
+    fun topSongs(@PathVariable token: String, @RequestParam(defaultValue = "1") page: Int, @RequestParam(defaultValue = "10") size: Int) =
+        stats.songs(service.find(token), page, size)
+
+    @GetMapping("/{token}/top-artists")
+    fun topArtists(@PathVariable token: String, @RequestParam(defaultValue = "1") page: Int, @RequestParam(defaultValue = "10") size: Int) =
+        stats.artists(service.find(token), page, size)
 
     @DeleteMapping("/{token}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
