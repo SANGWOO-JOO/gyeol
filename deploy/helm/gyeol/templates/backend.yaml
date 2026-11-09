@@ -19,6 +19,7 @@
     (dict "name" "RECOMMEND_QUEUE" "value" .Values.aws.recommendQueue)
     (dict "name" "RECOMMEND_DLQ" "value" .Values.aws.recommendDlq)
     (dict "name" "GUESS_QUEUE" "value" .Values.aws.guessQueue)
+    (dict "name" "AUTO_RECOMMEND" "value" (toString .Values.worker.autoRecommend))
     (dict "name" "EMBED_URL" "value" (printf "http://gyeol-embed:%v" .Values.embed.port))
     (dict "name" "FETCHER_URL" "value" (printf "http://gyeol-fetcher:%v" .Values.fetcher.port))
     (dict "name" "CLEANUP_ENABLED" "value" (toString .Values.worker.cleanupEnabled))))

@@ -10,6 +10,8 @@ import dev.gyeol.core.knowledge.KnowledgeRepository
 import dev.gyeol.core.knowledge.TrackRefs
 import dev.gyeol.core.llm.LlmCallRepository
 import dev.gyeol.core.llm.LlmUsage
+import dev.gyeol.core.session.Entry
+import dev.gyeol.core.session.SessionRepository
 import dev.gyeol.worker.WorkerProperties
 import dev.gyeol.worker.describe.Claim
 import dev.gyeol.worker.describe.DescriptorBuilder
@@ -46,11 +48,14 @@ class EnrichTrigger(
     private val json: JsonMapper,
     private val props: WorkerProperties,
     private val guess: GuessPlanner,
+    private val sessions: SessionRepository,
 ) {
     fun afterIdentify(sessionId: Long) {
         val p = identify.progress(sessionId)
         if (p.target == 0 || p.done + p.failed < p.target) return
         guess.plan(sessionId)
+        // 청취 기록 입구는 분석까지만 자동으로 한다. 곡 고르기 입구는 추천이 목적이므로 그대로 이어 간다
+        if (!props.autoRecommend && sessions.findById(sessionId)?.entry == Entry.TAKEOUT) return
         sqs.send { it.queue(props.enrich.queue).payload(json.writeValueAsString(EnrichMessage("PLAN", sessionId))) }
     }
 }

@@ -43,6 +43,7 @@ worker:
   port: 18082
   # 처리할 큐 역할. EKS 측정 때는 parse·identify를 Deployment로 나눠 따로 늘릴 수 있다
   role: parse,identify,cover,enrich,recommend,guess
+  autoRecommend: false
   cleanupEnabled: true
   identifyTopN: 300
   # fake | bedrock. bedrock은 파드에 Bedrock 권한(EKS: Pod Identity)이 있어야 한다. k3d에는 AWS 자격 증명이 없어 fake

@@ -19,6 +19,8 @@ data class WorkerProperties(
     val embed: Embed = Embed(),
     val recommend: Recommend = Recommend(),
     val guess: Guess = Guess(),
+    /** 청취 기록 세션에서 식별 뒤 보강·추천까지 자동으로 이어 갈지 (기본은 분석까지만) */
+    val autoRecommend: Boolean = false,
     /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
     val busyRetry: Duration = Duration.ofSeconds(30),
 ) {

@@ -17,6 +17,8 @@ gyeol:
   worker:
     # 이 워커가 처리할 큐 역할. 쉼표로 여러 개 (parse, identify, cover, enrich, recommend, guess)
     role: ${WORKER_ROLE:parse,identify,cover,enrich,recommend,guess}
+    # 청취 기록 세션에서 식별 뒤 보강·추천까지 자동으로 이어 갈지
+    auto-recommend: ${AUTO_RECOMMEND:false}
     # 방송·일반 채널 영상에서 LLM으로 가수·곡 뽑기
     guess:
       queue: ${GUESS_QUEUE:gyeol-local-guess}

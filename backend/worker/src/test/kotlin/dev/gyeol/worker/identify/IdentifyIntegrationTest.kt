@@ -11,6 +11,7 @@ import dev.gyeol.core.session.SessionRepository
 import dev.gyeol.core.session.SessionStatus
 import dev.gyeol.core.session.Tokens
 import dev.gyeol.core.upload.UploadRepository
+import dev.gyeol.worker.enrich.EnrichTrigger
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -47,6 +48,7 @@ import kotlin.test.assertNull
         "spring.flyway.locations=classpath:db/migration",
         "gyeol.worker.role=identify,cover,guess",
         "gyeol.worker.guess.queue=gyeol-test-guess",
+        "gyeol.worker.enrich.queue=gyeol-test-enrich",
         "gyeol.worker.cover.queue=gyeol-test-cover",
         "gyeol.worker.cleanup.enabled=false",
         "gyeol.worker.parse-dlq=gyeol-test-parse-dlq",
@@ -118,6 +120,7 @@ class IdentifyIntegrationTest {
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localstack.accessKey, localstack.secretKey))).build()
         }
         lateinit var parseDlqUrl: String
+        lateinit var enrichUrl: String
 
         /** 실제 구성처럼 identify 큐 + 실패 큐(2번 실패하면, 시험이라 짧게) */
         @BeforeAll
@@ -126,6 +129,7 @@ class IdentifyIntegrationTest {
             parseDlqUrl = sqs.createQueue { it.queueName("gyeol-test-parse-dlq") }.queueUrl()
             sqs.createQueue { it.queueName("gyeol-test-cover") }
             sqs.createQueue { it.queueName("gyeol-test-guess") }
+            enrichUrl = sqs.createQueue { it.queueName("gyeol-test-enrich") }.queueUrl()
             val dlqUrl = sqs.createQueue { it.queueName("gyeol-test-identify-dlq") }.queueUrl()
             val dlqArn = sqs.getQueueAttributes { it.queueUrl(dlqUrl).attributeNames(QueueAttributeName.QUEUE_ARN) }.attributes()[QueueAttributeName.QUEUE_ARN]
             sqs.createQueue {
@@ -140,6 +144,7 @@ class IdentifyIntegrationTest {
     }
 
     @Autowired lateinit var planner: IdentifyPlanner
+    @Autowired lateinit var enrichTrigger: EnrichTrigger
     @Autowired lateinit var repo: IdentifyRepository
     @Autowired lateinit var sessions: SessionRepository
     @Autowired lateinit var uploads: UploadRepository
@@ -258,6 +263,24 @@ class IdentifyIntegrationTest {
         assertEquals(5L, linked(sid, "곡1"))
         assertEquals(1, fetcherCalls.count { it.contains("곡2") }, "재시도하지 않아야 합니다")
         assertEquals(0L, jdbc.sql("SELECT count(*) FROM title_alias WHERE query_title = '곡2'").query(Long::class.java).single(), "캐시에 남기지 않습니다")
+    }
+
+    private fun enrichMessages(): List<String> = sqs.receiveMessage { it.queueUrl(enrichUrl).maxNumberOfMessages(10).waitTimeSeconds(2) }.messages().map { it.body() }
+
+    @Test
+    fun `청취 기록 세션은 식별 뒤 보강을 시작하지 않고, 곡 고르기 세션은 시작한다`() {
+        enrichMessages()
+        fun finishedSession(entry: Entry): Long {
+            val sid = sessions.create(Tokens.hash(Tokens.newToken()), entry, Instant.now().plus(30, ChronoUnit.DAYS))
+            jdbc.sql("INSERT INTO identify_target (session_id, alias_key, title, channel, source, plays, status) VALUES (:sid, 'k', '곡', '채널', 'YOUTUBE', 1, 'DONE')").param("sid", sid).update()
+            return sid
+        }
+        enrichTrigger.afterIdentify(finishedSession(Entry.TAKEOUT))
+        assertEquals(emptyList(), enrichMessages())
+
+        val seeds = finishedSession(Entry.SEEDS)
+        enrichTrigger.afterIdentify(seeds)
+        assert(enrichMessages().single().contains("\"sessionId\":$seeds"))
     }
 
     @Test
