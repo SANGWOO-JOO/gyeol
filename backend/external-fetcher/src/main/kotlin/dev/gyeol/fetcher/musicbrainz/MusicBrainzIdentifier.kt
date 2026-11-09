@@ -90,8 +90,9 @@ class MusicBrainzIdentifier(
     }
 
     private fun recordings(arid: String, title: String, alt: String?, call: (String, Map<String, Any>) -> JsonNode): List<JsonNode> {
-        val searchTitle = (alt ?: title).replace(luceneSpecial, " ").trim()
-        if (searchTitle.isEmpty()) return emptyList()
+        val terms = TitleMatch.searchParts(alt ?: title).map { it.replace(luceneSpecial, " ").trim() }.filter { it.isNotEmpty() }
+        if (terms.isEmpty()) return emptyList()
+        val searchTitle = terms.singleOrNull() ?: terms.joinToString(" OR ") { "($it)" }
         val out = mutableListOf<JsonNode>()
         for (offset in 0 until 300 step 100) {
             val body = call("/recording", mapOf("query" to "arid:$arid AND recording:($searchTitle)", "limit" to 100, "offset" to offset))
@@ -102,10 +103,10 @@ class MusicBrainzIdentifier(
         return out
     }
 
-    /** 띄어쓰기·표기 차이로 제목 검색에 안 걸릴 때: 가수의 녹음을 넓게 훑는다 (최대 1,000개) */
+    /** 띄어쓰기·표기 차이로 제목 검색에 안 걸릴 때: 가수의 녹음을 넓게 훑는다 (MusicBrainz 검색은 offset + limit이 500을 넘으면 400) */
     private fun scanArtist(arid: String, title: String, call: (String, Map<String, Any>) -> JsonNode): List<JsonNode> {
         val out = mutableListOf<JsonNode>()
-        for (offset in 0 until 1000 step 100) {
+        for (offset in 0 until 500 step 100) {
             val page = call("/recording", mapOf("query" to "arid:$arid", "limit" to 100, "offset" to offset)).path("recordings").toList()
             out += page.filter { TitleMatch.sameTitle(it.path("title").asString(""), title) }
             if (page.size < 100) break

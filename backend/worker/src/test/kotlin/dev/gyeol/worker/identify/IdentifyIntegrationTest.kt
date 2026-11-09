@@ -72,12 +72,14 @@ class IdentifyIntegrationTest {
         val fetcherCalls = CopyOnWriteArrayList<String>()
         val coverCalls = CopyOnWriteArrayList<String>()
         @Volatile var down = false
+        @Volatile var rejectSong2 = false
         private val fetcher = HttpServer.create(InetSocketAddress(0), 0).apply {
             createContext("/internal/musicbrainz/identify") { ex ->
                 val body = ex.requestBody.readAllBytes().decodeToString()
                 fetcherCalls += body
                 val (code, res) = when {
                     down -> 503 to """{"code":"UPSTREAM_UNAVAILABLE","message":"down"}"""
+                    rejectSong2 && body.contains("곡2") -> 422 to """{"code":"UPSTREAM_REJECTED","message":"rejected"}"""
                     body.contains("가수A") && body.contains("곡1") -> 200 to """
                         {"status":"MATCHED","recording":{"mbid":"11111111-1111-1111-1111-111111111111","title":"곡1"},
                          "artist":{"mbid":"22222222-2222-2222-2222-222222222222","name":"Singer A","sortName":"Singer A","aliases":["가수A"]},
@@ -145,6 +147,7 @@ class IdentifyIntegrationTest {
     @BeforeEach
     fun reset() {
         down = false
+        rejectSong2 = false
         fetcherCalls.clear()
         coverCalls.clear()
         jdbc.sql("DELETE FROM title_alias").update() // 전역 캐시를 비워 테스트 순서와 무관하게
@@ -242,6 +245,17 @@ class IdentifyIntegrationTest {
         assertEquals(0, p.done)
         assertEquals(3, p.failed)
         assert(fetcherCalls.size >= 2) { "실패 큐로 가기 전에 다시 시도해야 합니다" }
+    }
+
+    @Test
+    fun `거절된 곡(4xx)은 다시 시도하지 않고 그 곡만 실패로 두며 묶음의 다른 곡은 끝낸다`() {
+        rejectSong2 = true
+        val sid = session()
+        planner.plan(sid)
+        assertEquals(IdentifyProgress(target = 3, done = 2, matched = 1, notFound = 1, failed = 1), waitDone(sid))
+        assertEquals(5L, linked(sid, "곡1"))
+        assertEquals(1, fetcherCalls.count { it.contains("곡2") }, "재시도하지 않아야 합니다")
+        assertEquals(0L, jdbc.sql("SELECT count(*) FROM title_alias WHERE query_title = '곡2'").query(Long::class.java).single(), "캐시에 남기지 않습니다")
     }
 
     @Test

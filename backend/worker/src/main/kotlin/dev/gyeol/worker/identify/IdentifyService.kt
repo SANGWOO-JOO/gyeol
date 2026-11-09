@@ -19,6 +19,7 @@ import java.time.Instant
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionTemplate
+import org.springframework.web.client.HttpClientErrorException
 import tools.jackson.databind.json.JsonMapper
 
 /**
@@ -57,7 +58,12 @@ class IdentifyService(
             }
             val query = RuleIdentifier.query(t.title, t.channel, t.source)
             if (query == null) { forLlm += t; continue } // 일반 영상 제목 → LLM (L2-3a)
-            val trackId = fetcher.identify(query.artist, query.title)?.let { info -> tx.execute { repo.upsertTrack(info) } }
+            val info = try {
+                fetcher.identify(query.artist, query.title)
+            } catch (e: HttpClientErrorException) {
+                failOne(t, e); continue
+            }
+            val trackId = info?.let { found -> tx.execute { repo.upsertTrack(found) } }
             tx.executeWithoutResult { repo.saveAlias(t.key, trackId, AliasMethod.RULE, query, reason = if (trackId == null) "NOT_IN_MUSICBRAINZ" else null) }
             finish(t, trackId); trackId?.let(found::add)
         }
@@ -92,7 +98,11 @@ class IdentifyService(
                         .filter { (a, b) -> !a.isNullOrBlank() && !b.isNullOrBlank() }.distinct()
                     var hit: Pair<Long, Query>? = null
                     for ((a, b) in tries) {
-                        val info = fetcher.identify(a!!, b!!) ?: continue
+                        val info = try {
+                            fetcher.identify(a!!, b!!)
+                        } catch (e: HttpClientErrorException) {
+                            failOne(t, e); return@mapIndexedNotNull null
+                        } ?: continue
                         hit = tx.execute { repo.upsertTrack(info) }!! to Query(a, b, byChannelName = false)
                         break
                     }
@@ -103,6 +113,12 @@ class IdentifyService(
             finish(t, trackId)
             trackId
         }
+    }
+
+    /** 요청 자체가 거절된 곡(4xx)은 다시 시도해도 같으므로 이 곡만 실패로 두고 묶음을 계속한다. 캐시에는 남기지 않아 다음 세션에서 다시 시도한다 */
+    private fun failOne(t: Target, e: HttpClientErrorException) {
+        log.warn("식별 거절: 세션 {}, 키 {}: {}", t.sessionId, t.key, e.statusCode)
+        repo.finishTarget(t.sessionId, t.key, TargetStatus.FAILED)
     }
 
     private fun finish(t: Target, trackId: Long?) {

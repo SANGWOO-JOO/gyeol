@@ -7,16 +7,31 @@ object TitleMatch {
     private val STRIP = Regex("""[\s()\[\]~～\-'’.,!?:&]""")
     private val SPLIT = Regex("""\s*[/(（]\s*|\s*[)）]\s*""")
     private val HANGUL = Regex("""[가-힣]""")
+    private val FEAT_TAIL = Regex("""\s+(?:feat\.?|ft\.?)\s+.*$""", RegexOption.IGNORE_CASE)
+    private val NOT_TITLE = Regex(
+        """^(?:feat\.?|ft\.?|with|prod\.?)(?:\s|$)|^bonus\s*track$|^(?:live|remix|inst\.?|instrumental|acoustic|mr)$|\b(?:ver\.?|version)$""",
+        RegexOption.IGNORE_CASE,
+    )
 
     fun norm(s: String?): String = Normalizer.normalize(s.orEmpty(), Normalizer.Form.NFKC).lowercase().replace(STRIP, "")
 
     /** 비교 후보: 전체, 괄호 앞뒤, "/" 앞뒤 (예: "뚜두뚜두 (DDU-DU DDU-DU)", "Everything / 걱정하지마") */
     fun parts(s: String): Set<String> = (listOf(s) + s.split(SPLIT)).map(::norm).filter { it.isNotEmpty() }.toSet()
 
+    /**
+     * 찾는 제목에서 곡명으로 볼 부분들 (예: "Good day (좋은 날)" → Good day, 좋은 날).
+     * 피처링·버전 표시는 곡명이 아니므로 빼고, 여러 부분이면 한 글자 조각도 뺀다. 남는 게 없으면 원문 그대로.
+     */
+    fun searchParts(s: String): List<String> {
+        val pieces = s.split(SPLIT).map { it.replace(FEAT_TAIL, "").trim() }.filter { norm(it).isNotEmpty() && !NOT_TITLE.containsMatchIn(it) }
+        val named = if (pieces.size > 1) pieces.filter { norm(it).length >= 2 } else pieces
+        return named.distinctBy(::norm).ifEmpty { listOf(s) }
+    }
+
     /** MusicBrainz 제목 [candidate]가 찾는 제목 [wanted]와 같은 곡인지. 한글 제목은 로마자 표기도 비교 (난춘 → NAN CHUN) */
     fun sameTitle(candidate: String, wanted: String): Boolean {
         val p = parts(candidate)
-        return norm(wanted) in p || (HANGUL.containsMatchIn(wanted) && norm(roman(wanted)) in p)
+        return (searchParts(wanted).map(::norm) + norm(wanted)).any { it in p || (HANGUL.containsMatchIn(it) && norm(roman(it)) in p) }
     }
 
     // 국어의 로마자 표기법 (음운 변화는 무시)

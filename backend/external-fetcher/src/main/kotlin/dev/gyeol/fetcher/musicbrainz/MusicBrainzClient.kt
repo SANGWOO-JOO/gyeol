@@ -6,6 +6,7 @@ import dev.gyeol.fetcher.SearchResult
 import dev.gyeol.fetcher.TrackHit
 import dev.gyeol.fetcher.TtlCache
 import dev.gyeol.fetcher.UpstreamException
+import dev.gyeol.fetcher.UpstreamRejectedException
 import org.slf4j.LoggerFactory
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.stereotype.Component
@@ -64,7 +65,9 @@ class MusicBrainzClient(private val props: FetcherProperties) {
                     .retrieve()
                     .body(JsonNode::class.java) ?: throw UpstreamException("MusicBrainz 응답이 비어 있습니다")
             } catch (e: RestClientResponseException) {
-                if (e.statusCode.value() != 503) throw UpstreamException("MusicBrainz가 ${e.statusCode.value()}을(를) 돌려주었습니다", e)
+                val code = e.statusCode.value()
+                if (code in 400..499 && code != 429) throw UpstreamRejectedException("MusicBrainz가 ${code}을(를) 돌려주었습니다", e)
+                if (code != 503) throw UpstreamException("MusicBrainz가 ${code}을(를) 돌려주었습니다", e)
                 last = e
             } catch (e: UpstreamException) {
                 throw e

@@ -19,6 +19,10 @@ class FetcherErrors {
     fun badRequest(e: IllegalArgumentException) =
         ResponseEntity.badRequest().body(FetcherError("VALIDATION", e.message ?: "잘못된 요청"))
 
+    @ExceptionHandler(UpstreamRejectedException::class)
+    fun rejected(e: UpstreamRejectedException) =
+        ResponseEntity.status(422).body(FetcherError("UPSTREAM_REJECTED", e.message ?: "외부 API가 요청을 거절했습니다"))
+
     @ExceptionHandler(TooBusyException::class, UpstreamException::class)
     fun unavailable(e: RuntimeException) =
         ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(FetcherError("UPSTREAM_UNAVAILABLE", e.message ?: "외부 API를 쓸 수 없습니다"))

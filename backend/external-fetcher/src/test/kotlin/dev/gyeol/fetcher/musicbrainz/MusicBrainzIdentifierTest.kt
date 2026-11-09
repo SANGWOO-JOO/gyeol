@@ -157,4 +157,61 @@ class MusicBrainzIdentifierTest {
         assertFalse(TitleMatch.sameTitle("Yellow Submarine", "Yellow"))
         assertEquals("nanchun", TitleMatch.roman("난춘"))
     }
+
+    @Test
+    fun `찾는 제목의 괄호 병기·피처링·버전 표시를 나눠 비교한다`() {
+        assertTrue(TitleMatch.sameTitle("퀘이사", "QUASAR (퀘이사)"))
+        assertTrue(TitleMatch.sameTitle("QUASAR", "QUASAR (퀘이사)"))
+        assertTrue(TitleMatch.sameTitle("둘이서 한잔해", "둘이서 한잔해 (둘이서 한잔해)"))
+        assertTrue(TitleMatch.sameTitle("녹는 중", "녹는 중 (feat. Verbal Jint) (녹는중 (Feat. 버벌진트))"))
+        assertTrue(TitleMatch.sameTitle("Missing You", "Missing You ft. 김윤아 of 자우림"))
+        assertTrue(TitleMatch.sameTitle("내게 오는 길", "내게 오는 길 (Bonus Track)"))
+        assertTrue(TitleMatch.sameTitle("주문", "주문 (Original Version)"))
+        assertFalse(TitleMatch.sameTitle("Verbal Jint", "녹는 중 (feat. Verbal Jint)"), "피처링 가수 이름은 곡명이 아니다")
+        assertFalse(TitleMatch.sameTitle("Live", "Yellow (Live)"), "버전 표시는 곡명이 아니다")
+        assertFalse(TitleMatch.sameTitle("Yellow Submarine", "Yellow (Live)"))
+        assertEquals(listOf("Live"), TitleMatch.searchParts("Live"), "제목 전체가 표시어처럼 보여도 원문은 남긴다")
+    }
+
+    @Test
+    fun `괄호 병기 제목은 각 부분을 OR로 검색해 같은 곡을 찾는다`() {
+        val calls = mutableListOf<String>()
+        val r = MusicBrainzIdentifier(
+            mb = { path, params ->
+                val q = params["query"].toString()
+                calls += q
+                val body: Any = if (path == "/artist") {
+                    mapOf("artists" to listOf(artist("y", "YOUNHA")))
+                } else {
+                    mapOf("recordings" to listOf(recording("q", "퀘이사", release("앨범", "2021-01-01"))))
+                }
+                json.valueToTree<JsonNode>(body)
+            },
+            spellings = { _, _ -> emptyList() },
+        ).identify("YOUNHA", "QUASAR (퀘이사)")
+        assertEquals("MATCHED", r.status)
+        assertEquals(2, r.calls)
+        assertTrue(calls.last().endsWith("recording:((QUASAR) OR (퀘이사))"), calls.last())
+    }
+
+    @Test
+    fun `녹음이 많은 가수를 훑어도 검색 한도(offset + limit 500)를 넘지 않는다`() {
+        val offsets = mutableListOf<Int>()
+        val r = MusicBrainzIdentifier(
+            mb = { path, params ->
+                val body: Any = if (path == "/artist") {
+                    mapOf("artists" to listOf(artist("b", "BIG")))
+                } else {
+                    val offset = params["offset"] as Int
+                    check(offset + (params["limit"] as Int) <= 500) { "MusicBrainz는 400을 돌려준다" }
+                    if (params["query"].toString().endsWith("arid:b")) offsets += offset
+                    mapOf("recordings" to List(100) { recording("r$offset-$it", "다른 곡 $it") })
+                }
+                json.valueToTree<JsonNode>(body)
+            },
+            spellings = { _, _ -> emptyList() },
+        ).identify("BIG", "없는 곡")
+        assertEquals("RECORDING", r.reason)
+        assertEquals(listOf(0, 100, 200, 300, 400), offsets)
+    }
 }
