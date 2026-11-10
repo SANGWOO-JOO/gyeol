@@ -303,14 +303,14 @@ class StatsService(private val jdbc: JdbcClient, private val s3: S3Client, priva
             ORDER BY g.title, g.channel, g.pref
         ),
         -- 메들리 영상에 든 곡: MusicBrainz로 찾은 곡, 아니면 확인된 가수의 같은 이름 곡
+        -- 같은 곡을 여러 언어로 적은 메들리("봄날 | ハルノヒ")는 같은 곡으로 이어지므로 한 번만 센다
         medley AS (
-            SELECT DISTINCT ON (m.title, m.channel, m.position) m.title, m.channel, coalesce(m.track_id, tk.track_id) AS track_id
+            SELECT DISTINCT m.title, m.channel, coalesce(m.track_id, tk.track_id) AS track_id
             FROM medley_song m
             JOIN unidentified u ON u.title = m.title AND u.channel = m.channel
             LEFT JOIN known_name k ON k.key = ${nameKey("m.artist")}
             LEFT JOIN track_key tk ON tk.artist_id = k.artist_id AND tk.key = ${nameKey("m.song")}
             WHERE coalesce(m.track_id, tk.track_id) IS NOT NULL
-            ORDER BY m.title, m.channel, m.position
         ),
         medley_video AS (SELECT DISTINCT title, channel FROM medley)
     """.trimIndent()

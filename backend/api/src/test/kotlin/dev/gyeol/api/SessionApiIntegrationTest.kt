@@ -494,7 +494,7 @@ class SessionApiIntegrationTest {
         jdbc.sql("UPDATE track SET artist_id = (SELECT artist_id FROM track WHERE id = :one) WHERE id = :two").param("one", one).param("two", two).update() // 같은 가수
         jdbc.sql("UPDATE listen_event SET track_id = :t WHERE session_id = :sid AND title = '곡하나'").param("t", one).param("sid", sid).update()
         jdbc.sql("UPDATE listen_event SET track_id = :t WHERE session_id = :sid AND title = '곡둘'").param("t", two).param("sid", sid).update()
-        jdbc.sql("INSERT INTO medley_song (title, channel, position, artist, song, track_id) VALUES (:t, '방송국', 0, 'Singer M', '곡하나', :one), (:t, '방송국', 1, 'singer m', '곡둘', NULL), (:t, '방송국', 2, '모름', '없는 곡', NULL)")
+        jdbc.sql("INSERT INTO medley_song (title, channel, position, artist, song, track_id) VALUES (:t, '방송국', 0, 'Singer M', '곡하나', :one), (:t, '방송국', 1, 'singer m', '곡둘', NULL), (:t, '방송국', 2, '모름', '없는 곡', NULL), (:t, '방송국', 3, NULL, '같은 곡 다른 표기', :one)")
             .param("t", video).param("one", one).update()
 
         val stats = call("GET", "/api/sessions/$token/stats").second!!

@@ -17,6 +17,7 @@ import dev.gyeol.worker.llm.CleanedTitle
 import dev.gyeol.worker.llm.CleanedValidator
 import dev.gyeol.worker.llm.RawTitle
 import dev.gyeol.worker.llm.SpellResult
+import dev.gyeol.worker.llm.Spelling
 import dev.gyeol.worker.llm.TitleCleaner
 import dev.gyeol.worker.llm.Version
 import io.awspring.cloud.sqs.operations.SqsTemplate
@@ -190,7 +191,7 @@ class IdentifyService(
 
     data class Respell(val target: Target, val query: Query, val fallback: TrackInfo?)
 
-    private fun respell(items: List<Respell>): List<Long> {
+    private fun askSpellings(items: List<Respell>): Map<Int, Spelling> {
         val asked = items.mapIndexed { i, r -> RawTitle(i, r.query.title, r.query.artist) }
         val answer = try {
             cleaner.spellings(asked)
@@ -199,22 +200,37 @@ class IdentifyService(
             SpellResult(emptyList(), "fake", 0, 0, 0)
         }
         if (answer.model != "fake") llmCalls.record("TITLE_RESPELL", LlmUsage(answer.model, asked.size, answer.inputTokens, answer.outputTokens, answer.latencyMs))
-        val byIndex = answer.items.associateBy { it.index }
+        // LLM 답은 실행마다 달라질 수 있어 원인을 볼 수 있게 남긴다 (로컬 로그에만, 저장소·DB에는 남기지 않음)
+        answer.items.forEach { s -> items.getOrNull(s.index)?.let { r -> log.info("표기 후보: {} - {} → 가수 {}, 곡 {}", r.query.artist, r.query.title, s.artists, s.titles) } }
+        return answer.items.associateBy { it.index }
+    }
+
+    /** 후보 표기로 찾는다. 이미 찾은 녹음(fallback)이 있으면 발매일이 있고 길이가 5초 안으로 같은 결과만 받는다 (다른 곡 오연결 방지) */
+    private fun tryCandidates(r: Respell, c: Spelling?): Pair<Long, Query>? {
+        val (_, q, fallback) = r
+        val artists = c?.artists.orEmpty()
+        val titles = c?.titles.orEmpty()
+        val tries = (artists.map { it to q.title } + titles.map { q.artist to it } + artists.flatMap { a -> titles.map { a to it } })
+            .filter { it != (q.artist to q.title) }.distinct().take(MAX_RESPELL_TRIES)
+        for ((a, b) in tries) {
+            val info = runCatching4xx { fetcher.identify(a, b) } ?: continue
+            if (fallback != null && (info.releaseDate == null || !sameLength(fallback.lengthMs, info.lengthMs))) continue
+            return tx.execute { repo.upsertTrack(info) }!! to Query(a, b, byChannelName = false)
+        }
+        return null
+    }
+
+    private fun respell(items: List<Respell>): List<Long> {
+        val first = askSpellings(items)
+        val hits = items.indices.associateWith { tryCandidates(items[it], first[it]) }.toMutableMap()
+        // 첫 답으로 못 찾은 곡만 한 번 더 묻는다 (묶음 구성이 바뀌면 답이 달라지는 경우가 있다)
+        val missed = items.indices.filter { hits[it] == null }
+        if (missed.isNotEmpty()) {
+            val again = askSpellings(missed.map { items[it] })
+            missed.forEachIndexed { j, i -> hits[i] = tryCandidates(items[i], again[j]) }
+        }
         return items.mapIndexedNotNull { i, (t, q, fallback) ->
-            val c = byIndex[i]
-            val artists = c?.artists.orEmpty()
-            val titles = c?.titles.orEmpty()
-            val tries = (artists.map { it to q.title } + titles.map { q.artist to it } + artists.flatMap { a -> titles.map { a to it } })
-                .filter { it != (q.artist to q.title) }.distinct().take(MAX_RESPELL_TRIES)
-            var hit: Pair<Long, Query>? = null
-            for ((a, b) in tries) {
-                val info = runCatching4xx { fetcher.identify(a, b) } ?: continue
-                if (fallback != null && info.releaseDate == null) continue // 이미 가진 결과보다 나은 것만
-                // 이미 찾은 녹음이 있으면 길이가 5초 안으로 같을 때만 같은 곡의 다른 표기로 본다 (다른 곡 오연결 방지)
-                if (fallback != null && !sameLength(fallback.lengthMs, info.lengthMs)) continue
-                hit = tx.execute { repo.upsertTrack(info) }!! to Query(a, b, byChannelName = false)
-                break
-            }
+            val hit = hits[i]
             val kept = if (hit == null && fallback != null) tx.execute { repo.upsertTrack(fallback) }!! else null
             when {
                 hit != null -> tx.executeWithoutResult { repo.saveAlias(t.key, hit.first, AliasMethod.LLM, hit.second, reason = "RESPELLED") }

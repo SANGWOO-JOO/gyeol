@@ -178,6 +178,7 @@ class BedrockTitleCleaner(private val props: WorkerProperties.Llm) : TitleCleane
             너는 유튜브 메들리·무대 영상의 제목에서 그 영상에 든 곡들을 뽑는다. 입력은 "번호<TAB>제목<TAB>채널" 줄들이다.
             - 제목에 곡명이 실제로 적혀 있는 곡만 순서대로 적는다. 적혀 있지 않은 곡은 지어내지 않는다.
             - title: 곡명만 (따옴표·장식 제외). artist: 그 곡을 부른 가수가 제목이나 채널에 적혀 있으면 그 표기, 없으면 null.
+            - 같은 곡을 여러 언어로 함께 적었으면 ("봄날 | ハルノヒ") 한 번만 적는다.
             - 곡명이 하나도 적혀 있지 않으면 songs는 빈 배열.
             - 모든 번호에 대해 하나씩 기록한다.
         """.trimIndent()
@@ -229,6 +230,7 @@ class BedrockTitleCleaner(private val props: WorkerProperties.Llm) : TitleCleane
             - 로마자로 적힌 한국 가수 이름은 한글로 (Seo InGuk → 서인국, CherryFilter → 체리필터).
             - 로마자로 적힌 일본어 곡명은 원어로 (Kimi Wa Rock Wo Kikanai → 君はロックを聴かない).
             - 영어로 적혔지만 원제가 다른 언어인 곡명은 원제로 (TIME CAPSULE → 타임캡슐).
+            - 일본 가수의 곡이 영어 단어나 로마자로 적혔으면 가타카나·일본어 표기도 후보로 준다 (Marigold → マリーゴールド). 이 후보는 검색으로 다시 확인하므로 확실하지 않아도 적어도 된다.
             - 그 가수의 그 곡을 실제로 알고 있을 때만 쓴다. 모르면 빈 배열로 둔다. 추측으로 지어내지 않는다.
             - artists와 titles는 각각 최대 2개. 입력과 같은 표기는 넣지 않는다.
             - 모든 번호에 대해 하나씩 기록한다.
