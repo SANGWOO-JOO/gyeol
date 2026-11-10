@@ -46,6 +46,14 @@ spec:
       labels: { app.kubernetes.io/name: gyeol-{{ $name }}, app.kubernetes.io/part-of: gyeol }
     spec:
       securityContext: { runAsNonRoot: true, runAsUser: 1000 }
+      {{- if $root.Values.postgres.enabled }}
+      # 클러스터 안 DB가 준비되기 전에 뜨면 Flyway가 실패해 재시작하므로 먼저 기다린다
+      # (-U 필수: UID 1000은 이미지에 사용자 이름이 없어 pg_isready가 "no attempt"로 끝난다)
+      initContainers:
+        - name: wait-db
+          image: {{ $root.Values.postgres.image | quote }}
+          command: ["sh", "-c", "until pg_isready -h gyeol-postgres -p 5432 -U {{ $root.Values.db.user }}; do sleep 2; done"]
+      {{- end }}
       containers:
         - name: {{ $name }}
           image: "{{ $root.Values.image.registry }}/{{ $s.image | default $name }}:{{ $root.Values.image.tag }}"

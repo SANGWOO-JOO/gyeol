@@ -1,0 +1,27 @@
+# 단일 서버(EC2 t4g.medium 스팟 + k3s) 상시 운영. docs/todo/single-server.md
+# 서버 한 대에 DB까지 올리고, SQS·S3·Bedrock은 AWS 서비스를 쓴다. 권한은 서버의 IAM 역할(인스턴스 프로필)
+# 버킷 이름은 전역에서 겹치면 안 되므로 Terraform 출력으로 덮어쓴다 (--set aws.uploadBucket=... 등)
+image:
+  registry: gyeol            # 맥북(ARM)에서 빌드해 서버 k3s에 직접 넣는다 (ECR 비용 없음)
+  pullPolicy: IfNotPresent
+
+postgres:
+  enabled: true
+  storage: 10Gi
+  backup:
+    enabled: true
+    bucket: gyeol-backups    # Terraform 출력으로 덮어씀
+
+aws:
+  # 큐 이름은 values.yaml 기본값(gyeol-parse 등)을 그대로 쓴다. endpoint를 비워 실제 AWS 주소
+  endpoint: ""
+  publicEndpoint: ""
+
+worker:
+  llmMode: bedrock
+  autoRecommend: false
+
+# 서버가 한 대라 파드를 늘려도 CPU가 늘지 않는다
+embed:
+  hpa:
+    enabled: false

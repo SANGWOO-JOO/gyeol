@@ -71,5 +71,27 @@ EKS를 상시로 두지 않는 이유: 컨트롤 플레인만 월 약 73달러, 
 
 - 정함: k3s + 같은 Helm 차트, t4g.medium 스팟, SQS·S3·Bedrock은 AWS 서비스 그대로, 서버에 IAM 역할.
 - 스팟 회수 대비: 회수 시 정지(EBS 유지) + 요청 유지로 자동 재시작, 처리 중이던 작업은 SQS 메시지로 이어 간다.
-- 남음: PostgreSQL 위치(서버 안, S3 백업), 값 파일(`values-single.yaml`), Terraform, 생성 직전 스팟 가격 재조회로 가용 영역 선택.
+- 정함 (11-10): PostgreSQL은 차트 안 StatefulSet(`postgres.enabled`, 같은 `pgvector/pgvector:pg17`), 데이터는 k3s local-path 볼륨(서버 EBS), 매일 `pg_dump` → S3 CronJob. 값 파일 `values-single.yaml`.
+- 남음: Terraform, 생성 직전 스팟 가격 재조회로 가용 영역 선택.
+
+## 클러스터 안 PostgreSQL 확인 (k3d, 2026-11-10)
+
+`values-local.yaml`에 `postgres.enabled=true`, `postgres.backup.enabled=true`를 더해 올렸다.
+
+| 항목 | 결과 |
+|---|---|
+| 빈 DB 마이그레이션 | V1~V20 20건 적용 (0.17초), 확장 vector·pg_trgm·fuzzystrmatch |
+| 앱 기동 순서 | Java 파드가 `wait-db` 초기 컨테이너로 DB 준비를 기다림. 처음에는 UID 1000에 사용자 이름이 없어 `pg_isready`가 "no attempt"로 멈춰서 `-U`를 붙였다 |
+| 백업 | CronJob을 한 번 수동 실행 → 덤프 64KB가 S3(LocalStack)에 올라감 |
+| 복원 | 그 덤프를 새 DB에 `pg_restore` → 마이그레이션 기록 20건 확인 |
+
+확인 뒤 k3d는 원래 구성(맥북 compose DB)으로 되돌리고 시험 볼륨·덤프는 지웠다.
+
+## Terraform에서 챙길 것
+
+- 서버 메타데이터(IMDSv2) 홉 제한을 2로: 파드가 서버 IAM 역할 자격 증명을 받으려면 필요하다.
+- 업로드 버킷 CORS (브라우저가 서명 URL로 직접 올림), 업로드 → parse 큐 객체 생성 알림.
+- 백업 버킷은 업로드 버킷과 분리, 수명 주기 규칙으로 오래된 덤프 삭제 (예: 14일).
+- EBS 루트 볼륨은 "서버 종료 시 삭제 안 함", 스팟 회수 시 정지.
+- IAM 역할 권한: SQS(큐들), S3(업로드·표지·백업 버킷), Bedrock(Converse 호출 모델).
 - 줄일 여지: SQS 대기 요청 간격을 20초로 늘리면 요청 수 절반, 시연하지 않는 기간에는 서버 정지(EBS·IP 약 6달러만 남음).

@@ -3,10 +3,19 @@ app.kubernetes.io/part-of: gyeol
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
+{{/* 클러스터 안 PostgreSQL(postgres.enabled)이면 그 서비스, 아니면 db.url (k3d: 맥북 compose, 운영: 외부 DB) */}}
+{{- define "gyeol.dbUrl" -}}
+{{- if .Values.postgres.enabled -}}
+jdbc:postgresql://gyeol-postgres:5432/{{ .Values.postgres.database }}
+{{- else -}}
+{{ .Values.db.url }}
+{{- end -}}
+{{- end }}
+
 {{/* Java 서비스 공통 환경 변수 */}}
 {{- define "gyeol.javaEnv" -}}
 - name: DB_URL
-  value: {{ .Values.db.url | quote }}
+  value: {{ include "gyeol.dbUrl" . | quote }}
 - name: DB_USER
   value: {{ .Values.db.user | quote }}
 - name: DB_PASSWORD

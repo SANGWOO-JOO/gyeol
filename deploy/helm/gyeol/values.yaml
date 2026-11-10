@@ -8,6 +8,24 @@ image:
 db:
   url: jdbc:postgresql://db.example:5432/gyeol
   user: gyeol
+# 클러스터 안 PostgreSQL (단일 서버용). 켜면 db.url 대신 이 서비스를 쓴다. 비밀번호는 gyeol-secrets의 DB_PASSWORD
+postgres:
+  enabled: false
+  image: pgvector/pgvector:pg17   # 로컬 compose와 같은 이미지 (pgvector·pg_trgm·fuzzystrmatch)
+  database: gyeol
+  storage: 10Gi                    # k3s: local-path(서버 디스크), EKS: 기본 StorageClass(EBS)
+  storageClassName: ""             # 비우면 클러스터 기본값
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { memory: 512Mi }      # 측정: 대기 160Mi, 업로드 처리 중 최대 277Mi (k3d, 2026-11-10)
+  # 매일 pg_dump → S3. 업로드 버킷은 객체 생성 알림이 parse 큐로 가므로 쓰지 않는다
+  backup:
+    enabled: false
+    schedule: "0 18 * * *"         # UTC 18시 = 한국 03시
+    bucket: gyeol-backups
+    prefix: db/
+    awsCliImage: amazon/aws-cli:2.22.0
+
 aws:
   region: ap-northeast-2
   uploadBucket: gyeol-uploads
