@@ -40,6 +40,17 @@ class CleanedValidatorTest {
     }
 
     @Test
+    fun `연주·커버 표시 이름 - 제목에 있는 곡명만, 채널 주인은 원곡 가수로 보지 않는다`() {
+        val piano = RawTitle(0, "돌아와 (반올림 OST)-김초롱 º 피아노", "EUNEUN PIANO")
+        assertEquals("돌아와" to "김초롱", CleanedValidator.performanceNames(piano, c("김초롱", "돌아와")))
+        assertEquals("돌아와" to null, CleanedValidator.performanceNames(piano, c(null, "돌아와")))
+        assertNull(CleanedValidator.performanceNames(piano, c("김초롱", "없는 곡")))
+
+        val selfCover = RawTitle(0, "가수K 커버 - 밤편지", "가수K 채널")
+        assertEquals("밤편지" to null, CleanedValidator.performanceNames(selfCover, c("가수K", "밤편지")))
+    }
+
+    @Test
     fun `가짜 LLM - 흔한 형태만 흉내`() {
         val r = FakeTitleCleaner().clean(
             listOf(

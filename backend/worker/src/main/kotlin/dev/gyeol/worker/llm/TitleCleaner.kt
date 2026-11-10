@@ -30,6 +30,19 @@ interface TitleCleaner {
  * 통과하지 못하면 null → "못 찾음(INVALID)"
  */
 object CleanedValidator {
+    /**
+     * 연주·커버 영상의 정리된 곡명과 원곡 가수. 제목 안에 실제로 있는 표기만 쓴다 (곡명이 없으면 null).
+     * 채널 이름에 있는 사람은 연주·커버를 한 사람일 수 있어 원곡 가수로 보지 않는다.
+     */
+    fun performanceNames(raw: RawTitle, c: CleanedTitle): Pair<String, String?>? {
+        val haystack = SearchText.norm(raw.title)
+        val channel = SearchText.norm(raw.channel)
+        fun inTitle(s: String?) = !s.isNullOrBlank() && SearchText.norm(s).let { it.isNotEmpty() && it in haystack }
+        fun original(s: String?) = s?.takeIf { inTitle(it) && SearchText.norm(it) !in channel }
+        val song = c.title?.takeIf { inTitle(it) } ?: c.titleAlt?.takeIf { inTitle(it) } ?: return null
+        return song to (original(c.artist) ?: original(c.artistAlt))
+    }
+
     fun accept(raw: RawTitle, c: CleanedTitle): CleanedTitle? {
         val haystack = SearchText.norm(raw.title)
         val withChannel = haystack + SearchText.norm(raw.channel)

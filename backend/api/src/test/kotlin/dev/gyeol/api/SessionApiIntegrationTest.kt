@@ -427,6 +427,53 @@ class SessionApiIntegrationTest {
     }
 
     @Test
+    fun `곡 순위 표시 - LLM 곡은 싱글 음반명까지 합치고, 못 합치면 읽은 이름으로, 연주는 연주로, 확인 안 된 가수는 원래 제목으로`() {
+        val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
+        val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id
+        val uploadId = UUID.randomUUID()
+        uploads.create(uploadId, sid, "uploads/$uploadId.json")
+        val t0 = Instant.parse("2026-10-01T00:00:00Z")
+        fun ev(title: String, channel: String, n: Int) = (0 until n).map { ListenEvent("v", title, channel, t0.plusSeconds(it * 60L), Source.YOUTUBE) }
+        val id = UUID.randomUUID().toString().take(8)
+        val merged = "가수H - 한글제목 [방송] $id"; val label = "가수H - 방송곡 [방송] $id"; val stranger = "낯선이 - 노래 [방송] $id"; val piano = "돌아와-원곡가수 º 피아노 $id"; val cover = "커버곡 불러 봤어요 $id"
+        listens.insertBatch(
+            sid, uploadId,
+            ev("English Title", "가수H - Topic", 10) + ev(merged, "방송국", 4) + ev(label, "방송국", 6) + ev(stranger, "방송국", 3) + ev(piano, "연주 채널", 2) + ev(cover, "커버 채널", 2),
+            Instant.now().plus(7, ChronoUnit.DAYS),
+        )
+        sessions.markDone(sid, 27, t0, t0)
+        val trackId = identify.upsertTrack(track("English Title", "Singer H", "한글제목", "2019-01-01"))
+        jdbc.sql("UPDATE listen_event SET track_id = :t WHERE session_id = :sid AND title = 'English Title'").param("t", trackId).param("sid", sid).update()
+
+        fun alias(title: String, channel: String, artist: String?, song: String?, reason: String) {
+            val key = UUID.randomUUID().toString()
+            jdbc.sql("INSERT INTO identify_target (session_id, alias_key, title, channel, source, plays) VALUES (:sid, :k, :t, :c, 'YOUTUBE', 1)").param("sid", sid).param("k", key).param("t", title).param("c", channel).update()
+            jdbc.sql("INSERT INTO title_alias (alias_key, status, method, query_artist, query_title, reason) VALUES (:k, 'NOT_FOUND', 'LLM', :a, :s, :r)").param("k", key).param("a", artist).param("s", song).param("r", reason).update()
+        }
+        alias(merged, "방송국", "Singer H", "한글제목", "NOT_IN_MUSICBRAINZ")
+        alias(label, "방송국", "Singer H", "방송곡", "NOT_IN_MUSICBRAINZ")
+        alias(stranger, "방송국", "낯선이", "노래", "NOT_IN_MUSICBRAINZ")
+        alias(piano, "연주 채널", "원곡가수", "돌아와", "INSTRUMENTAL")
+        alias(cover, "커버 채널", "", "커버곡", "COVER")
+
+        val songs = call("GET", "/api/sessions/$token/stats").second!!["topSongs"].toList()
+        fun row(title: String) = songs.single { it["title"].asString() == title }
+        assertEquals(14, songs.single { it["trackId"].asLong(-1) == trackId }["plays"].asInt())
+        with(row("방송곡")) { assertEquals("가수H", this["artist"].asString()); assertEquals(6, this["plays"].asInt()) }
+        assertEquals("방송국", row(stranger)["artist"].asString())
+        with(row("돌아와")) {
+            assertEquals("연주 채널", this["artist"].asString())
+            assertEquals("INSTRUMENTAL", this["performance"].asString())
+            assertEquals("원곡가수", this["originalArtist"].asString())
+        }
+        with(row("커버곡")) {
+            assertEquals("커버 채널", this["artist"].asString())
+            assertEquals("COVER", this["performance"].asString())
+            assertTrue(this["originalArtist"].isNull)
+        }
+    }
+
+    @Test
     fun `곡·가수 순위 페이지 - 순서가 이어지고, 범위를 벗어나면 빈 목록, 잘못된 값은 거절한다`() {
         val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
         val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id

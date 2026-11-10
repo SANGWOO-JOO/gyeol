@@ -229,7 +229,7 @@ function Report({ stats, token }: { stats: Stats; token: string }) {
               <div className={ui.grow}>
                 <div className={ui.ellipsis}>{t.title}</div>
                 <div className={`${ui.small} ${ui.ellipsis}`}>
-                  {t.artist}{t.release?.title ? ` · ${t.release.title}${t.release.year ? ` (${t.release.year})` : ''}` : ''}
+                  {t.artist}{t.performance === 'INSTRUMENTAL' ? ' · 연주' : t.performance === 'COVER' ? ' · 커버' : ''}{t.originalArtist ? ` · 원곡 ${t.originalArtist}` : ''}{t.release?.title ? ` · ${t.release.title}${t.release.year ? ` (${t.release.year})` : ''}` : ''}
                 </div>
               </div>
               <span className={ui.count}>{num(t.plays)}회</span>

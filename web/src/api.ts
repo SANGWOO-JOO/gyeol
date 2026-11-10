@@ -21,7 +21,7 @@ export interface SessionView {
   expiresAt: string
 }
 export interface UploadTicket { uploadId: string; url: string; method: 'PUT'; headers: Record<string, string>; expiresAt: string }
-export interface TopSong { trackId: number | null; title: string; artist: string | null; release: { title: string | null; year: number | null } | null; coverUrl: string | null; plays: number }
+export interface TopSong { trackId: number | null; title: string; artist: string | null; release: { title: string | null; year: number | null } | null; coverUrl: string | null; plays: number; performance: 'INSTRUMENTAL' | 'COVER' | null; originalArtist: string | null }
 export interface TopArtist { artistId: number | null; name: string; plays: number }
 export interface RankPage<T> { items: T[]; page: number; size: number; total: number }
 

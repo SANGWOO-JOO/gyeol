@@ -66,6 +66,11 @@ class GuessService(
         msg.items.forEachIndexed { i, t ->
             val answer = byIndex[i] ?: return@forEachIndexed // 답이 빠진 영상은 저장하지 않아 다음에 다시 묻는다
             val accepted = answer.takeIf { it.version in singable }?.let { CleanedValidator.accept(raws[i], it) }?.takeIf { ArtistPlacement.ok(t.title, t.channel, it) }
+            if (answer.version == Version.INSTRUMENTAL) {
+                val names = CleanedValidator.performanceNames(raws[i], answer)
+                repo.save(TitleGuess(t.title, t.channel, names?.second, null, names?.first, null, answer.version.name))
+                return@forEachIndexed
+            }
             if (accepted != null) kept++
             repo.save(TitleGuess(t.title, t.channel, accepted?.artist, accepted?.artistAlt, accepted?.title, accepted?.titleAlt, answer.version.name))
         }

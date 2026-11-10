@@ -90,6 +90,9 @@ class IdentifyService(
             // 식별할 종류일 때만 검증한다 (곡이 아닌 영상은 곡명이 비어 있는 게 정상)
             val cleaned = answer?.takeIf { it.version in IDENTIFIABLE }?.let { CleanedValidator.accept(raws[i], it) }
             val (trackId, query, reason) = when {
+                // 연주·커버는 식별하지 않지만 화면 표시용으로 정리된 곡명과 원곡 가수를 남긴다
+                answer != null && (answer.version == Version.INSTRUMENTAL || answer.version == Version.COVER) ->
+                    Triple(null, CleanedValidator.performanceNames(raws[i], answer)?.let { (song, original) -> Query(original.orEmpty(), song, false) }, answer.version.name)
                 answer != null && answer.version !in IDENTIFIABLE -> Triple(null, null, answer.version.name)
                 cleaned == null -> Triple(null, null, "INVALID")
                 else -> {
