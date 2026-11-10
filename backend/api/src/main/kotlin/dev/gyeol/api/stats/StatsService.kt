@@ -35,7 +35,25 @@ data class SongCount(
     /** artist가 가수가 아니라 일반 채널 이름인 경우 */
     val channelOnly: Boolean = false,
 )
-data class ArtistCount(val artistId: Long?, val name: String, val plays: Int)
+data class ArtistCount(
+    val artistId: Long?,
+    val name: String,
+    val plays: Int,
+    /** COMMONS(저장한 사진, API로 제공) · YOUTUBE(채널 프로필 주소) · 없으면 null */
+    val imageSource: String? = null,
+    val imageUrl: String? = null,
+    val imagePage: String? = null,
+    val imageAuthor: String? = null,
+    val imageLicense: String? = null,
+    /** 이미지를 다시 받으면 바뀌는 값. 브라우저 캐시를 넘기 위해 주소에 붙인다 */
+    val imageVersion: Long? = null,
+    /** Topic 채널 가수의 저장된 사진 id (API로 제공) */
+    val channelImageId: Long? = null,
+    /** 사진이 없을 때 쓰는 대표 앨범 표지 (그 가수에서 가장 많이 들은 곡) */
+    val coverTrackId: Long? = null,
+    val coverStored: Boolean = false,
+    val coverUrl: String? = null,
+)
 /** 곡이 확인된 재생 수 / 전체 재생 수 */
 data class Identified(val plays: Int, val totalPlays: Int)
 
@@ -72,6 +90,32 @@ private data class Ranked<T>(val items: List<T>, val total: Int)
  */
 @Service
 class StatsService(private val jdbc: JdbcClient, private val s3: S3Client, private val props: GyeolProperties) {
+
+    /** 이 세션에서 들은 가수의 저장된 사진 (Commons). 없으면 null */
+    fun artistImage(session: Session, artistId: Long): CoverFile? {
+        val key = jdbc.sql(
+            """
+            SELECT ai.s3_key FROM artist_image ai
+            WHERE ai.artist_id = :a AND ai.s3_key IS NOT NULL
+              AND EXISTS (SELECT 1 FROM listen_event l JOIN track t ON t.id = l.track_id WHERE l.session_id = :s AND t.artist_id = :a)
+            """.trimIndent(),
+        ).param("a", artistId).param("s", session.id).query(String::class.java).optional().orElse(null) ?: return null
+        val obj = s3.getObjectAsBytes { it.bucket(props.coverBucket).key(key) }
+        return CoverFile(obj.asByteArray(), obj.response().contentType() ?: "image/jpeg")
+    }
+
+    /** 이 세션에서 들은 Topic 채널 가수의 저장된 사진. 없으면 null */
+    fun channelImage(session: Session, id: Long): CoverFile? {
+        val key = jdbc.sql(
+            """
+            SELECT ci.s3_key FROM channel_image ci
+            WHERE ci.id = :id AND ci.s3_key IS NOT NULL
+              AND EXISTS (SELECT 1 FROM listen_event l WHERE l.session_id = :s AND l.channel = ci.channel)
+            """.trimIndent(),
+        ).param("id", id).param("s", session.id).query(String::class.java).optional().orElse(null) ?: return null
+        val obj = s3.getObjectAsBytes { it.bucket(props.coverBucket).key(key) }
+        return CoverFile(obj.asByteArray(), obj.response().contentType() ?: "image/jpeg")
+    }
 
     /** 이 세션의 곡 표지 이미지. 다른 세션의 곡이거나 저장 전이면 null */
     fun cover(session: Session, trackId: Long): CoverFile? {
@@ -369,23 +413,49 @@ class StatsService(private val jdbc: JdbcClient, private val s3: S3Client, priva
         var total = 0
         val items = jdbc.sql(
             """
-            $artistResolved
+            $artistResolved,
+            page AS (
             SELECT l.artist_id, count(*) OVER () AS total,
                    coalesce($topicArtist,
                             (SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta JOIN track tt ON tt.id = ta.track_id WHERE tt.artist_id = l.artist_id AND ta.status = 'MATCHED'),
                             min(a.name), min(regexp_replace(l.channel, ' - Topic$', ''))) AS name,
-                   count(*) AS plays
+                   count(*) AS plays,
+                   CASE WHEN l.artist_id IS NULL THEN min(l.channel) END AS channel
             FROM resolved l
             LEFT JOIN artist a ON a.id = l.artist_id
             -- 가수를 정하지 못한 Topic 채널은 채널 이름이 곧 가수다. 방송·일반 채널은 가수가 아니므로 뺀다
             WHERE l.artist_id IS NOT NULL OR l.channel LIKE '% - Topic'
             GROUP BY l.artist_id, CASE WHEN l.artist_id IS NULL THEN regexp_replace(l.channel, ' - Topic$', '') END
             ORDER BY plays DESC, name, l.artist_id NULLS LAST LIMIT :top OFFSET :offset
+            )
+            -- 이미지와 대표 앨범 표지는 이 페이지의 가수만 붙인다
+            SELECT p.*, coalesce(ai.source, ci.source) AS image_source, coalesce(ai.url, ci.url) AS image_url,
+                   extract(epoch FROM coalesce(ai.checked_at, ci.checked_at))::bigint AS image_version,
+                   coalesce(ai.page_url, ci.page_url) AS page_url, coalesce(ai.author, ci.author) AS author, coalesce(ai.license, ci.license) AS license,
+                   CASE WHEN ci.s3_key IS NOT NULL THEN ci.id END AS channel_image_id,
+                   c.track_id AS cover_track_id, c.stored, c.cover_url
+            FROM page p
+            LEFT JOIN artist_image ai ON ai.artist_id = p.artist_id AND ai.source <> 'NONE'
+            -- 가수 기록 없는 Topic 채널 가수는 채널 이름 기준 이미지
+            LEFT JOIN channel_image ci ON p.artist_id IS NULL AND ci.channel = p.channel AND ci.source <> 'NONE'
+            LEFT JOIN LATERAL (
+                SELECT t.id AS track_id, t.cover_key IS NOT NULL AS stored, t.cover_url
+                FROM listen_event e JOIN track t ON t.id = e.track_id
+                WHERE e.session_id = :sid AND t.artist_id = p.artist_id AND (t.cover_key IS NOT NULL OR t.cover_url IS NOT NULL)
+                GROUP BY t.id ORDER BY count(*) DESC, t.id LIMIT 1
+            ) c ON p.artist_id IS NOT NULL
+            ORDER BY p.plays DESC, p.name, p.artist_id NULLS LAST
             """.trimIndent(),
         ).param("sid", sid).param("top", limit).param("offset", offset)
             .query { rs, _ ->
                 total = rs.getInt("total")
-                ArtistCount(rs.getObject("artist_id") as Long?, rs.getString("name"), rs.getInt("plays"))
+                ArtistCount(
+                    rs.getObject("artist_id") as Long?, rs.getString("name"), rs.getInt("plays"),
+                    imageSource = rs.getString("image_source"), imageUrl = rs.getString("image_url"), imagePage = rs.getString("page_url"),
+                    imageAuthor = rs.getString("author"), imageLicense = rs.getString("license"), imageVersion = rs.getObject("image_version") as Long?,
+                    channelImageId = rs.getObject("channel_image_id") as Long?,
+                    coverTrackId = rs.getObject("cover_track_id") as Long?, coverStored = rs.getBoolean("stored"), coverUrl = rs.getString("cover_url"),
+                )
             }.list()
         return Ranked(items, total)
     }

@@ -19,11 +19,21 @@ data class WorkerProperties(
     val embed: Embed = Embed(),
     val recommend: Recommend = Recommend(),
     val guess: Guess = Guess(),
+    val artistImage: ArtistImageProps = ArtistImageProps(),
     /** 청취 기록 세션에서 식별 뒤 보강·추천까지 자동으로 이어 갈지 (기본은 분석까지만) */
     val autoRecommend: Boolean = false,
     /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
     val busyRetry: Duration = Duration.ofSeconds(30),
 ) {
+    /** 가수 이미지 (docs/todo/artist-images.md). 사진은 표지와 같은 버킷의 artists/ 아래에 둔다 */
+    data class ArtistImageProps(
+        val queue: String = "gyeol-local-artist-image",
+        /** 세션에서 많이 들은 가수 몇 명까지 */
+        val top: Int = 50,
+        /** YouTube 주소·없음 결과를 다시 확인하기까지 (YouTube API 정책 30일) */
+        val retry: Duration = Duration.ofDays(30),
+    )
+
     /** 방송·일반 채널 영상에서 LLM으로 가수·곡 뽑기 */
     data class Guess(
         val queue: String = "gyeol-local-guess",

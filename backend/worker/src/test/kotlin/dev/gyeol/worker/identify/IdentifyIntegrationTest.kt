@@ -49,6 +49,7 @@ import kotlin.test.assertNull
         "spring.flyway.locations=classpath:db/migration",
         "gyeol.worker.role=identify,cover,guess",
         "gyeol.worker.guess.queue=gyeol-test-guess",
+        "gyeol.worker.artist-image.queue=gyeol-test-artist-image",
         "gyeol.worker.enrich.queue=gyeol-test-enrich",
         "gyeol.worker.cover.queue=gyeol-test-cover",
         "gyeol.worker.cover.bucket=gyeol-test-covers",
@@ -137,6 +138,7 @@ class IdentifyIntegrationTest {
             parseDlqUrl = sqs.createQueue { it.queueName("gyeol-test-parse-dlq") }.queueUrl()
             sqs.createQueue { it.queueName("gyeol-test-cover") }
             sqs.createQueue { it.queueName("gyeol-test-guess") }
+            sqs.createQueue { it.queueName("gyeol-test-artist-image") }
             S3Client.builder().endpointOverride(localstack.endpoint).region(Region.of(localstack.region)).forcePathStyle(true)
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localstack.accessKey, localstack.secretKey))).build()
                 .createBucket { it.bucket("gyeol-test-covers") }

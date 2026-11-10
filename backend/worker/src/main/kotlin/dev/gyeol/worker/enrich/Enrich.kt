@@ -18,6 +18,7 @@ import dev.gyeol.worker.describe.DescriptorBuilder
 import dev.gyeol.worker.describe.EmbedClient
 import dev.gyeol.worker.describe.RawDescription
 import dev.gyeol.worker.describe.TrackDescriber
+import dev.gyeol.worker.artistimage.ArtistImagePlanner
 import dev.gyeol.worker.guess.GuessPlanner
 import dev.gyeol.worker.identify.FetcherClient
 import dev.gyeol.worker.identify.retrySoonIfBusy
@@ -49,11 +50,13 @@ class EnrichTrigger(
     private val props: WorkerProperties,
     private val guess: GuessPlanner,
     private val sessions: SessionRepository,
+    private val artistImages: ArtistImagePlanner,
 ) {
     fun afterIdentify(sessionId: Long) {
         val p = identify.progress(sessionId)
         if (p.target == 0 || p.done + p.failed < p.target) return
         guess.plan(sessionId)
+        artistImages.plan(sessionId)
         // 청취 기록 입구는 분석까지만 자동으로 한다. 곡 고르기 입구는 추천이 목적이므로 그대로 이어 간다
         if (!props.autoRecommend && sessions.findById(sessionId)?.entry == Entry.TAKEOUT) return
         sqs.send { it.queue(props.enrich.queue).payload(json.writeValueAsString(EnrichMessage("PLAN", sessionId))) }

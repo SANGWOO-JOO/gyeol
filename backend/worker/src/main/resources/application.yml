@@ -16,12 +16,15 @@ spring:
 gyeol:
   worker:
     # 이 워커가 처리할 큐 역할. 쉼표로 여러 개 (parse, identify, cover, enrich, recommend, guess)
-    role: ${WORKER_ROLE:parse,identify,cover,enrich,recommend,guess}
+    role: ${WORKER_ROLE:parse,identify,cover,enrich,recommend,guess,artist}
     # 청취 기록 세션에서 식별 뒤 보강·추천까지 자동으로 이어 갈지
     auto-recommend: ${AUTO_RECOMMEND:false}
     # 방송·일반 채널 영상에서 LLM으로 가수·곡 뽑기
     guess:
       queue: ${GUESS_QUEUE:gyeol-local-guess}
+    # 가수 이미지 (Wikimedia Commons → YouTube 채널 프로필)
+    artist-image:
+      queue: ${ARTIST_IMAGE_QUEUE:gyeol-local-artist-image}
     parse-queue: ${PARSE_QUEUE:gyeol-local-parse}
     parse-dlq: ${PARSE_DLQ:gyeol-local-parse-dlq}
     upload-bucket: ${UPLOAD_BUCKET:gyeol-local-uploads}

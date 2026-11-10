@@ -22,7 +22,11 @@ export interface SessionView {
 }
 export interface UploadTicket { uploadId: string; url: string; method: 'PUT'; headers: Record<string, string>; expiresAt: string }
 export interface TopSong { trackId: number | null; title: string; artist: string | null; release: { title: string | null; year: number | null } | null; coverUrl: string | null; plays: number; performance: 'INSTRUMENTAL' | 'COVER' | null; originalArtist: string | null; storedCover: boolean; channelOnly: boolean }
-export interface TopArtist { artistId: number | null; name: string; plays: number }
+export interface TopArtist {
+  artistId: number | null; name: string; plays: number
+  imageSource: 'COMMONS' | 'YOUTUBE' | null; imageUrl: string | null; imagePage: string | null; imageAuthor: string | null; imageLicense: string | null; imageVersion: number | null; channelImageId: number | null
+  coverTrackId: number | null; coverStored: boolean; coverUrl: string | null
+}
 export interface RankPage<T> { items: T[]; page: number; size: number; total: number }
 
 export interface Stats {
@@ -93,6 +97,8 @@ export const api = {
     call<UploadTicket>(`/sessions/${token}/upload-url`, json('POST', c)),
   stats: (token: string) => call<Stats>(`/sessions/${token}/stats`),
   coverUrl: (token: string, trackId: number) => `/api/sessions/${token}/covers/${trackId}`,
+  channelImageUrl: (token: string, id: number, version?: number | null) => `/api/sessions/${token}/channel-images/${id}${version ? `?v=${version}` : ''}`,
+  artistImageUrl: (token: string, artistId: number, version?: number | null) => `/api/sessions/${token}/artists/${artistId}/image${version ? `?v=${version}` : ''}`,
   topSongs: (token: string, page: number, size: number) => call<RankPage<TopSong>>(`/sessions/${token}/top-songs?page=${page}&size=${size}`),
   topArtists: (token: string, page: number, size: number) => call<RankPage<TopArtist>>(`/sessions/${token}/top-artists?page=${page}&size=${size}`),
   videoCheck: (token: string, videoIds: string[]) =>

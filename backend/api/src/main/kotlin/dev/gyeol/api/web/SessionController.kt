@@ -109,6 +109,20 @@ class SessionController(
             .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePrivate()).body(file.bytes)
     }
 
+    @GetMapping("/{token}/artists/{artistId}/image")
+    fun artistImage(@PathVariable token: String, @PathVariable artistId: Long): ResponseEntity<ByteArray> {
+        val file = stats.artistImage(service.find(token), artistId) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType(file.contentType))
+            .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePrivate()).body(file.bytes)
+    }
+
+    @GetMapping("/{token}/channel-images/{id}")
+    fun channelImage(@PathVariable token: String, @PathVariable id: Long): ResponseEntity<ByteArray> {
+        val file = stats.channelImage(service.find(token), id) ?: return ResponseEntity.notFound().build()
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType(file.contentType))
+            .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePrivate()).body(file.bytes)
+    }
+
     @GetMapping("/{token}/top-songs")
     fun topSongs(@PathVariable token: String, @RequestParam(defaultValue = "1") page: Int, @RequestParam(defaultValue = "10") size: Int) =
         stats.songs(service.find(token), page, size)

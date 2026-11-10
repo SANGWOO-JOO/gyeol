@@ -65,6 +65,15 @@ GQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
 awslocal sqs create-queue --queue-name "$GQ" --region "$REGION" \
   --attributes "{\"VisibilityTimeout\":\"300\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$GQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
 
+# 가수 이미지 큐. 실패해도 화면은 대표 앨범 표지나 글자 타일로 남아 실패 큐는 기록용
+AQ=gyeol-local-artist-image
+awslocal sqs create-queue --queue-name "$AQ-dlq" --region "$REGION" >/dev/null
+AQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
+  --queue-url "$(awslocal sqs get-queue-url --queue-name "$AQ-dlq" --region "$REGION" --query QueueUrl --output text)" \
+  --attribute-names QueueArn --query Attributes.QueueArn --output text)
+awslocal sqs create-queue --queue-name "$AQ" --region "$REGION" \
+  --attributes "{\"VisibilityTimeout\":\"600\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$AQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
+
 # 업로드 버킷. 브라우저가 서명 URL로 직접 올리므로 로컬 웹 주소(Vite 15173, k3d 18000)에 CORS를 열어 둔다.
 awslocal s3 mb "s3://$BUCKET" --region "$REGION" >/dev/null
 # 표지 이미지 보관 (비공개). API가 결과 링크 토큰을 확인한 뒤 전달한다

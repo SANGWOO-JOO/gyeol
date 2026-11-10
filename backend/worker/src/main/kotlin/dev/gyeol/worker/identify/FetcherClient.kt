@@ -7,6 +7,7 @@ import dev.gyeol.worker.WorkerProperties
 import org.springframework.http.ResponseEntity
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.stereotype.Component
+import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestClient
 import tools.jackson.databind.JsonNode
 import java.time.Duration
@@ -32,6 +33,36 @@ class FetcherClient(props: WorkerProperties) {
             .retrieve()
             .body(JsonNode::class.java)
             ?.path("url")?.asString("")?.ifEmpty { null }
+
+    /** Commons 가수 사진 정보 (url, pageUrl, author, license). 없으면 null */
+    fun artistCommons(mbid: String): JsonNode? = try {
+        http.get().uri { b -> b.path("/internal/artist-image/commons").queryParam("mbid", mbid).build() }.retrieve().body(JsonNode::class.java)
+    } catch (e: HttpClientErrorException.NotFound) {
+        null
+    }
+
+    /** Topic 채널 이름으로 찾은 MusicBrainz 가수 mbid. 확실하지 않으면 null */
+    fun findArtist(name: String, titles: List<String>): String? = try {
+        http.get().uri { b ->
+            b.path("/internal/artist-image/find-artist").queryParam("name", "{n}")
+            titles.indices.forEach { i -> b.queryParam("title", "{t$i}") }
+            b.build(mapOf("n" to name) + titles.mapIndexed { i, t -> "t$i" to t })
+        }.retrieve()
+            .body(JsonNode::class.java)?.path("mbid")?.asString("")?.ifEmpty { null }
+    } catch (e: HttpClientErrorException.NotFound) {
+        null
+    }
+
+    fun artistFile(url: String): ResponseEntity<ByteArray> =
+        http.get().uri { b -> b.path("/internal/artist-image/file").queryParam("url", url).build() }.retrieve().toEntity(ByteArray::class.java)
+
+    /** YouTube 채널 프로필 이미지 주소. 없으면 null */
+    fun channelImage(videoId: String): String? = try {
+        http.get().uri { b -> b.path("/internal/youtube/channel-image").queryParam("videoId", videoId).build() }.retrieve()
+            .body(JsonNode::class.java)?.path("url")?.asString("")?.ifEmpty { null }
+    } catch (e: HttpClientErrorException.NotFound) {
+        null
+    }
 
     /** 표지 이미지 내려받기. 없으면 예외(404) */
     fun coverImage(url: String): ResponseEntity<ByteArray> =

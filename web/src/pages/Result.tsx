@@ -1,9 +1,9 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { api, ApiError, type RankPage, type Rating, type Recommendations, type SessionView, type Stats } from '../api'
+import { api, ApiError, type RankPage, type TopArtist, type Rating, type Recommendations, type SessionView, type Stats } from '../api'
 import { BarChart } from '../components/BarChart'
 import { Alert, Layout } from '../components/Layout'
-import { Cover, Tile } from '../components/Tile'
+import { Cover } from '../components/Tile'
 import ui from '../styles/ui.module.css'
 
 const POLL_MS = 2000
@@ -247,7 +247,7 @@ function Report({ stats, token }: { stats: Stats; token: string }) {
           row={(a, rank) => (
             <li key={rank} className={ui.listItem}>
               <span className={ui.rank}>{rank}</span>
-              <Tile text={a.name} size={32} />
+              <Cover url={artistImage(token, a)} text={a.name} size={32} title={artistCredit(a)} />
               <div className={`${ui.grow} ${ui.ellipsis}`}>{a.name}</div>
               <span className={ui.count}>{num(a.plays)}회</span>
             </li>
@@ -256,6 +256,10 @@ function Report({ stats, token }: { stats: Stats; token: string }) {
         {stats.excludedChannelPlays > 0 && (
           <span className={ui.small}>방송·일반 채널 재생 {num(stats.excludedChannelPlays)}회는 가수 순위에서 제외했어요.</span>
         )}
+        <span className={ui.small}>
+          가수 사진: Wikimedia Commons(사진에 마우스를 올리면 저작자·라이선스), YouTube 채널 프로필(
+          <a href="https://www.youtube.com/t/terms" target="_blank" rel="noreferrer">YouTube 이용약관</a>), 없으면 대표 앨범 표지
+        </span>
       </section>
 
       <section className={`${ui.card} ${ui.stack}`}>
@@ -366,4 +370,19 @@ function Recommend({ token }: { token: string }) {
       </ol>
     </section>
   )
+}
+
+/** 가수 이미지: Commons 사진(저장본) → YouTube 채널 프로필 → 대표 앨범 표지 → 없으면 글자 타일 */
+function artistImage(token: string, a: TopArtist): string | null {
+  if (a.imageSource === 'COMMONS' && a.artistId != null) return api.artistImageUrl(token, a.artistId, a.imageVersion)
+  if (a.imageSource === 'COMMONS' && a.channelImageId != null) return api.channelImageUrl(token, a.channelImageId, a.imageVersion)
+  if (a.imageSource === 'YOUTUBE' && a.imageUrl) return a.imageUrl
+  if (a.coverStored && a.coverTrackId != null) return api.coverUrl(token, a.coverTrackId)
+  return a.coverUrl
+}
+
+function artistCredit(a: TopArtist): string | undefined {
+  if (a.imageSource === 'COMMONS') return `사진: ${a.imageAuthor ?? '저작자 미상'} · ${a.imageLicense ?? ''} · Wikimedia Commons`
+  if (a.imageSource === 'YOUTUBE') return '이미지: YouTube 채널 프로필'
+  return undefined
 }
