@@ -2,16 +2,21 @@ package dev.gyeol.worker.identify
 
 import dev.gyeol.core.identify.AliasMethod
 import dev.gyeol.core.identify.IdentifyRepository
+import dev.gyeol.core.identify.MedleyRepository
+import dev.gyeol.core.identify.MedleySong
 import dev.gyeol.core.identify.Query
 import dev.gyeol.core.identify.RuleIdentifier
 import dev.gyeol.core.identify.Target
 import dev.gyeol.core.identify.TargetStatus
+import dev.gyeol.core.identify.TrackInfo
 import dev.gyeol.core.llm.LlmCallRepository
 import dev.gyeol.core.llm.LlmUsage
 import dev.gyeol.worker.WorkerProperties
 import dev.gyeol.worker.enrich.EnrichTrigger
+import dev.gyeol.worker.llm.CleanedTitle
 import dev.gyeol.worker.llm.CleanedValidator
 import dev.gyeol.worker.llm.RawTitle
+import dev.gyeol.worker.llm.SpellResult
 import dev.gyeol.worker.llm.TitleCleaner
 import dev.gyeol.worker.llm.Version
 import io.awspring.cloud.sqs.operations.SqsTemplate
@@ -38,9 +43,12 @@ class IdentifyService(
     private val cleaner: TitleCleaner,
     private val llmCalls: LlmCallRepository,
     private val enrichTrigger: EnrichTrigger,
+    private val medleys: MedleyRepository,
 ) {
     private companion object {
         val IDENTIFIABLE = setOf(Version.ORIGINAL, Version.LIVE, Version.REMIX)
+        const val MAX_RESPELL_TRIES = 4
+        const val SAME_LENGTH_MS = 5_000L
     }
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -50,6 +58,7 @@ class IdentifyService(
         val retryBefore = Instant.now().minus(props.identify.notFoundRetry)
         val found = mutableListOf<Long>()
         val forLlm = mutableListOf<Target>()
+        val toRespell = mutableListOf<Respell>()
         for (t in repo.targets(msg.sessionId, msg.keys).filter { it.status == TargetStatus.PENDING }) {
             // 다른 세션이 그사이 같은 곡을 찾았을 수 있다
             val cached = repo.findAlias(t.key)?.takeIf { it.isFresh(retryBefore) }
@@ -57,17 +66,30 @@ class IdentifyService(
                 finish(t, cached.trackId); cached.trackId?.let(found::add); continue
             }
             val query = RuleIdentifier.query(t.title, t.channel, t.source)
-            if (query == null) { forLlm += t; continue } // 일반 영상 제목 → LLM (L2-3a)
+            if (query == null) {
+                // 공식 채널의 단순한 제목은 LLM 없이 먼저 찾아 본다. 못 찾거나 거절되면 LLM으로 (L2-3a)
+                val official = RuleIdentifier.officialChannel(t.title, t.channel)
+                val hit = official?.let { q -> runCatching4xx { fetcher.identify(q.artist, q.title) } }
+                if (official == null || hit == null) { forLlm += t; continue }
+                val id = tx.execute { repo.upsertTrack(hit) }!!
+                tx.executeWithoutResult { repo.saveAlias(t.key, id, AliasMethod.RULE, official) }
+                finish(t, id); found += id
+                continue
+            }
             val info = try {
                 fetcher.identify(query.artist, query.title)
             } catch (e: HttpClientErrorException) {
                 failOne(t, e); continue
             }
+            // Topic 곡을 못 찾으면 다른 표기로 한 번 더 찾는다 (묶음 끝에서 LLM을 한 번만 부른다)
+            // Topic 곡을 못 찾았거나, 발매일 없는 차선 음반으로만 찾았으면(로마자 일본어 제목 등) 다른 표기로 원곡을 한 번 더 찾는다
+            if ((info == null || info.releaseDate == null) && t.channel?.endsWith(" - Topic") == true) { toRespell += Respell(t, query, info); continue }
             val trackId = info?.let { found -> tx.execute { repo.upsertTrack(found) } }
             tx.executeWithoutResult { repo.saveAlias(t.key, trackId, AliasMethod.RULE, query, reason = if (trackId == null) "NOT_IN_MUSICBRAINZ" else null) }
             finish(t, trackId); trackId?.let(found::add)
         }
         if (forLlm.isNotEmpty()) found += identifyWithLlm(forLlm)
+        if (toRespell.isNotEmpty()) found += respell(toRespell)
 
         // 표지를 아직 확인하지 않은 곡은 표지 큐로 (식별과 따로, 늦게 붙어도 곡 이름은 먼저 보인다)
         val needCover = found.distinct().filter { repo.coverTarget(it)?.checkedAt == null }
@@ -84,8 +106,16 @@ class IdentifyService(
         val raws = targets.mapIndexed { i, t -> RawTitle(i, t.title, t.channel) }
         val result = cleaner.clean(raws)
         if (result.model != "fake") llmCalls.record("TITLE_CLEANUP", LlmUsage(result.model, raws.size, result.inputTokens, result.outputTokens, result.latencyMs))
-        val byIndex = result.items.associateBy { it.index }
-        return targets.mapIndexedNotNull { i, t ->
+        val byIndex = result.items.associateBy { it.index }.toMutableMap()
+        // LLM 답은 실행마다 조금씩 달라서, 검증에서 떨어진 영상만 한 번 더 묻는다
+        val invalid = raws.filter { r -> byIndex[r.index]?.takeIf { it.version in IDENTIFIABLE }?.let { CleanedValidator.accept(r, it) == null } == true }
+        if (invalid.isNotEmpty()) {
+            val again = cleaner.clean(invalid.mapIndexed { i, r -> r.copy(index = i) })
+            if (again.model != "fake") llmCalls.record("TITLE_CLEANUP", LlmUsage(again.model, invalid.size, again.inputTokens, again.outputTokens, again.latencyMs))
+            again.items.forEach { a -> invalid.getOrNull(a.index)?.let { r -> byIndex[r.index] = a.copy(index = r.index) } }
+        }
+        val medleyIds = medley(targets.indices.filter { byIndex[it]?.version == Version.MEDLEY }.map { raws[it] to byIndex[it] })
+        return medleyIds + targets.mapIndexedNotNull { i, t ->
             val answer = byIndex[i]
             // 식별할 종류일 때만 검증한다 (곡이 아닌 영상은 곡명이 비어 있는 게 정상)
             val cleaned = answer?.takeIf { it.version in IDENTIFIABLE }?.let { CleanedValidator.accept(raws[i], it) }
@@ -113,6 +143,85 @@ class IdentifyService(
                 }
             }
             tx.executeWithoutResult { repo.saveAlias(t.key, trackId, AliasMethod.LLM, query, titleAlt = cleaned?.titleAlt, reason = reason) }
+            finish(t, trackId)
+            trackId
+        }
+    }
+
+    /**
+     * 메들리 영상은 제목에 적힌 곡을 뽑아 곡마다 식별해 둔다 (메들리를 재생하면 든 곡을 모두 들은 것으로 본다).
+     * 가수는 곡에 적힌 가수 → 영상에서 읽은 가수 순으로 찾고, 못 찾은 곡은 이름만 남겨 통계가 세션의 확인된 곡과 맞춘다.
+     */
+    private fun medley(videos: List<Pair<RawTitle, CleanedTitle?>>): List<Long> {
+        if (videos.isEmpty()) return emptyList()
+        val asked = videos.mapIndexed { i, (r, _) -> r.copy(index = i) }
+        val answer = try {
+            cleaner.medleySongs(asked)
+        } catch (e: RuntimeException) {
+            log.warn("메들리 곡을 받지 못했습니다: {}", e.message)
+            return emptyList()
+        }
+        if (answer.model != "fake") llmCalls.record("MEDLEY_SONGS", LlmUsage(answer.model, asked.size, answer.inputTokens, answer.outputTokens, answer.latencyMs))
+        val found = mutableListOf<Long>()
+        answer.items.forEach { item ->
+            val (raw, cleaned) = videos.getOrNull(item.index) ?: return@forEach
+            val channel = raw.channel ?: return@forEach
+            val videoArtist = cleaned?.let { listOfNotNull(it.artist, it.artistAlt) }.orEmpty()
+            val songs = CleanedValidator.medley(raw, item.songs).map { (artist, song) ->
+                val trackId = (listOfNotNull(artist) + videoArtist).distinct().firstNotNullOfOrNull { a ->
+                    runCatching4xx { fetcher.identify(a, song) }?.let { info -> tx.execute { repo.upsertTrack(info) } }
+                }
+                trackId?.let(found::add)
+                MedleySong(artist ?: videoArtist.firstOrNull(), song, trackId)
+            }
+            if (songs.isNotEmpty()) tx.executeWithoutResult { medleys.save(raw.title, channel, songs) }
+        }
+        return found
+    }
+
+    private inline fun runCatching4xx(block: () -> TrackInfo?): TrackInfo? = try { block() } catch (e: HttpClientErrorException) { null }
+
+    /**
+     * 규칙으로 못 찾은 Topic 곡을 LLM이 제안한 다른 표기로 다시 찾는다 (Seo InGuk → 서인국, TIME CAPSULE → 타임캡슐).
+     * fetcher가 같은 가수 안에서 제목이 일치할 때만 찾았다고 답하므로, 지어낸 표기는 못 찾음으로 끝난다.
+     * 이 경로로 찾은 곡은 reason RESPELLED로 남겨 나중에 검토할 수 있게 한다.
+     */
+    private fun sameLength(a: Long?, b: Long?) = a != null && b != null && kotlin.math.abs(a - b) <= SAME_LENGTH_MS
+
+    data class Respell(val target: Target, val query: Query, val fallback: TrackInfo?)
+
+    private fun respell(items: List<Respell>): List<Long> {
+        val asked = items.mapIndexed { i, r -> RawTitle(i, r.query.title, r.query.artist) }
+        val answer = try {
+            cleaner.spellings(asked)
+        } catch (e: RuntimeException) {
+            log.warn("표기 후보를 받지 못했습니다: {}", e.message)
+            SpellResult(emptyList(), "fake", 0, 0, 0)
+        }
+        if (answer.model != "fake") llmCalls.record("TITLE_RESPELL", LlmUsage(answer.model, asked.size, answer.inputTokens, answer.outputTokens, answer.latencyMs))
+        val byIndex = answer.items.associateBy { it.index }
+        return items.mapIndexedNotNull { i, (t, q, fallback) ->
+            val c = byIndex[i]
+            val artists = c?.artists.orEmpty()
+            val titles = c?.titles.orEmpty()
+            val tries = (artists.map { it to q.title } + titles.map { q.artist to it } + artists.flatMap { a -> titles.map { a to it } })
+                .filter { it != (q.artist to q.title) }.distinct().take(MAX_RESPELL_TRIES)
+            var hit: Pair<Long, Query>? = null
+            for ((a, b) in tries) {
+                val info = runCatching4xx { fetcher.identify(a, b) } ?: continue
+                if (fallback != null && info.releaseDate == null) continue // 이미 가진 결과보다 나은 것만
+                // 이미 찾은 녹음이 있으면 길이가 5초 안으로 같을 때만 같은 곡의 다른 표기로 본다 (다른 곡 오연결 방지)
+                if (fallback != null && !sameLength(fallback.lengthMs, info.lengthMs)) continue
+                hit = tx.execute { repo.upsertTrack(info) }!! to Query(a, b, byChannelName = false)
+                break
+            }
+            val kept = if (hit == null && fallback != null) tx.execute { repo.upsertTrack(fallback) }!! else null
+            when {
+                hit != null -> tx.executeWithoutResult { repo.saveAlias(t.key, hit.first, AliasMethod.LLM, hit.second, reason = "RESPELLED") }
+                kept != null -> tx.executeWithoutResult { repo.saveAlias(t.key, kept, AliasMethod.RULE, q) }
+                else -> tx.executeWithoutResult { repo.saveAlias(t.key, null, AliasMethod.RULE, q, reason = "NOT_IN_MUSICBRAINZ") }
+            }
+            val trackId = hit?.first ?: kept
             finish(t, trackId)
             trackId
         }

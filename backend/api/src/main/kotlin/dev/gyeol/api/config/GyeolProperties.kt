@@ -13,6 +13,8 @@ data class GyeolProperties(
     /** 고른 곡이 모두 이미 식별된 곡이면 바로 지식 인입을 맡긴다 (L3-1) */
     val enrichQueue: String = "gyeol-local-enrich",
     val upload: Upload = Upload(),
+    /** 표지 이미지를 미리 받아 둔 비공개 버킷 */
+    val coverBucket: String = "gyeol-local-covers",
 ) {
     data class Upload(
         val bucket: String = "gyeol-local-uploads",

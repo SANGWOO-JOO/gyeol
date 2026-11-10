@@ -1,11 +1,13 @@
 package dev.gyeol.api.stats
 
+import dev.gyeol.api.config.GyeolProperties
 import dev.gyeol.api.web.ApiException
 import dev.gyeol.core.session.Entry
 import dev.gyeol.core.session.Session
 import dev.gyeol.core.session.SessionStatus
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.stereotype.Service
+import software.amazon.awssdk.services.s3.S3Client
 import java.time.LocalDate
 
 data class Period(val start: LocalDate?, val end: LocalDate?, val days: Long?)
@@ -28,6 +30,10 @@ data class SongCount(
     /** INSTRUMENTAL(연주) 또는 COVER(커버). 원곡 음원이 아닌 영상. 원곡 가수는 제목에서 읽은 경우에만 있다 */
     val performance: String? = null,
     val originalArtist: String? = null,
+    /** S3에 저장된 표지가 있으면 true (API로 제공), 아니면 [coverUrl]을 직접 불러온다 */
+    val storedCover: Boolean = false,
+    /** artist가 가수가 아니라 일반 채널 이름인 경우 */
+    val channelOnly: Boolean = false,
 )
 data class ArtistCount(val artistId: Long?, val name: String, val plays: Int)
 /** 곡이 확인된 재생 수 / 전체 재생 수 */
@@ -52,6 +58,8 @@ data class Stats(
     val identified: Identified,
 )
 
+class CoverFile(val bytes: ByteArray, val contentType: String)
+
 /** 순위 목록의 한 페이지. total은 전체 항목 수 */
 data class RankPage<T>(val items: List<T>, val page: Int, val size: Int, val total: Int)
 
@@ -63,7 +71,21 @@ private data class Ranked<T>(val items: List<T>, val total: Int)
  * 표시 이름은 사용자가 YouTube에서 본 이름을 우선한다 (MusicBrainz 공식 표기 "IU"보다 "아이유").
  */
 @Service
-class StatsService(private val jdbc: JdbcClient) {
+class StatsService(private val jdbc: JdbcClient, private val s3: S3Client, private val props: GyeolProperties) {
+
+    /** 이 세션의 곡 표지 이미지. 다른 세션의 곡이거나 저장 전이면 null */
+    fun cover(session: Session, trackId: Long): CoverFile? {
+        val key = jdbc.sql(
+            """
+            SELECT t.cover_key FROM track t
+            WHERE t.id = :t AND t.cover_key IS NOT NULL
+              AND (EXISTS (SELECT 1 FROM listen_event l WHERE l.session_id = :s AND l.track_id = :t)
+                   OR EXISTS (SELECT 1 FROM recommendation r WHERE r.session_id = :s AND r.track_id = :t))
+            """.trimIndent(),
+        ).param("t", trackId).param("s", session.id).query(String::class.java).optional().orElse(null) ?: return null
+        val obj = s3.getObjectAsBytes { it.bucket(props.coverBucket).key(key) }
+        return CoverFile(obj.asByteArray(), obj.response().contentType() ?: "image/jpeg")
+    }
 
     private val kst = "AT TIME ZONE 'Asia/Seoul'"
     private val channelName = "regexp_replace(channel, ' - Topic$', '')"
@@ -171,7 +193,8 @@ class StatsService(private val jdbc: JdbcClient) {
             WITH $knownName,
             $guessed,
             $songLabels
-            SELECT g.track_id, count(*) OVER () AS total, g.performance, g.original_artist,
+            SELECT g.track_id, count(*) OVER () AS total, g.performance, g.original_artist, t.cover_key IS NOT NULL AS stored_cover,
+                   (g.track_id IS NULL AND g.topic_artist IS NULL AND g.guess_artist_id IS NULL AND g.performance IS NULL) AS channel_only,
                    -- 식별된 곡은 정리된 이름(캐시의 곡명·가수)을 먼저: 일반 영상 제목에는 "[MV] … _ …" 같은 장식이 붙어 있다 (L2-3)
                    coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_title) FROM title_alias ta WHERE ta.track_id = g.track_id AND ta.status = 'MATCHED'), g.label_title, g.title) AS title,
                    coalesce(g.topic_artist, (SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta WHERE ta.track_id = g.track_id AND ta.status = 'MATCHED'), a.name, al.name, ga.name, g.channel) AS artist,
@@ -189,6 +212,10 @@ class StatsService(private val jdbc: JdbcClient) {
                     FROM listen_event e
                     LEFT JOIN guess m ON m.title = e.title AND m.channel = e.channel
                     LEFT JOIN performance i ON i.title = e.title AND i.channel = e.channel
+                    WHERE e.session_id = :sid AND NOT EXISTS (SELECT 1 FROM medley_video mv WHERE mv.title = e.title AND mv.channel = e.channel)
+                    UNION ALL
+                    SELECT md.track_id, mt.title, e.channel, NULL::bigint, NULL::text, NULL::text, NULL::text
+                    FROM listen_event e JOIN medley md ON md.title = e.title AND md.channel = e.channel JOIN track mt ON mt.id = md.track_id
                     WHERE e.session_id = :sid
                 ) l
                 -- 식별된 곡은 곡으로, 못 찾은 곡은 제목+채널로 묶는다
@@ -212,6 +239,8 @@ class StatsService(private val jdbc: JdbcClient) {
                 plays = rs.getInt("plays"),
                 performance = rs.getString("performance"),
                 originalArtist = rs.getString("original_artist"),
+                storedCover = rs.getBoolean("stored_cover"),
+                channelOnly = rs.getBoolean("channel_only"),
             )
         }.list()
         return Ranked(items, total)
@@ -257,6 +286,9 @@ class StatsService(private val jdbc: JdbcClient) {
             WHERE it.session_id = :sid AND ta.method = 'LLM' AND ta.status = 'NOT_FOUND' AND ta.reason = 'NOT_IN_MUSICBRAINZ'
             UNION ALL
             SELECT g.title, g.channel, g.artist, g.artist_alt, g.song, g.song_alt, g.version, 1 FROM title_guess g WHERE g.version <> 'INSTRUMENTAL'
+            UNION ALL
+            -- 식별 대상 밖의 Topic 영상도 같은 가수의 식별된 곡과 제목이 같으면 그 곡으로 본다
+            SELECT u.title, u.channel, regexp_replace(u.channel, ' - Topic$', ''), NULL, u.title, NULL, 'LIVE', 2 FROM unidentified u WHERE u.channel LIKE '% - Topic'
         ),
         guess AS (
             SELECT DISTINCT ON (g.title, g.channel) g.title, g.channel, coalesce(ka.artist_id, kb.artist_id) AS artist_id, g.song,
@@ -269,7 +301,18 @@ class StatsService(private val jdbc: JdbcClient) {
             LEFT JOIN track_key tb ON tb.artist_id = coalesce(ka.artist_id, kb.artist_id) AND tb.key = ${nameKey("g.song_alt")}
             WHERE coalesce(ka.artist_id, kb.artist_id) IS NOT NULL
             ORDER BY g.title, g.channel, g.pref
-        )
+        ),
+        -- 메들리 영상에 든 곡: MusicBrainz로 찾은 곡, 아니면 확인된 가수의 같은 이름 곡
+        medley AS (
+            SELECT DISTINCT ON (m.title, m.channel, m.position) m.title, m.channel, coalesce(m.track_id, tk.track_id) AS track_id
+            FROM medley_song m
+            JOIN unidentified u ON u.title = m.title AND u.channel = m.channel
+            LEFT JOIN known_name k ON k.key = ${nameKey("m.artist")}
+            LEFT JOIN track_key tk ON tk.artist_id = k.artist_id AND tk.key = ${nameKey("m.song")}
+            WHERE coalesce(m.track_id, tk.track_id) IS NOT NULL
+            ORDER BY m.title, m.channel, m.position
+        ),
+        medley_video AS (SELECT DISTINCT title, channel FROM medley)
     """.trimIndent()
 
     /** 곡 순위 표시용: 연주·커버 영상의 정리된 곡명과 원곡 가수, 확인된 가수의 YouTube 표기. title_guess의 커버 가수는 부른 사람이라 원곡 가수로 쓰지 않는다 */
@@ -314,6 +357,10 @@ class StatsService(private val jdbc: JdbcClient) {
             LEFT JOIN topic tp ON tp.channel = l.channel
             LEFT JOIN guess g ON g.title = l.title AND g.channel = l.channel
             LEFT JOIN known_name cn ON cn.key = ${nameKey("l.channel")}
+            WHERE l.session_id = :sid AND NOT EXISTS (SELECT 1 FROM medley_video mv WHERE mv.title = l.title AND mv.channel = l.channel)
+            UNION ALL
+            -- 메들리를 재생하면 든 곡을 모두 들은 것으로 본다: 곡마다 그 곡 가수의 재생으로 센다
+            SELECT l.channel, t.artist_id FROM listen_event l JOIN medley md ON md.title = l.title AND md.channel = l.channel JOIN track t ON t.id = md.track_id
             WHERE l.session_id = :sid
         )
     """.trimIndent()

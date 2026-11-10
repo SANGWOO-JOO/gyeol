@@ -33,6 +33,16 @@ class RuleIdentifierTest {
     }
 
     @Test
+    fun `공식 채널의 단순한 제목만 가수와 곡으로 푼다`() {
+        assertEquals(Query("zard", "揺れる想い", true), RuleIdentifier.officialChannel("揺れる想い （What a beautiful memory  2007）", "zardofficial"))
+        assertEquals(Query("zard", "Don't you see!", true), RuleIdentifier.officialChannel("Don't you see! （2009）", "zardofficial"))
+        assertNull(RuleIdentifier.officialChannel("TAEYEON 태연 'Disaster' Live Clip", "TAEYEON Official"))
+        assertNull(RuleIdentifier.officialChannel("윤하 - 사건의 지평선 M/V", "YOUNHA OFFICIAL"))
+        assertNull(RuleIdentifier.officialChannel("곡명", "KBS Kpop"))
+        assertNull(RuleIdentifier.officialChannel("곡명", "가수 official - Topic"))
+    }
+
+    @Test
     fun `일반 유튜브 영상은 규칙으로 풀지 않는다 - L2-3 LLM 몫`() {
         assertNull(RuleIdentifier.query("[MV] 아이유(IU) _ 밤편지", "1theK (원더케이)", Source.YOUTUBE))
         assertNull(RuleIdentifier.query("곡", null, Source.MUSIC_APP))

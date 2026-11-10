@@ -225,11 +225,11 @@ function Report({ stats, token }: { stats: Stats; token: string }) {
           row={(t, rank) => (
             <li key={rank} className={ui.listItem}>
               <span className={ui.rank}>{rank}</span>
-              <Cover url={t.coverUrl} text={t.artist ?? t.title} />
+              <Cover url={t.storedCover && t.trackId != null ? api.coverUrl(token, t.trackId) : t.coverUrl} text={t.artist ?? t.title} />
               <div className={ui.grow}>
                 <div className={ui.ellipsis}>{t.title}</div>
                 <div className={`${ui.small} ${ui.ellipsis}`}>
-                  {t.artist}{t.performance === 'INSTRUMENTAL' ? ' · 연주' : t.performance === 'COVER' ? ' · 커버' : ''}{t.originalArtist ? ` · 원곡 ${t.originalArtist}` : ''}{t.release?.title ? ` · ${t.release.title}${t.release.year ? ` (${t.release.year})` : ''}` : ''}
+                  {t.channelOnly ? `채널: ${t.artist}` : t.artist}{t.performance === 'INSTRUMENTAL' ? ' · 연주' : t.performance === 'COVER' ? ' · 커버' : ''}{t.originalArtist ? ` · 원곡 ${t.originalArtist}` : ''}{t.release?.title ? ` · ${t.release.title}${t.release.year ? ` (${t.release.year})` : ''}` : ''}
                 </div>
               </div>
               <span className={ui.count}>{num(t.plays)}회</span>

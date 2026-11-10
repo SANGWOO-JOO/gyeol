@@ -54,6 +54,7 @@ gyeol:
     # L2-2 앨범 표지
     cover:
       queue: ${COVER_QUEUE:gyeol-local-cover}
+      bucket: ${COVER_BUCKET:gyeol-local-covers}
     # 보관 기간이 지난 데이터 정리 (매일 04:00 한국 시간)
     cleanup:
       enabled: ${CLEANUP_ENABLED:true}

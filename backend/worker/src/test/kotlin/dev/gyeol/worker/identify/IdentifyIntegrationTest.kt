@@ -29,6 +29,7 @@ import org.testcontainers.utility.DockerImageName
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName
 import java.net.InetSocketAddress
@@ -50,6 +51,7 @@ import kotlin.test.assertNull
         "gyeol.worker.guess.queue=gyeol-test-guess",
         "gyeol.worker.enrich.queue=gyeol-test-enrich",
         "gyeol.worker.cover.queue=gyeol-test-cover",
+        "gyeol.worker.cover.bucket=gyeol-test-covers",
         "gyeol.worker.cleanup.enabled=false",
         "gyeol.worker.parse-dlq=gyeol-test-parse-dlq",
         "gyeol.worker.identify.queue=gyeol-test-identify",
@@ -102,6 +104,12 @@ class IdentifyIntegrationTest {
                 ex.sendResponseHeaders(200, bytes.size.toLong())
                 ex.responseBody.use { it.write(bytes) }
             }
+            createContext("/internal/coverart/image") { ex ->
+                val bytes = byteArrayOf(1, 2, 3)
+                ex.responseHeaders.add("Content-Type", "image/jpeg")
+                ex.sendResponseHeaders(200, bytes.size.toLong())
+                ex.responseBody.use { it.write(bytes) }
+            }
             start()
         }
 
@@ -129,6 +137,9 @@ class IdentifyIntegrationTest {
             parseDlqUrl = sqs.createQueue { it.queueName("gyeol-test-parse-dlq") }.queueUrl()
             sqs.createQueue { it.queueName("gyeol-test-cover") }
             sqs.createQueue { it.queueName("gyeol-test-guess") }
+            S3Client.builder().endpointOverride(localstack.endpoint).region(Region.of(localstack.region)).forcePathStyle(true)
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localstack.accessKey, localstack.secretKey))).build()
+                .createBucket { it.bucket("gyeol-test-covers") }
             enrichUrl = sqs.createQueue { it.queueName("gyeol-test-enrich") }.queueUrl()
             val dlqUrl = sqs.createQueue { it.queueName("gyeol-test-identify-dlq") }.queueUrl()
             val dlqArn = sqs.getQueueAttributes { it.queueUrl(dlqUrl).attributeNames(QueueAttributeName.QUEUE_ARN) }.attributes()[QueueAttributeName.QUEUE_ARN]
@@ -212,6 +223,11 @@ class IdentifyIntegrationTest {
         assertEquals("https://coverartarchive.org/release/33333333-3333-3333-3333-333333333333/front-250", cover())
         assertEquals(1, coverCalls.size)
         assert(coverCalls.single().contains("첫 앨범"))
+        // 표지 이미지는 S3에 저장되어 키가 남는다
+        val keyDeadline = System.nanoTime() + Duration.ofSeconds(20).toNanos()
+        fun key() = jdbc.sql("SELECT cover_key FROM track").query { rs, _ -> rs.getString(1) }.single()
+        while (key() == null && System.nanoTime() < keyDeadline) Thread.sleep(200)
+        assert(key()!!.startsWith("covers/"))
 
         // 두 번째 세션: 세 곡 모두 캐시 적중 (못 찾음도 30일 동안은 다시 묻지 않음)
         fetcherCalls.clear()

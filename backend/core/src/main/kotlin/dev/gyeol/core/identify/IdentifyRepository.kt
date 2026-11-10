@@ -21,6 +21,8 @@ data class TrackInfo(
     val releaseTitle: String?,
     val releaseDate: String?,
     val releaseType: String?,
+    /** 녹음 길이 (저장하지 않음). 다른 표기로 찾은 결과가 같은 곡인지 비교할 때만 쓴다 */
+    val lengthMs: Long? = null,
 )
 
 data class Alias(val key: String, val status: AliasStatus, val trackId: Long?, val checkedAt: Instant) {
@@ -37,7 +39,7 @@ data class Target(val sessionId: Long, val key: String, val title: String, val c
 data class SeedCard(val releaseTitle: String?, val releaseYear: Int?, val coverUrl: String?)
 
 /** 표지를 찾을 곡의 원곡 음반 */
-data class CoverTarget(val trackId: Long, val releaseMbid: UUID?, val releaseGroupMbid: UUID?, val releaseTitle: String?, val checkedAt: Instant?)
+data class CoverTarget(val trackId: Long, val releaseMbid: UUID?, val releaseGroupMbid: UUID?, val releaseTitle: String?, val checkedAt: Instant?, val coverUrl: String? = null, val coverKey: String? = null)
 
 data class IdentifyProgress(val target: Int, val done: Int, val matched: Int, val notFound: Int, val failed: Int)
 
@@ -174,9 +176,14 @@ class IdentifyRepository(private val jdbc: JdbcClient, private val search: Track
     // ── 앨범 표지 (L2-2) ──
 
     fun coverTarget(trackId: Long): CoverTarget? =
-        jdbc.sql("SELECT id, release_mbid, release_group_mbid, release_title, cover_checked_at FROM track WHERE id = :id").param("id", trackId)
-            .query { rs, _ -> CoverTarget(rs.getLong(1), rs.getObject(2, UUID::class.java), rs.getObject(3, UUID::class.java), rs.getString(4), rs.getTimestamp(5)?.toInstant()) }
+        jdbc.sql("SELECT id, release_mbid, release_group_mbid, release_title, cover_checked_at, cover_url, cover_key FROM track WHERE id = :id").param("id", trackId)
+            .query { rs, _ -> CoverTarget(rs.getLong(1), rs.getObject(2, UUID::class.java), rs.getObject(3, UUID::class.java), rs.getString(4), rs.getTimestamp(5)?.toInstant(), rs.getString(6), rs.getString(7)) }
             .optional().orElse(null)
+
+    /** S3에 저장한 표지 이미지의 키 */
+    fun saveCoverKey(trackId: Long, key: String) {
+        jdbc.sql("UPDATE track SET cover_key = :k WHERE id = :id").param("k", key).param("id", trackId).update()
+    }
 
     /** 표지 주소 저장. 없으면 null로 두고 확인 시각만 남긴다 */
     fun saveCover(trackId: Long, url: String?) {

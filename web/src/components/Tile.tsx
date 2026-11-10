@@ -21,12 +21,16 @@ export function Tile({ text, size = 40 }: { text: string; size?: number }) {
   )
 }
 
-/** 원곡 음반 표지. 없거나 불러오지 못하면 글자 타일 (이미지는 Cover Art Archive에서 브라우저가 직접 불러옴) */
+/** 원곡 음반 표지. 불러오는 동안과 표지가 없을 때는 글자 타일을 보여 주고, 도착하면 위에 겹쳐 표시한다 */
 export function Cover({ url, text, size = 40 }: { url?: string | null; text: string; size?: number }) {
-  const [failed, setFailed] = useState(false)
-  if (!url || failed) return <Tile text={text} size={size} />
+  const [state, setState] = useState<{ url: string; ok: boolean } | null>(null)
+  if (!url || (state?.url === url && !state.ok)) return <Tile text={text} size={size} />
+  const loaded = state?.url === url && state.ok
   return (
-    <img src={url} alt="" width={size} height={size} loading="lazy" onError={() => setFailed(true)}
-      style={{ width: size, height: size, flex: 'none', borderRadius: 8, objectFit: 'cover', background: 'var(--surface-2)' }} />
+    <span style={{ position: 'relative', width: size, height: size, flex: 'none', display: 'inline-block' }}>
+      <Tile text={text} size={size} />
+      <img src={url} alt="" width={size} height={size} onLoad={() => setState({ url, ok: true })} onError={() => setState({ url, ok: false })}
+        style={{ position: 'absolute', inset: 0, width: size, height: size, borderRadius: 8, objectFit: 'cover', opacity: loaded ? 1 : 0 }} />
+    </span>
   )
 }

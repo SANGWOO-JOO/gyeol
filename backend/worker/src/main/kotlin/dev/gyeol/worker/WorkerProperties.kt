@@ -82,6 +82,8 @@ data class WorkerProperties(
 
     data class Cover(
         val queue: String = "gyeol-local-cover",
+        /** 표지 이미지를 미리 받아 두는 비공개 버킷 */
+        val bucket: String = "gyeol-local-covers",
         /** 표지가 없던 곡을 다시 확인하기까지 */
         val retry: Duration = Duration.ofDays(30),
     )

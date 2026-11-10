@@ -36,7 +36,7 @@ CQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
   --queue-url "$(awslocal sqs get-queue-url --queue-name "$CQ-dlq" --region "$REGION" --query QueueUrl --output text)" \
   --attribute-names QueueArn --query Attributes.QueueArn --output text)
 awslocal sqs create-queue --queue-name "$CQ" --region "$REGION" \
-  --attributes "{\"VisibilityTimeout\":\"300\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$CQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
+  --attributes "{\"VisibilityTimeout\":\"900\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$CQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
 
 # 지식 인입 큐 (L3-1). 곡 몇 개에 외부 호출이 수십 번이라 표시 제한 시간을 15분으로
 EQ=gyeol-local-enrich
@@ -67,6 +67,8 @@ awslocal sqs create-queue --queue-name "$GQ" --region "$REGION" \
 
 # 업로드 버킷. 브라우저가 서명 URL로 직접 올리므로 로컬 웹 주소(Vite 15173, k3d 18000)에 CORS를 열어 둔다.
 awslocal s3 mb "s3://$BUCKET" --region "$REGION" >/dev/null
+# 표지 이미지 보관 (비공개). API가 결과 링크 토큰을 확인한 뒤 전달한다
+awslocal s3 mb "s3://gyeol-local-covers" --region "$REGION" >/dev/null
 awslocal s3api put-bucket-cors --bucket "$BUCKET" --cors-configuration '{
   "CORSRules": [{
     "AllowedOrigins": ["http://localhost:15173", "http://localhost:18000"],

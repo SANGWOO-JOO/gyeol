@@ -12,7 +12,9 @@ import dev.gyeol.core.session.SessionRepository
 import dev.gyeol.core.session.Tokens
 import dev.gyeol.core.upload.UploadRepository
 import org.junit.jupiter.api.BeforeAll
+import dev.gyeol.api.stats.StatsService
 import org.junit.jupiter.api.Test
+import software.amazon.awssdk.core.sync.RequestBody
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.boot.test.context.SpringBootTest
@@ -42,6 +44,7 @@ import java.time.temporal.ChronoUnit
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** PostgreSQL + LocalStack을 컨테이너로 띄워 API 전체 흐름을 확인한다 (parse 워커는 ⑦에서, 여기서는 DB에 직접 넣어 흉내 냄) */
@@ -103,6 +106,7 @@ class SessionApiIntegrationTest {
             registry.add("spring.cloud.aws.credentials.secret-key") { localstack.secretKey }
             registry.add("spring.cloud.aws.s3.path-style-access-enabled") { "true" }
             registry.add("gyeol.upload.bucket") { BUCKET }
+            registry.add("gyeol.cover-bucket") { BUCKET }
             registry.add("gyeol.identify-queue") { IDENTIFY_QUEUE }
         }
 
@@ -135,6 +139,7 @@ class SessionApiIntegrationTest {
     @Autowired lateinit var listens: ListenEventRepository
     @Autowired lateinit var jdbc: JdbcClient
     @Autowired lateinit var identify: IdentifyRepository
+    @Autowired lateinit var statsService: StatsService
 
     private val http = HttpClient.newHttpClient()
 
@@ -471,6 +476,59 @@ class SessionApiIntegrationTest {
             assertEquals("COVER", this["performance"].asString())
             assertTrue(this["originalArtist"].isNull)
         }
+    }
+
+    @Test
+    fun `메들리 - 든 곡마다 재생을 그대로 더하고, 영상 자체는 순위에서 빠진다`() {
+        val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
+        val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id
+        val uploadId = UUID.randomUUID()
+        uploads.create(uploadId, sid, "uploads/$uploadId.json")
+        val t0 = Instant.parse("2026-10-01T00:00:00Z")
+        fun ev(title: String, channel: String, n: Int) = (0 until n).map { ListenEvent("v", title, channel, t0.plusSeconds(it * 60L), Source.YOUTUBE) }
+        val video = "가수M - 곡하나 + 곡둘 무대 ${UUID.randomUUID().toString().take(6)}"
+        listens.insertBatch(sid, uploadId, ev("곡하나", "가수M - Topic", 2) + ev("곡둘", "가수M - Topic", 1) + ev(video, "방송국", 5), Instant.now().plus(7, ChronoUnit.DAYS))
+        sessions.markDone(sid, 8, t0, t0)
+        val one = identify.upsertTrack(track("곡하나", "Singer M", "앨범", "2020-01-01"))
+        val two = identify.upsertTrack(track("곡둘", "Singer M", "앨범", "2020-01-01"))
+        jdbc.sql("UPDATE track SET artist_id = (SELECT artist_id FROM track WHERE id = :one) WHERE id = :two").param("one", one).param("two", two).update() // 같은 가수
+        jdbc.sql("UPDATE listen_event SET track_id = :t WHERE session_id = :sid AND title = '곡하나'").param("t", one).param("sid", sid).update()
+        jdbc.sql("UPDATE listen_event SET track_id = :t WHERE session_id = :sid AND title = '곡둘'").param("t", two).param("sid", sid).update()
+        jdbc.sql("INSERT INTO medley_song (title, channel, position, artist, song, track_id) VALUES (:t, '방송국', 0, 'Singer M', '곡하나', :one), (:t, '방송국', 1, 'singer m', '곡둘', NULL), (:t, '방송국', 2, '모름', '없는 곡', NULL)")
+            .param("t", video).param("one", one).update()
+
+        val stats = call("GET", "/api/sessions/$token/stats").second!!
+        val songs = stats["topSongs"].toList()
+        assertEquals(7, songs.single { it["trackId"].asLong(-1) == one }["plays"].asInt())
+        assertEquals(6, songs.single { it["trackId"].asLong(-1) == two }["plays"].asInt())
+        assertTrue(songs.none { it["title"].asString() == video })
+        assertEquals(listOf("가수M" to 13), stats["topArtists"].toList().map { it["name"].asString() to it["plays"].asInt() })
+    }
+
+    @Test
+    fun `표지 이미지는 그 세션의 곡만 제공하고, 저장되면 순위에 표시된다`() {
+        fun newSession(title: String): Pair<String, Long> {
+            val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
+            val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id
+            val uploadId = UUID.randomUUID()
+            uploads.create(uploadId, sid, "uploads/$uploadId.json")
+            val t0 = Instant.parse("2026-10-01T00:00:00Z")
+            listens.insertBatch(sid, uploadId, listOf(ListenEvent("v", title, "가수P - Topic", t0, Source.YOUTUBE)), Instant.now().plus(7, ChronoUnit.DAYS))
+            sessions.markDone(sid, 1, t0, t0)
+            return token to sid
+        }
+        val (token, sid) = newSession("표지곡")
+        val (_, other) = newSession("다른곡")
+        val trackId = identify.upsertTrack(track("표지곡", "Singer P", "앨범", "2020-01-01"))
+        jdbc.sql("UPDATE listen_event SET track_id = :t WHERE session_id = :sid").param("t", trackId).param("sid", sid).update()
+        s3().use { it.putObject({ b -> b.bucket(BUCKET).key("covers/$trackId").contentType("image/jpeg") }, RequestBody.fromBytes(byteArrayOf(7, 8))) }
+        identify.saveCoverKey(trackId, "covers/$trackId")
+
+        val file = statsService.cover(sessions.findById(sid)!!, trackId)!!
+        assertEquals(listOf<Byte>(7, 8), file.bytes.toList())
+        assertEquals("image/jpeg", file.contentType)
+        assertNull(statsService.cover(sessions.findById(other)!!, trackId))
+        assertTrue(call("GET", "/api/sessions/$token/stats").second!!["topSongs"][0]["storedCover"].asBoolean())
     }
 
     @Test

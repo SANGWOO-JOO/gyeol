@@ -64,7 +64,7 @@ class IdentifyPlanner(
         }
         // 캐시로 찾은 곡도 표지를 아직 확인하지 않았으면 표지 큐로 (식별만 끝나고 표지 단계가 없던 곡)
         val needCover = hitTracks.filter { repo.coverTarget(it)?.checkedAt == null }
-        needCover.chunked(50).forEach { ids -> sqs.send { it.queue(props.cover.queue).payload(json.writeValueAsString(CoverMessage(ids))) } }
+        needCover.chunked(10).forEach { ids -> sqs.send { it.queue(props.cover.queue).payload(json.writeValueAsString(CoverMessage(ids))) } }
 
         val batches = queue.chunked(props.identify.batch)
         batches.forEach { keys -> sqs.send { it.queue(props.identify.queue).payload(json.writeValueAsString(IdentifyMessage(sessionId, keys))) } }

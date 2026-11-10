@@ -4,6 +4,7 @@ import dev.gyeol.core.identify.ArtistInfo
 import dev.gyeol.core.identify.CoverTarget
 import dev.gyeol.core.identify.TrackInfo
 import dev.gyeol.worker.WorkerProperties
+import org.springframework.http.ResponseEntity
 import org.springframework.http.client.SimpleClientHttpRequestFactory
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
@@ -32,6 +33,10 @@ class FetcherClient(props: WorkerProperties) {
             .body(JsonNode::class.java)
             ?.path("url")?.asString("")?.ifEmpty { null }
 
+    /** 표지 이미지 내려받기. 없으면 예외(404) */
+    fun coverImage(url: String): ResponseEntity<ByteArray> =
+        http.get().uri { b -> b.path("/internal/coverart/image").queryParam("url", url).build() }.retrieve().toEntity(ByteArray::class.java)
+
     /** 지식 인입 (L3-1): type은 recording·work·release-group·artist */
     fun knowledge(type: String, mbid: String, artist: String? = null, title: String? = null): JsonNode =
         http.get().uri { b ->
@@ -55,6 +60,7 @@ class FetcherClient(props: WorkerProperties) {
         return TrackInfo(
             recordingMbid = UUID.fromString(r.path("recording").path("mbid").asString()),
             title = r.path("recording").path("title").asString(),
+            lengthMs = r.path("recording").path("lengthMs").takeIf { it.isNumber }?.asLong(),
             artist = ArtistInfo(
                 mbid = UUID.fromString(a.path("mbid").asString()),
                 name = a.path("name").asString(),

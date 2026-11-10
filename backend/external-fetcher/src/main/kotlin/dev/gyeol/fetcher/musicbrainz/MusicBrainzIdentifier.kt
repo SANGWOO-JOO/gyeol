@@ -5,7 +5,8 @@ import tools.jackson.databind.JsonNode
 data class IdentifyRequest(val artist: String?, val title: String?)
 
 data class IdArtist(val mbid: String, val name: String, val sortName: String?, val aliases: List<String>)
-data class IdRecording(val mbid: String, val title: String)
+/** [lengthMs]는 녹음 길이 (같은 곡의 다른 표기인지 확인할 때 쓴다). 없을 수 있다 */
+data class IdRecording(val mbid: String, val title: String, val lengthMs: Long? = null)
 data class IdRelease(val mbid: String, val groupMbid: String, val title: String, val date: String, val type: String?)
 
 data class IdentifyResult(
@@ -52,21 +53,23 @@ class MusicBrainzIdentifier(
 
         var alt: String? = null
         var altChecked = false
-        var withoutRelease: Pair<IdArtist, JsonNode>? = null
+        var withoutRelease: Pair<IdArtist, List<JsonNode>>? = null
+        val near = mutableMapOf<IdArtist, MutableList<JsonNode>>() // 잘린 제목 후보 (마지막 수단)
         fun tryArtists(candidates: List<IdArtist>): IdentifyResult? {
             for (artist in candidates) {
-                var recs = recordings(artist.mbid, title, null, call)
+                val n = near.getOrPut(artist) { mutableListOf() }
+                var recs = recordings(artist.mbid, title, null, call, n)
                 if (recs.isEmpty() && !altChecked) {
                     altChecked = true
                     alt = spellings(artistName, title).firstOrNull { TitleMatch.norm(it) == TitleMatch.norm(title) && it != title }
-                    if (alt != null) recs = recordings(artist.mbid, title, alt, call)
+                    if (alt != null) recs = recordings(artist.mbid, title, alt, call, n)
                 }
-                if (recs.isEmpty()) recs = scanArtist(artist.mbid, title, call)
+                if (recs.isEmpty()) recs = scanArtist(artist.mbid, title, call, n)
                 if (recs.isEmpty()) continue
 
                 val best = earliestRelease(recs)
                 if (best == null) {
-                    if (withoutRelease == null) withoutRelease = artist to recs.minBy { isVariantRecording(it) }
+                    if (withoutRelease == null) withoutRelease = artist to recs
                     continue
                 }
                 return done(IdentifyResult("MATCHED", recording = best.first, artist = artist, release = best.second))
@@ -78,10 +81,25 @@ class MusicBrainzIdentifier(
         // 흔한 이름은 필드 검색 상위 10명에 실제 가수가 없을 수 있다 ("Buzz"의 버즈). 넓은 검색으로 이름이 정확히 같은 다른 후보를 한 번 더 본다
         val wider = findArtists(artistName, call, wide = true).filter { w -> artists.none { it.mbid == w.mbid } }
         tryArtists(wider)?.let { return it }
-        if (artists.isEmpty() && wider.isEmpty()) return done(IdentifyResult("NOT_FOUND", reason = "ARTIST"))
-        // 곡은 확인했지만 원곡 음반이 없으면(컴필레이션뿐 등) 음반 없이 곡으로 인정한다. 다른 음반 표지로 대신하지 않으려고 음반은 비운다
-        withoutRelease?.let { (artist, rec) ->
-            return done(IdentifyResult("MATCHED", recording = IdRecording(rec.path("id").asString(), rec.path("title").asString()), artist = artist))
+        // 합쳐진 이름("서인국 & 정은지")은 MusicBrainz에 가수로 없다. 전체로 못 찾았을 때만 첫 사람으로 찾는다
+        val lead = TitleMatch.firstOfDuet(artistName)?.let { first -> findArtists(first, call).filter { l -> (artists + wider).none { it.mbid == l.mbid } } }.orEmpty()
+        tryArtists(lead)?.let { return it }
+        if (artists.isEmpty() && wider.isEmpty() && lead.isEmpty()) return done(IdentifyResult("NOT_FOUND", reason = "ARTIST"))
+        // 원곡 음반이 없으면(라이브·베스트뿐, 발매일 없음) 그 곡이 실린 공식 음반을 차선으로 쓴다. 공식 음반도 없으면 음반 없이 곡으로 인정한다
+        withoutRelease?.let { (artist, recs) ->
+            val fallback = earliestRelease(recs, relaxed = true)
+            val rec = recs.minBy { isVariantRecording(it) }
+            return done(IdentifyResult("MATCHED", recording = fallback?.first ?: idRecording(rec), artist = artist, release = fallback?.second))
+        }
+        // 마지막 수단: 잘린 제목. 한 가수에서 후보 제목이 하나로 모일 때만 인정한다
+        val partial = near.entries.mapNotNull { (artist, recs) ->
+            recs.distinctBy { it.path("id").asString() }.groupBy { TitleMatch.norm(it.path("title").asString("")) }.values.singleOrNull()?.let { artist to it }
+        }.singleOrNull()
+        if (partial != null) {
+            val (artist, recs) = partial
+            val best = earliestRelease(recs) ?: earliestRelease(recs, relaxed = true)
+            val rec = recs.minBy { isVariantRecording(it) }
+            return done(IdentifyResult("MATCHED", reason = "PARTIAL_TITLE", recording = best?.first ?: idRecording(rec), artist = artist, release = best?.second))
         }
         return done(IdentifyResult("NOT_FOUND", reason = "RECORDING"))
     }
@@ -110,7 +128,7 @@ class MusicBrainzIdentifier(
             }
     }
 
-    private fun recordings(arid: String, title: String, alt: String?, call: (String, Map<String, Any>) -> JsonNode): List<JsonNode> {
+    private fun recordings(arid: String, title: String, alt: String?, call: (String, Map<String, Any>) -> JsonNode, near: MutableList<JsonNode>): List<JsonNode> {
         val terms = TitleMatch.searchParts(alt ?: title).map { it.replace(luceneSpecial, " ").trim() }.filter { it.isNotEmpty() }
         if (terms.isEmpty()) return emptyList()
         val searchTitle = terms.singleOrNull() ?: terms.joinToString(" OR ") { "($it)" }
@@ -119,31 +137,39 @@ class MusicBrainzIdentifier(
             val body = call("/recording", mapOf("query" to "arid:$arid AND recording:($searchTitle)", "limit" to 100, "offset" to offset))
             val page = body.path("recordings").toList()
             out += page.filter { TitleMatch.sameTitle(it.path("title").asString(""), title) }
+            near += page.filter { TitleMatch.partialTitle(it.path("title").asString(""), title) }
             if (page.size < 100) break
         }
         return out
     }
 
     /** 띄어쓰기·표기 차이로 제목 검색에 안 걸릴 때: 가수의 녹음을 넓게 훑는다 (MusicBrainz 검색은 offset + limit이 500을 넘으면 400) */
-    private fun scanArtist(arid: String, title: String, call: (String, Map<String, Any>) -> JsonNode): List<JsonNode> {
+    private fun scanArtist(arid: String, title: String, call: (String, Map<String, Any>) -> JsonNode, near: MutableList<JsonNode>): List<JsonNode> {
         val out = mutableListOf<JsonNode>()
         for (offset in 0 until 500 step 100) {
             val page = call("/recording", mapOf("query" to "arid:$arid", "limit" to 100, "offset" to offset)).path("recordings").toList()
             out += page.filter { TitleMatch.sameTitle(it.path("title").asString(""), title) }
+            near += page.filter { TitleMatch.partialTitle(it.path("title").asString(""), title) }
             if (page.size < 100) break
         }
         return out
     }
 
-    private fun earliestRelease(recs: List<JsonNode>): Pair<IdRecording, IdRelease>? =
+    /** [relaxed]면 라이브·컴필레이션과 발매일 없는 음반도 공식이면 허용한다 (발매일 있는 것을 먼저) */
+    private fun earliestRelease(recs: List<JsonNode>, relaxed: Boolean = false): Pair<IdRecording, IdRelease>? =
         recs.flatMap { rec -> rec.path("releases").toList().map { rec to it } }
             .filter { (_, r) ->
-                r.path("status").asString("") == "Official" && r.path("date").asString("").isNotEmpty() &&
-                    r.path("release-group").path("secondary-types").toList().none { it.asString("") in excludedTypes }
+                r.path("status").asString("") == "Official" && (relaxed || (
+                    r.path("date").asString("").isNotEmpty() &&
+                        r.path("release-group").path("secondary-types").toList().none { it.asString("") in excludedTypes }
+                    ))
             }
             .sortedWith(
                 compareBy(
                     { isVariantRecording(it.first) },
+                    // 차선에서는 라이브 음반의 녹음을 맨 뒤로 (길이·편곡이 원곡과 달라 다른 표기 비교가 틀어진다)
+                    { r -> r.second.path("release-group").path("secondary-types").toList().any { it.asString("") == "Live" } },
+                    { r -> r.second.path("date").asString("").isEmpty() },
                     { variant.containsMatchIn(it.second.path("title").asString("")) },
                     { it.second.path("date").asString("").padEnd(10, '9') },
                     { typeOrder[it.second.path("release-group").path("primary-type").asString("")] ?: 3 },
@@ -151,7 +177,7 @@ class MusicBrainzIdentifier(
             )
             .firstOrNull()
             ?.let { (rec, r) ->
-                IdRecording(rec.path("id").asString(), rec.path("title").asString()) to IdRelease(
+                idRecording(rec) to IdRelease(
                     mbid = r.path("id").asString(),
                     groupMbid = r.path("release-group").path("id").asString(),
                     title = r.path("title").asString(),
@@ -159,6 +185,9 @@ class MusicBrainzIdentifier(
                     type = r.path("release-group").path("primary-type").asString("").ifEmpty { null },
                 )
             }
+
+    private fun idRecording(rec: JsonNode) =
+        IdRecording(rec.path("id").asString(), rec.path("title").asString(), rec.path("length").takeIf { it.isNumber }?.asLong())
 
     private fun isVariantRecording(rec: JsonNode): Boolean {
         val title = rec.path("title").asString("")

@@ -1,6 +1,8 @@
 package dev.gyeol.worker.guess
 
 import dev.gyeol.core.identify.GuessTarget
+import dev.gyeol.core.identify.MedleyRepository
+import dev.gyeol.core.identify.MedleySong
 import dev.gyeol.core.identify.SearchText
 import dev.gyeol.core.identify.TitleGuess
 import dev.gyeol.core.identify.TitleGuessRepository
@@ -50,6 +52,7 @@ class GuessListener(private val service: GuessService, private val json: JsonMap
 
 @Service
 class GuessService(
+    private val medleys: MedleyRepository,
     private val repo: TitleGuessRepository,
     private val cleaner: TitleCleaner,
     private val llmCalls: LlmCallRepository,
@@ -63,6 +66,18 @@ class GuessService(
         if (result.model != "fake") llmCalls.record("TITLE_GUESS", LlmUsage(result.model, raws.size, result.inputTokens, result.outputTokens, result.latencyMs))
         val byIndex = result.items.associateBy { it.index }
         var kept = 0
+        // 메들리는 든 곡 이름을 남겨, 통계가 세션의 확인된 곡과 맞춘다 (MusicBrainz는 부르지 않는다)
+        val medleyIdx = msg.items.indices.filter { byIndex[it]?.version == Version.MEDLEY }
+        if (medleyIdx.isNotEmpty()) {
+            runCatching { cleaner.medleySongs(medleyIdx.mapIndexed { j, i -> raws[i].copy(index = j) }) }.onSuccess { m ->
+                if (m.model != "fake") llmCalls.record("MEDLEY_SONGS", LlmUsage(m.model, medleyIdx.size, m.inputTokens, m.outputTokens, m.latencyMs))
+                m.items.forEach { item ->
+                    val i = medleyIdx.getOrNull(item.index) ?: return@forEach
+                    val songs = CleanedValidator.medley(raws[i], item.songs).map { (a, s) -> MedleySong(a ?: byIndex[i]?.artist, s) }
+                    if (songs.isNotEmpty()) medleys.save(msg.items[i].title, msg.items[i].channel, songs)
+                }
+            }.onFailure { log.warn("메들리 곡을 받지 못했습니다: {}", it.message) }
+        }
         msg.items.forEachIndexed { i, t ->
             val answer = byIndex[i] ?: return@forEachIndexed // 답이 빠진 영상은 저장하지 않아 다음에 다시 묻는다
             val accepted = answer.takeIf { it.version in singable }?.let { CleanedValidator.accept(raws[i], it) }?.takeIf { ArtistPlacement.ok(t.title, t.channel, it) }

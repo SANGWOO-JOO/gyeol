@@ -21,6 +21,7 @@ aws:
   recommendQueue: gyeol-recommend
   recommendDlq: gyeol-recommend-dlq
   guessQueue: gyeol-guess
+  coverBucket: gyeol-covers
   # 비우면 AWS 기본 주소. LocalStack일 때만 채운다
   endpoint: ""
   # 브라우저가 올릴 S3 주소가 서버와 다를 때만 (k3d)

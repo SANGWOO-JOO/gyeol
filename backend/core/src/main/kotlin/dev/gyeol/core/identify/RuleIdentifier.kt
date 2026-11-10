@@ -16,6 +16,22 @@ object RuleIdentifier {
     // 공식 채널 이름에 붙는 꼬리 (예: "IU Official", "BTS OFFICIAL", "NewJeansVEVO")
     private val CHANNEL_SUFFIX = Regex("""\s*(official|vevo|공식)\s*$""", RegexOption.IGNORE_CASE)
 
+    private val TRAILING_NOTE = Regex("""\s*[（(\[【].*$""")
+    private val DECORATED = Regex("""[-_|"‘’“”]|(?<![A-Za-z])'|'(?![A-Za-z])|\b(?:m/?v|official|live|lyrics?|teaser|ver\.?)\b""", RegexOption.IGNORE_CASE)
+
+    /**
+     * 공식 채널("zardofficial", "IU Official")의 단순한 제목 "곡명 （설명）"을 (채널에서 뗀 가수, 곡명)으로 푼다.
+     * 일반 영상이라 틀릴 수 있으므로 호출하는 쪽은 MusicBrainz에서 곡을 찾았을 때만 쓰고, 못 찾으면 LLM으로 넘긴다.
+     */
+    fun officialChannel(title: String, channel: String?): Query? {
+        val ch = channel?.trim().orEmpty()
+        if (ch.endsWith(TOPIC) || !CHANNEL_SUFFIX.containsMatchIn(ch)) return null
+        val artist = ch.replace(CHANNEL_SUFFIX, "").trim()
+        val song = title.replace(TRAILING_NOTE, "").trim()
+        if (artist.isEmpty() || song.isEmpty() || DECORATED.containsMatchIn(song)) return null
+        return Query(artist, song, byChannelName = true)
+    }
+
     fun query(title: String, channel: String?, source: Source): Query? {
         val t = title.trim()
         val ch = channel?.trim().orEmpty()

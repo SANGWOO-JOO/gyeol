@@ -4,7 +4,8 @@
     (dict "name" "FETCHER_URL" "value" (printf "http://gyeol-fetcher:%v" .Values.fetcher.port))
     (dict "name" "GYEOL_UPLOAD_PUBLICENDPOINT" "value" .Values.aws.publicEndpoint)
     (dict "name" "IDENTIFY_QUEUE" "value" .Values.aws.identifyQueue)
-    (dict "name" "ENRICH_QUEUE" "value" .Values.aws.enrichQueue)))
+    (dict "name" "ENRICH_QUEUE" "value" .Values.aws.enrichQueue)
+    (dict "name" "GYEOL_COVERBUCKET" "value" .Values.aws.coverBucket)))
   "worker" (dict "cfg" .Values.worker "service" false "env" (list
     (dict "name" "WORKER_ROLE" "value" .Values.worker.role)
     (dict "name" "PARSE_QUEUE" "value" .Values.aws.parseQueue)
@@ -19,6 +20,7 @@
     (dict "name" "RECOMMEND_QUEUE" "value" .Values.aws.recommendQueue)
     (dict "name" "RECOMMEND_DLQ" "value" .Values.aws.recommendDlq)
     (dict "name" "GUESS_QUEUE" "value" .Values.aws.guessQueue)
+    (dict "name" "COVER_BUCKET" "value" .Values.aws.coverBucket)
     (dict "name" "AUTO_RECOMMEND" "value" (toString .Values.worker.autoRecommend))
     (dict "name" "EMBED_URL" "value" (printf "http://gyeol-embed:%v" .Values.embed.port))
     (dict "name" "FETCHER_URL" "value" (printf "http://gyeol-fetcher:%v" .Values.fetcher.port))

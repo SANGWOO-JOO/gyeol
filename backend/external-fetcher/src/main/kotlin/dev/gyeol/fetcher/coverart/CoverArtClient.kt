@@ -12,6 +12,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
 
 data class CoverRequest(val releaseMbid: String?, val releaseGroupMbid: String?, val releaseTitle: String?)
 data class CoverResult(val url: String?, val from: String?, val ms: Long)
@@ -58,7 +59,30 @@ class CoverArtClient(private val props: FetcherProperties, private val musicBrai
     }
 
     private fun urlOf(releaseMbid: String) = CoverFinder.urlOf(props.coverart.baseUrl, releaseMbid)
+
+    /** 표지 이미지를 내려받는다 (worker가 S3에 저장). Cover Art Archive 주소만 받는다. 없으면 null, 일시 장애면 예외 */
+    fun image(url: String): CoverImage? {
+        require(url.startsWith(props.coverart.baseUrl + "/")) { "Cover Art Archive 주소가 아닙니다" }
+        gate.acquire()
+        val res = try {
+            http.send(HttpRequest.newBuilder(URI(url)).GET().header("User-Agent", props.userAgent).timeout(IMAGE_TIMEOUT).build(), HttpResponse.BodyHandlers.ofByteArray())
+        } catch (e: Exception) {
+            throw UpstreamException("표지 이미지를 받지 못했습니다", e)
+        }
+        val type = res.headers().firstValue("Content-Type").orElse("")
+        return when {
+            res.statusCode() in 200..299 && type.startsWith("image/") -> CoverImage(res.body(), type)
+            res.statusCode() == 404 -> null
+            else -> throw UpstreamException("표지 이미지 응답 ${res.statusCode()}")
+        }
+    }
+
+    private companion object {
+        val IMAGE_TIMEOUT: Duration = Duration.ofSeconds(90)
+    }
 }
+
+class CoverImage(val bytes: ByteArray, val contentType: String)
 
 /** 표지 규칙만 (외부 호출은 함수로 받아 시험에서 바꿔 끼운다) */
 class CoverFinder(
@@ -73,9 +97,10 @@ class CoverFinder(
         if (hasFront(release)) return done(urlOf(baseUrl, release), "RELEASE")
 
         val group = req.releaseGroupMbid?.takeIf { it.isNotBlank() } ?: return done(null, null)
-        val title = TitleMatch.norm(req.releaseTitle) // 문장부호·공백 차이는 무시 ("Every letter I sent you." 같은 표기)
+        // 같은 묶음 안에서는 표기 차이("Hug (포옹)"과 "HUG", 문장부호·공백)를 같은 음반으로 본다
+        val title = req.releaseTitle.orEmpty()
         val others = browseGroup(group).path("releases").toList()
-            .filter { it.path("id").asString() != release && TitleMatch.norm(it.path("title").asString("")) == title && it.path("cover-art-archive").path("front").asBoolean(false) }
+            .filter { it.path("id").asString() != release && TitleMatch.sameTitle(it.path("title").asString(""), title) && it.path("cover-art-archive").path("front").asBoolean(false) }
             .take(5)
         for (o in others) {
             val id = o.path("id").asString()

@@ -18,9 +18,24 @@ data class CleanedTitle(
 
 data class CleanResult(val items: List<CleanedTitle>, val model: String, val inputTokens: Int, val outputTokens: Int, val latencyMs: Int)
 
+data class MedleyItem(val index: Int, val songs: List<Pair<String?, String>>)
+data class MedleyResult(val items: List<MedleyItem>, val model: String, val inputTokens: Int, val outputTokens: Int, val latencyMs: Int)
+
+data class Spelling(val index: Int, val artists: List<String>, val titles: List<String>)
+data class SpellResult(val items: List<Spelling>, val model: String, val inputTokens: Int, val outputTokens: Int, val latencyMs: Int)
+
 /** 제목 정리 (L2-3a). 구현: [FakeTitleCleaner](테스트·부하 실험), [BedrockTitleCleaner](실제) */
 interface TitleCleaner {
     fun clean(items: List<RawTitle>, model: String? = null): CleanResult
+
+    /**
+     * 못 찾은 Topic 곡의 다른 표기 후보 (TIME CAPSULE → 타임캡슐, Seo InGuk → 서인국).
+     * [RawTitle]의 title은 곡명, channel은 가수. 후보는 MusicBrainz에서 제목이 정확히 일치할 때만 쓴다.
+     */
+    fun spellings(items: List<RawTitle>, model: String? = null): SpellResult = SpellResult(emptyList(), "fake", 0, 0, 0)
+
+    /** 메들리 영상 제목에 적힌 곡들 (가수, 곡명). 제목에 곡명이 없으면 빈 목록 */
+    fun medleySongs(items: List<RawTitle>, model: String? = null): MedleyResult = MedleyResult(emptyList(), "fake", 0, 0, 0)
 }
 
 /**
@@ -30,6 +45,17 @@ interface TitleCleaner {
  * 통과하지 못하면 null → "못 찾음(INVALID)"
  */
 object CleanedValidator {
+    /** 메들리 곡 중 제목에 실제로 적힌 곡만. 가수는 제목이나 채널에 있을 때만 남긴다 (최대 6곡) */
+    fun medley(raw: RawTitle, songs: List<Pair<String?, String>>): List<Pair<String?, String>> {
+        val haystack = SearchText.norm(raw.title)
+        val withChannel = haystack + SearchText.norm(raw.channel)
+        return songs.mapNotNull { (artist, song) ->
+            val s = SearchText.norm(song)
+            if (s.isEmpty() || s !in haystack) return@mapNotNull null
+            artist?.takeIf { a -> SearchText.norm(a).let { it.isNotEmpty() && it in withChannel } } to song.trim()
+        }.distinctBy { SearchText.norm(it.second) }.take(15)
+    }
+
     /**
      * 연주·커버 영상의 정리된 곡명과 원곡 가수. 제목 안에 실제로 있는 표기만 쓴다 (곡명이 없으면 null).
      * 채널 이름에 있는 사람은 연주·커버를 한 사람일 수 있어 원곡 가수로 보지 않는다.

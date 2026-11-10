@@ -4,7 +4,8 @@ import java.text.Normalizer
 
 /** 곡명·가수 이름 비교 (docs/l1-design.md 4-3 규칙, tools/cover-art/measure.mjs와 같은 기준) */
 object TitleMatch {
-    private val STRIP = Regex("""[\s()\[\]~～\-'’.,!?:&]""")
+    // 하이픈·가운뎃점·프라임의 유니코드 변형도 같게 본다 (Good‐bye의 U+2010, マイ・フレンド의 U+30FB)
+    private val STRIP = Regex("""[\s()\[\]~～\-'’.,!?:&‐‑‒–—―・･′]""")
     private val SPLIT = Regex("""\s*[/(（]\s*|\s*[)）]\s*""")
     private val HANGUL = Regex("""[가-힣]""")
     private val DASH = Regex("""\s+[-–]\s+""")
@@ -33,6 +34,21 @@ object TitleMatch {
     /** 괄호 없이 병기한 제목을 나눈다 ("앨범 - 곡", "한글 제목 English Title") */
     private fun alternatives(piece: String): List<String> = piece.split(DASH).flatMap { part ->
         MIXED.find(part.trim())?.destructured?.toList() ?: listOf(part)
+    }
+
+    private val DUET = Regex("""\s*(?:&|,|×|\s[xX]\s|\bfeat\.?\s|\bwith\s)\s*""", RegexOption.IGNORE_CASE)
+
+    /** "서인국 & 정은지" 같은 합쳐진 이름의 첫 사람. 하나뿐이면 null */
+    fun firstOfDuet(name: String): String? = name.split(DUET).map { it.trim() }.filter { it.isNotEmpty() }.takeIf { it.size > 1 }?.first()
+
+    /**
+     * 잘린 제목 ("일도 맑은 하늘처럼" ⊂ "내일도 맑은 하늘 처럼"). 찾는 제목이 5글자 이상이고, 후보 안에 통째로 들어 있으며,
+     * 후보 글자 수의 80% 이상일 때만. 다른 방법으로 못 찾았을 때 마지막에만 쓴다.
+     */
+    fun partialTitle(candidate: String, wanted: String): Boolean {
+        val w = norm(wanted)
+        val c = norm(candidate)
+        return w.length >= 5 && w != c && w in c && w.length * 10 >= c.length * 8
     }
 
     /** 이름 순서만 다른 표기를 같게 본다 (Jong-Kook Kim = Kim Jong-kook) */

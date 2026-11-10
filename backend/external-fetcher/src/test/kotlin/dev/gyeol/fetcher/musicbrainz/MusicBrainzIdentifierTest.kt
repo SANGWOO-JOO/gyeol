@@ -22,7 +22,7 @@ class MusicBrainzIdentifierTest {
         mapOf("id" to id, "title" to title, "date" to date, "status" to status, "release-group" to mapOf("id" to "rg-$title", "primary-type" to type, "secondary-types" to secondary))
 
     private fun recording(id: String, title: String, vararg releases: Map<String, Any>, disambiguation: String = "") =
-        mapOf("id" to id, "title" to title, "disambiguation" to disambiguation, "releases" to releases.toList())
+        mapOf("id" to id, "title" to title, "disambiguation" to disambiguation, "length" to 210_000, "releases" to releases.toList())
 
     /** 가짜 MusicBrainz: 가수 검색, 제목 검색, 가수 녹음 목록을 각각 정해 둔다 */
     private fun identifier(
@@ -127,6 +127,7 @@ class MusicBrainzIdentifierTest {
             spellings = listOf("좋은 날"),
         ).identify("아이유", "좋은날")
         assertEquals("REAL", spaced.release!!.title)
+        assertEquals(210_000L, spaced.recording!!.lengthMs)
 
         val calls = mutableListOf<String>()
         val roman = identifier(
@@ -139,14 +140,43 @@ class MusicBrainzIdentifierTest {
     }
 
     @Test
-    fun `녹음은 있는데 원곡 음반이 없으면 음반 없이 곡으로 인정한다`() {
+    fun `원곡 음반이 없으면 라이브·베스트 등 공식 음반을 차선으로 쓰고, 공식 음반도 없으면 음반 없이 인정한다`() {
         val r = identifier(
             listOf(artist("z", "ZARD")),
             mapOf("負けないで" to listOf(recording("m", "負けないで", release("Best", "2000-01-01", secondary = listOf("Compilation"))))),
         ).identify("ZARD", "負けないで")
         assertEquals("MATCHED", r.status)
-        assertEquals("m", r.recording!!.mbid)
-        assertNull(r.release)
+        assertEquals("Best", r.release!!.title)
+
+        val noDate = identifier(listOf(artist("z", "ZARD")), mapOf("곡" to listOf(recording("m", "곡", release("앨범", "", type = "Album"))))).identify("ZARD", "곡")
+        assertEquals("앨범", noDate.release!!.title)
+
+        val bootleg = identifier(listOf(artist("z", "ZARD")), mapOf("곡" to listOf(recording("m", "곡", release("불법", "2000-01-01", status = "Bootleg"))))).identify("ZARD", "곡")
+        assertEquals("MATCHED", bootleg.status)
+        assertNull(bootleg.release)
+    }
+
+    @Test
+    fun `특수 구분 기호는 같은 제목으로 본다, 듀엣은 전체로 못 찾으면 첫 사람으로`() {
+        assertTrue(TitleMatch.sameTitle("Good‐bye My Loneliness", "Good-bye My Loneliness"))
+        assertTrue(TitleMatch.sameTitle("マイ・フレンド", "マイ フレンド"))
+        assertEquals("서인국", TitleMatch.firstOfDuet("서인국 & 정은지"))
+        assertEquals("A", TitleMatch.firstOfDuet("A X B"))
+        assertNull(TitleMatch.firstOfDuet("Girls' Generation"))
+
+        val duet = MusicBrainzIdentifier(
+            mb = { path, params ->
+                val q = params["query"].toString()
+                val body: Any = when {
+                    path == "/artist" && q.contains("서인국") && !q.contains("정은지") -> mapOf("artists" to listOf(artist("s", "서인국")))
+                    path == "/artist" -> mapOf("artists" to emptyList<Any>())
+                    else -> mapOf("recordings" to listOf(recording("a", "All For You", release("OST", "2012-08-28", type = "Single"))))
+                }
+                json.valueToTree<JsonNode>(body)
+            },
+            spellings = { _, _ -> emptyList() },
+        ).identify("서인국 & 정은지", "All For You")
+        assertEquals("서인국", duet.artist!!.name)
     }
 
     @Test
@@ -184,6 +214,21 @@ class MusicBrainzIdentifierTest {
         assertEquals("real", found.artist!!.mbid)
         assertEquals("Morning of Buzz", found.release!!.title)
         assertEquals("RECORDING", run(listOf(artist("real", "버즈"))).reason)
+    }
+
+    @Test
+    fun `잘린 제목은 다른 방법으로 못 찾았을 때만, 후보가 하나일 때 인정한다`() {
+        assertTrue(TitleMatch.partialTitle("내일도 맑은 하늘 처럼", "일도 맑은 하늘처럼"))
+        assertFalse(TitleMatch.partialTitle("Rain Drop", "Rain"))
+        assertFalse(TitleMatch.partialTitle("아주 긴 다른 곡 제목입니다", "다른 곡"))
+        val one = identifier(listOf(artist("y", "YOUNHA")), byArtist = listOf(recording("n", "내일도 맑은 하늘 처럼", release("혜성", "2007-10-23")))).identify("YOUNHA", "일도 맑은 하늘처럼")
+        assertEquals("혜성", one.release!!.title)
+        assertEquals("PARTIAL_TITLE", one.reason)
+        val two = identifier(
+            listOf(artist("y", "YOUNHA")),
+            byArtist = listOf(recording("a", "내일도 맑은 하늘 처럼", release("혜성", "2007-10-23")), recording("b", "어제도 맑은 하늘처럼", release("다른", "2008-01-01"))),
+        ).identify("YOUNHA", "도 맑은 하늘처럼")
+        assertEquals("NOT_FOUND", two.status)
     }
 
     @Test
