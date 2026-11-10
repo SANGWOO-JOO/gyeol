@@ -2,13 +2,14 @@
 
 > Analyzes your YouTube listening history and recommends songs that match your taste — with evidence for every pick.
 
-유튜브 청취 기록(Google Takeout)이나 좋아하는 곡 몇 개를 넣으면 취향을 분석하고, **위키백과·MusicBrainz·Last.fm 근거와 함께** 결이 맞는 곡 20곡을 추천합니다.
+유튜브 청취 기록(Google Takeout)을 올리면 **많이 들은 곡·가수·시간대를 원곡 기준으로 분석**합니다. 좋아하는 곡 몇 개를 고르면 위키백과·MusicBrainz·Last.fm **근거와 함께** 결이 맞는 곡 20곡을 추천합니다.
 EKS·AI 경험을 실측 수치와 함께 쌓으려고 만든 사이드 프로젝트입니다.
 
 | 진행 상황 | |
 |---|---|
 | 로컬 개발 L1~L3 (업로드·통계·곡 식별·RAG 보강·추천·평가) | 완료 |
-| 로컬 쿠버네티스(k3d) 배포 검증 | L3-3까지 완료, L3-4·5 확인 예정 |
+| 실제 Takeout으로 청취 분석 품질 개선 (식별·표지·순위) | 완료 |
+| 로컬 쿠버네티스(k3d) 배포 검증 | L3-3까지 완료, 이후 변경 확인 예정 |
 | AWS EKS (Terraform, 측정하는 날만 올리고 내리는 회차 5번) | 진행 예정 |
 | L4 (대화 에이전트, MCP 서버) | 보류 |
 
@@ -17,7 +18,7 @@ EKS·AI 경험을 실측 수치와 함께 쌓으려고 만든 사이드 프로�
 | 입구 | 입력 | 결과 |
 |---|---|---|
 | A. 곡 고르기 | 곡 3~5개 검색해서 선택 | 추천 20곡과 이유 |
-| B. 청취 기록 올리기 | Takeout `watch-history.json` | 통계(곡·가수·시간대·기간) + 취향 요약 + 추천 20곡과 이유 |
+| B. 청취 기록 올리기 | Takeout `watch-history.json` | 많이 들은 곡·가수(원곡 기준, 페이지로 전체 보기)·시간대·기간 |
 
 - 계정 없이 무작위 토큰 링크로 접근, 즉시 삭제 버튼, 청취 기록 원본 7일·결과 30일 뒤 자동 삭제
 - **원본 파일은 서버로 보내지 않습니다.** 브라우저(Web Worker)에서 음악 기록만 골라 올리고, 일반 영상 제목은 서버에 오지 않습니다.
@@ -28,8 +29,8 @@ EKS·AI 경험을 실측 수치와 함께 쌓으려고 만든 사이드 프로�
 flowchart LR
   web[web<br/>React·Vite<br/>브라우저에서 거르기] -->|서명 URL| s3[(S3)]
   web --> api[api<br/>Spring Boot]
-  s3 -->|업로드 알림| sqs[[SQS 큐 5개<br/>+ 실패 큐]]
-  sqs --> worker[worker<br/>parse·identify·cover·enrich·recommend]
+  s3 -->|업로드 알림| sqs[[SQS 큐 6개<br/>+ 실패 큐]]
+  sqs --> worker[worker<br/>parse·identify·cover·guess·enrich·recommend]
   api --> db[(PostgreSQL<br/>pgvector·pg_trgm)]
   worker --> db
   worker --> fetcher[external-fetcher<br/>외부 호출 한 곳, 속도 제한·캐시]
@@ -42,8 +43,9 @@ flowchart LR
 
 1. **거르기** — 브라우저에서 시청 기록 9.6만 건 → 음악 2.5만 건 (0.8초). 애매한 영상은 ID만 보내 YouTube API로 음악 여부 판정
 2. **저장** — S3 → 검증 → 한 트랜잭션 저장 (2.5만 건 4.5초) → 기본 통계
-3. **곡 식별** — "[MV] 밤편지" 같은 제목을 MusicBrainz 원곡으로. 규칙 → LLM 제목 정리 → 전역 캐시
-4. **표지** — 원곡 음반의 앞표지 (다른 음반 표지로 대신하지 않음)
+3. **곡 식별** — "[MV] 밤편지" 같은 제목을 MusicBrainz 원곡으로. 규칙 → LLM 제목 정리 → 다른 표기 재검색 → 전역 캐시
+4. **표지** — 원곡 음반의 앞표지를 S3에 미리 저장. 원곡 음반이 없으면 같은 음반 묶음의 다른 판 (다른 음반 표지로 대신하지 않음)
+   **방송 영상 가수 뽑기** — 많이 들은 방송·일반 채널 영상의 가수·곡을 LLM으로 읽어 확인된 가수일 때만 반영, 메들리는 곡마다
 5. **보강 (RAG)** — 위키백과·Last.fm·MusicBrainz 근거 수집 → LLM이 근거 안에서만 곡 설명 → 벡터
 6. **추천** — 취향 벡터 → 후보 50곡(Last.fm 두 경로 + 벡터 이웃) → 점수 → LLM 재정렬과 이유 → 검증
 7. **평가** — 좋아요·별로, 이유가 틀렸는지 체크 (RAG 켬/끔 블라인드 비교)
@@ -60,8 +62,12 @@ flowchart LR
 | 추천 이유 근거 일치 | Haiku 4.5 19/20 | Sonnet 4.6 20/20 (비용 약 3배, 시간 1.6배) |
 | 임베딩 (ONNX fp32) | PyTorch와 같은 벡터, 문장당 8.4ms | — |
 | 추천 좋아요 비율 (첫 측정, 1세션 20곡) | 75% | RAG 켬 7/10, 끔 8/10 (표본이 작아 차이 없음) |
+| 실제 Takeout 곡 식별 (상위 300개) | 찾음 272, 오류 0 | 개선 전 166, 오류 31 |
+| 재생 기준 원곡 확인 비율 | 52.2% | 개선 전 32.0% |
+| 상위 10곡 확인 | 약 50초 | 개선 전 처리 후반 |
+| 업로드 → 분석·표지 완료 | 20분 17초 | MusicBrainz 초당 1회 제한 |
 
-측정 방법과 한계는 설계 문서의 각 단계 끝에 적었습니다.
+측정 방법과 한계는 설계 문서의 각 단계 끝에 적었습니다. 실제 Takeout 측정은 모두 1회이며 [docs/todo/analysis-latency-errors.md](docs/todo/analysis-latency-errors.md)에 정리했습니다.
 
 ## 기술 선택
 
