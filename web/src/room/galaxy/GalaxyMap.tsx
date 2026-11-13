@@ -3,6 +3,7 @@ import type { MemberView, RoomMap } from '../roomApi'
 import { memberColor } from '../roomApi'
 import { planetPeople } from '../roomLogic'
 import { fitView, GALAXY_PX, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomLevel, type View } from './galaxyMath'
+import { NO_FRESH, songKey, type Fresh } from './fresh'
 import { orbitLayout, ringRadius, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
 
@@ -11,8 +12,8 @@ import g from './galaxy.module.css'
  * 확대·이동 중에는 React를 다시 그리지 않고 그룹 변환만 바꾸고, 멈춘 뒤(0.15초) 그 배율에 맞춰
  * 행성·글자를 화면에서 읽을 수 있는 크기로 다시 그린다. 이름은 겹치지 않는 것만 보인다.
  */
-export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
-  map: RoomMap; meId: number; roomId: string; onSelectArtist?: (artistId: number) => void
+export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH }: {
+  map: RoomMap; meId: number; roomId: string; onSelectArtist?: (artistId: number) => void; fresh?: Fresh
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const layerRef = useRef<SVGGElement>(null)
@@ -51,6 +52,9 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
   useLayoutEffect(() => {
     const el = wrapRef.current
     if (!el) return
+    // 첫 크기는 바로 잰다: ResizeObserver 첫 알림은 화면 그리기 주기에 묶여 숨겨진 창·백그라운드 탭에선 늦을 수 있음
+    const rect = el.getBoundingClientRect()
+    if (rect.width > 0) setSize({ width: rect.width, height: rect.height })
     const ro = new ResizeObserver(([e]) => setSize({ width: e.contentRect.width, height: e.contentRect.height }))
     ro.observe(el)
     return () => ro.disconnect()
@@ -166,12 +170,13 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
     }
     const count = new Map<number, number>()
     planets.forEach(p => { if (p.galaxyId != null) count.set(p.galaxyId, (count.get(p.galaxyId) ?? 0) + p.songs.length) })
+    // 화면 가장자리에 잘리는 구역 이름은 숨긴다
     const galaxyLabels = visibleLabels(galaxies.map(x => ({
       id: x.id, sx: x.wx * s + settled.tx, sy: x.wy * s + settled.ty - 38, r: 0,
       w: Array.from(x.name ?? '').length * 13 + 8, weight: count.get(x.id) ?? 0,
-    })), 18, level === 'far' ? [] : taken) // 멀리서는 구역 이름이 행성 위에 (테두리로 읽히게)
+    })).filter(it => it.sx - it.w / 2 >= 4 && it.sx + it.w / 2 <= size.width - 4 && it.sy >= 0 && it.sy + 20 <= size.height), 18, level === 'far' ? [] : taken) // 멀리서는 구역 이름이 행성 위에 (테두리로 읽히게)
     return { labels, ghostLabels, galaxyLabels }
-  }, [nameItems, ghosts, galaxies, planets, s, settled.tx, settled.ty, level])
+  }, [nameItems, ghosts, galaxies, planets, s, settled.tx, settled.ty, level, size])
 
   const v = viewRef.current
   return (
@@ -202,12 +207,18 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
               const ro = outer.get(p.artistId)! * u
               const mine = p.people.memberIds.includes(meId)
               const who = p.people.memberIds.map(id => members.get(id)?.nickname).filter(Boolean).join(', ')
+              // 연출: 4-f 첫 행성 · 새 행성(또는 준비 끝) · 멀리서 새 위성이 생긴 행성은 물결로 알림
+              const born = fresh.planets.has(p.artistId)
+              const ping = !born && level === 'far' && p.songs.some(x => fresh.tracks.has(songKey(p.artistId, x.trackId)) || fresh.gold.has(songKey(p.artistId, x.trackId)))
               return (
                 <g key={p.artistId} className={`${g.planetNode} ${p.preparing ? g.preparingNode : ''}`} data-artist={p.artistId}
                   transform={`translate(${p.wx} ${p.wy})`} role="button" tabIndex={0} onKeyDown={onKey(p.artistId)}
                   aria-label={`${p.name}, 노래 ${p.songs.length}곡${who ? `, ${who}` : ''}${p.people.shared ? `, 같이 담은 노래 ${p.people.shared}곡` : ''}${p.preparing ? ', 우주에 올리는 중' : ''}`}>
                   <circle className={g.planetHit} r={Math.max(ro, r + 10 * u)} />
-                  {level !== 'far' && <Orbits rings={p.rings} r={radius.get(p.artistId)!} u={u} members={members} near={level === 'near'} />}
+                  {(born || ping) && <Ripples r={born ? ro : r} u={u} first={born && fresh.first} />}
+                  {p.preparing && <circle className={g.prepRing} r={r + 5 * u} strokeWidth={1.2 * u} strokeDasharray={`${2 * u} ${5 * u}`} />}
+                  <g className={born ? (fresh.first ? g.firstPlanet : g.bornPlanet) : undefined}>
+                  {level !== 'far' && <Orbits artistId={p.artistId} rings={p.rings} r={radius.get(p.artistId)!} u={u} members={members} near={level === 'near'} fresh={fresh} />}
                   <circle className={g.planetBody} r={r} fill={p.preparing ? 'none' : 'url(#gl-planet)'} stroke={mine ? '#E6DCFF' : '#5E5794'}
                     strokeWidth={(mine ? 1.8 : 1.1) * u} strokeDasharray={p.preparing ? `${3 * u} ${4 * u}` : undefined} />
                   {level === 'far'
@@ -222,6 +233,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
                       <text y={3 * u} fontSize={9 * u} fontWeight={700} textAnchor="middle" fill="#3B2A10">{p.people.shared}</text>
                     </g>
                   )}
+                  </g>
                 </g>
               )
             })}
@@ -247,7 +259,9 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
  * 궤도·위성 (규칙 ⑫). 크기는 화면 px로 계산하고 u(세계/px)를 곱해 그린다.
  * 금빛 궤도 = 같이 담은 노래, 사람 궤도 = 그 사람 색 위성(혼자 담은 노래). 가까이(near)에선 위성을 조금 크게.
  */
-function Orbits({ rings, r, u, members, near }: { rings: Ring[]; r: number; u: number; members: Map<number, MemberView>; near: boolean }) {
+function Orbits({ artistId, rings, r, u, members, near, fresh }: {
+  artistId: number; rings: Ring[]; r: number; u: number; members: Map<number, MemberView>; near: boolean; fresh: Fresh
+}) {
   const color = (id: number) => memberColor(members.get(id)?.colorIdx ?? 0).bg
   const k = near ? 1.3 : 1
   return (
@@ -255,17 +269,52 @@ function Orbits({ rings, r, u, members, near }: { rings: Ring[]; r: number; u: n
       {rings.map((ring, i) => {
         const rr = ringRadius(r, i) * u
         const gold = ring.kind === 'gold'
+        const flash = gold && ring.sats.some(s => fresh.gold.has(songKey(artistId, s.trackId)))
         return (
           <g key={i}>
-            <circle r={rr} fill="none" className={gold ? g.goldRing : g.personRing}
+            <circle r={rr} fill="none" className={`${gold ? g.goldRing : g.personRing} ${flash ? g.goldFlash : ''}`}
               stroke={gold ? undefined : color(ring.memberIds[0])} strokeWidth={(gold ? 1 : 0.8) * u} />
-            {ring.sats.map(sat => (
-              <circle key={sat.trackId} cx={Math.cos(sat.angle) * rr} cy={Math.sin(sat.angle) * rr} r={satelliteRadius(sat, ring.kind) * k * u}
-                className={gold ? g.goldSat : undefined} fill={gold ? undefined : color(sat.memberIds[0])} />
-            ))}
+            {ring.sats.map(sat => {
+              const key = songKey(artistId, sat.trackId)
+              const cx = Math.cos(sat.angle) * rr, cy = Math.sin(sat.angle) * rr
+              const sr = satelliteRadius(sat, ring.kind) * k * u
+              return (
+                <g key={sat.trackId}>
+                  {/* 4-e 새 위성: 튀어나오듯 / 4-h 겹친 순간: 금빛 반짝임 */}
+                  <circle cx={cx} cy={cy} r={sr} fill={gold ? undefined : color(sat.memberIds[0])}
+                    className={`${gold ? g.goldSat : ''} ${fresh.tracks.has(key) || fresh.gold.has(key) ? g.satBorn : ''}`} />
+                  {fresh.gold.has(key) && <Sparkle x={cx} y={cy} u={u} />}
+                </g>
+              )
+            })}
           </g>
         )
       })}
+    </g>
+  )
+}
+
+/** 퍼지는 물결: 새 행성·준비 끝난 행성·멀리서 새 위성이 생긴 행성. 첫 행성(4-f)은 두 번, 더 크게 */
+function Ripples({ r, u, first }: { r: number; u: number; first: boolean }) {
+  return (
+    <g aria-hidden="true" className={g.ripples}>
+      <circle className={first ? g.rippleFirst : g.ripple} r={r + 4 * u} strokeWidth={1.5 * u} />
+      {first && <circle className={`${g.rippleFirst} ${g.rippleLate}`} r={r + 4 * u} strokeWidth={1.5 * u} />}
+    </g>
+  )
+}
+
+/** 4-h 금빛 반짝임: 위성 둘레 네 갈래 별 셋 */
+const STAR = 'M0 -1L.22 -.22 1 0 .22 .22 0 1-.22 .22-1 0-.22-.22z'
+function Sparkle({ x, y, u }: { x: number; y: number; u: number }) {
+  const spots = [[-9, -8, 5], [9, -6, 4], [2, 10, 3.5]]
+  return (
+    <g aria-hidden="true" transform={`translate(${x} ${y})`}>
+      {spots.map(([dx, dy, s], i) => (
+        <g key={i} transform={`translate(${dx * u} ${dy * u}) scale(${s * u})`}>
+          <path d={STAR} className={g.sparkle} style={{ animationDelay: `${i * 120}ms` }} />
+        </g>
+      ))}
     </g>
   )
 }

@@ -7,6 +7,7 @@ import { useRoomTheme } from '../components/RoomPage'
 import { Avatar, AvatarRoom } from '../components/Avatar'
 import { Wordmark } from '../components/Wordmark'
 import { GalaxyView } from '../galaxy/GalaxyView'
+import { useFreshMarks } from '../galaxy/fresh'
 import { itemKey, SearchPanel } from './SearchPanel'
 import { MineTab } from './MineTab'
 import { PeopleSheet } from './PeopleSheet'
@@ -42,6 +43,8 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
 
   const [me, setMe] = useState<MeView | null>(null)
   const [map, setMap] = useState<RoomMap | null>(null)
+  // 지도 연출(9-3): 지도 탭을 마지막으로 본 뒤 새로 생긴 위성·행성·겹침
+  const fresh = useFreshMarks(map, tab === 'map')
   const [toast, setToast] = useState<ToastData | null>(null)
   const [query, setQuery] = useState('')
   const [added, setAdded] = useState<Map<string, number>>(new Map())
@@ -238,7 +241,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
         )}
 
         {tab === 'map' && (map
-          ? <GalaxyView map={map} roomId={roomId} meId={me?.member.id ?? -1} onAddFirst={() => setTab('search')} onSelectArtist={id => setSheet({ kind: 'artist', id })} />
+          ? <GalaxyView map={map} roomId={roomId} fresh={fresh} meId={me?.member.id ?? -1} onAddFirst={() => setTab('search')} onSelectArtist={id => setSheet({ kind: 'artist', id })} />
           : <p className={sh.center} role="status">우주를 불러오는 중…</p>)}
 
         {tab === 'search' && (

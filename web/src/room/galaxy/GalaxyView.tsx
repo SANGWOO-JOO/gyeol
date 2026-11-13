@@ -3,6 +3,7 @@ import type { MemberView, Planet, RoomMap } from '../roomApi'
 import { memberColor } from '../roomApi'
 import { groupByGalaxy, planetPeople } from '../roomLogic'
 import { GalaxyMap } from './GalaxyMap'
+import type { Fresh } from './fresh'
 import g from './galaxy.module.css'
 
 /**
@@ -15,9 +16,11 @@ export interface GalaxyViewProps {
   meId: number
   onSelectArtist?: (artistId: number) => void
   onAddFirst?: () => void
+  /** 지도를 마지막으로 본 뒤 새로 생긴 것 (연출용, useFreshMarks) */
+  fresh?: Fresh
 }
 
-export function GalaxyView({ map, roomId, meId, onSelectArtist, onAddFirst }: GalaxyViewProps) {
+export function GalaxyView({ map, roomId, meId, onSelectArtist, onAddFirst, fresh }: GalaxyViewProps) {
   const [asList, setAsList] = useState(false)
   if (map.planets.length === 0) return <EmptyGalaxy onAddFirst={onAddFirst} />
   const toggle = <button type="button" className={g.viewToggle} onClick={() => setAsList(v => !v)}>{asList ? '지도로 보기' : '목록으로 보기'}</button>
@@ -25,7 +28,7 @@ export function GalaxyView({ map, roomId, meId, onSelectArtist, onAddFirst }: Ga
     return (
       <section aria-label="우리 음악 은하" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {toggle}
-        <GalaxyMap map={map} meId={meId} roomId={roomId} onSelectArtist={onSelectArtist} />
+        <GalaxyMap map={map} meId={meId} roomId={roomId} onSelectArtist={onSelectArtist} fresh={fresh} />
       </section>
     )
   }
