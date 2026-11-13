@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampScale, screenSpacing, fitView, MAX_SCALE, MIN_SCALE, pan, planetRadius, screenPlanetRadius, stars, visibleLabels, zoomAt, zoomLevel } from './galaxyMath'
+import { GROW_MAX, orbitSpin, zoomGrow, clampScale, screenSpacing, fitView, MAX_SCALE, MIN_SCALE, pan, planetRadius, screenPlanetRadius, stars, visibleLabels, zoomAt, zoomLevel } from './galaxyMath'
 
 const size = { width: 390, height: 600 }
 
@@ -103,5 +103,27 @@ describe('빽빽할 때 확대 단계', () => {
     const v = { scale: 1, tx: 0, ty: 0 }
     expect(screenSpacing([{ x: 10, y: 10 }, { x: 5000, y: 10 }], v, { width: 100, height: 100 })).toBeCloseTo(100)
     expect(screenSpacing([], v, { width: 100, height: 100 })).toBe(Infinity)
+  })
+})
+
+describe('I-37 확대 체감', () => {
+  it('처음 맞춘 배율보다 확대하면 √로 커지고 상한에서 멈춘다, 축소 쪽은 1', () => {
+    expect(zoomGrow(2.4, 2.4)).toBe(1)
+    expect(zoomGrow(4.8, 2.4)).toBeCloseTo(Math.SQRT2)
+    expect(zoomGrow(6, 0.5)).toBe(GROW_MAX)
+    expect(zoomGrow(0.3, 0.6)).toBe(1)
+    expect(zoomGrow(1, 0)).toBe(1)
+  })
+})
+
+describe('I-38 공전', () => {
+  it('한 바퀴 30~60초, 같은 행성·궤도면 늘 같은 값, 궤도마다 다르다', () => {
+    const all = Array.from({ length: 300 }, (_, i) => orbitSpin(i * 7 + 1, i % 4))
+    expect(all.every(x => x.seconds >= 30 && x.seconds <= 60)).toBe(true)
+    expect(orbitSpin(42, 1)).toEqual(orbitSpin(42, 1))
+    expect(new Set([0, 1, 2, 3].map(i => orbitSpin(42, i).seconds)).size).toBeGreaterThan(1)
+    const rev = all.filter(x => x.reverse).length
+    expect(rev).toBeGreaterThan(30)
+    expect(rev).toBeLessThan(270)
   })
 })

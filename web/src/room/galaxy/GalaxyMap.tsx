@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { MemberView, RoomMap } from '../roomApi'
 import { memberColor } from '../roomApi'
 import { planetPeople } from '../roomLogic'
-import { fitView, GALAXY_PX, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomLevel, type View } from './galaxyMath'
+import { fitView, GALAXY_PX, orbitSpin, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type View } from './galaxyMath'
 import { NO_FRESH, songKey, type Fresh } from './fresh'
 import { orbitLayout, ringRadius, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
@@ -46,10 +46,25 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
   }, [])
   useEffect(() => () => clearTimeout(settleTimer.current), [])
 
+  // 처음 맞춘 배율: 확대 체감(I-37)의 기준
+  const [fitScale, setFitScale] = useState(0)
   const fit = useCallback(() => {
     if (size.width === 0) return
-    apply(fitView(planets.map(p => ({ x: p.wx, y: p.wy })), size), true)
+    const v = fitView(planets.map(p => ({ x: p.wx, y: p.wy })), size)
+    setFitScale(v.scale)
+    apply(v, true)
   }, [apply, planets, size])
+
+  // 공전(I-38)은 지도를 끌거나 확대하는 동안 멈춘다: React를 다시 그리지 않고 class만 바꾼다
+  const resumeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const holdSpin = useCallback((resumeAfter?: number) => {
+    const el = wrapRef.current
+    if (!el) return
+    el.classList.add(g.spinPaused)
+    clearTimeout(resumeTimer.current)
+    if (resumeAfter != null) resumeTimer.current = setTimeout(() => el.classList.remove(g.spinPaused), resumeAfter)
+  }, [])
+  useEffect(() => () => clearTimeout(resumeTimer.current), [])
 
   useLayoutEffect(() => {
     const el = wrapRef.current
@@ -87,6 +102,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
     try { wrapRef.current?.setPointerCapture(e.pointerId) } catch { /* 이미 끝난 포인터: 캡처 없이 진행 */ }
     pointers.current.set(e.pointerId, local(e))
     if (pointers.current.size === 1) gesture.current = { moved: 0, downTarget: e.target, pinch: null }
+    holdSpin()
     if (pointers.current.size === 2) {
       const [a, b] = [...pointers.current.values()]
       gesture.current.pinch = Math.hypot(a.x - b.x, a.y - b.y)
@@ -115,6 +131,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
     const wasSingle = pointers.current.size === 1
     pointers.current.delete(e.pointerId)
     if (pointers.current.size < 2) gesture.current.pinch = null
+    if (pointers.current.size === 0) holdSpin(300)
     // 거의 움직이지 않았으면 탭: 누른 곳의 행성·유령 행성을 연다
     if (wasSingle && gesture.current.moved < 8) {
       const hit = (gesture.current.downTarget as Element | null)?.closest?.('[data-artist]')
@@ -129,12 +146,13 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       touched.current = true
+      holdSpin(400)
       const p = local(e)
       apply(zoomAt(viewRef.current, p.x, p.y, Math.exp(-e.deltaY * 0.0015)))
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [apply])
+  }, [apply, holdSpin])
 
   const zoomBy = (f: number) => { touched.current = true; apply(zoomAt(viewRef.current, size.width / 2, size.height / 2, f), true) }
   const onKey = (id: number) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectArtist?.(id) } }
@@ -142,28 +160,34 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
   // ── 멈춘 배율 기준 크기·이름 ──
   const s = settled.scale
   const u = 1 / s // 화면 1px = 세계 u
+  const grow = zoomGrow(s, fitScale) // 확대 체감: 처음 맞춤보다 확대하면 1 → GROW_MAX
+  const galaxyGrow = Math.min(1.3, grow) // 구역 이름은 덜 커지게
+  const nameGrow = Math.min(1.4, grow) // 행성 이름도 행성보다 덜
   const spacing = useMemo(() => screenSpacing(planets.map(p => ({ x: p.wx, y: p.wy })), settled, size), [planets, settled, size])
   const level = zoomLevel(s, spacing)
-  const radius = useMemo(() => new Map(planets.map(p => [p.artistId, screenPlanetRadius(p.songs.length, s)])), [planets, s])
+  const radius = useMemo(() => new Map(planets.map(p => [p.artistId, screenPlanetRadius(p.songs.length, s) * grow])), [planets, s, grow])
   // 궤도까지 포함한 바깥 반지름(px): 멀리서는 궤도를 그리지 않으므로 행성만
   const outer = useMemo(() => new Map(planets.map(p => {
     const r = radius.get(p.artistId)!
-    return [p.artistId, level === 'far' || p.rings.length === 0 ? r : ringRadius(r, p.rings.length - 1) + 2]
-  })), [planets, radius, level])
+    return [p.artistId, level === 'far' || p.rings.length === 0 ? r : ringRadius(r, p.rings.length - 1, grow) + 2 * grow]
+  })), [planets, radius, level, grow])
   const nameItems = useMemo(() => planets.map(p => ({
     id: p.artistId, sx: p.wx * s + settled.tx, sy: p.wy * s + settled.ty, r: outer.get(p.artistId)!,
-    w: Math.min(130, Array.from(p.name).length * 9 + 8), weight: p.songs.length + (p.people.memberIds.includes(meId) ? 0.5 : 0),
-  })), [planets, s, settled.tx, settled.ty, outer, meId])
+    w: Math.min(130 * nameGrow, (Array.from(p.name).length * 9 + 8) * nameGrow), weight: p.songs.length + (p.people.memberIds.includes(meId) ? 0.5 : 0),
+  })), [planets, s, settled.tx, settled.ty, outer, meId, nameGrow])
   // 화면 밖(한 화면 거리 이상) 행성은 그리지 않는다: 수백 개여도 가볍게. 이동 중엔 이 여유 안에서 보인다
   const onScreen = useMemo(() => {
     const mx = size.width, my = size.height
     return new Set(nameItems.filter(it => it.sx > -mx - it.r && it.sx < size.width + mx + it.r && it.sy > -my - it.r && it.sy < size.height + my + it.r).map(it => it.id))
   }, [nameItems, size])
+  // 공전은 실제로 화면 안(여유 없이)에 있는 행성만: 여유 칸 행성까지 돌리면 수백 개 지도에서 애니메이션이 몇 배로 는다
+  const inView = useMemo(() => new Set(nameItems.filter(it => it.sx > -it.r && it.sx < size.width + it.r && it.sy > -it.r && it.sy < size.height + it.r).map(it => it.id)), [nameItems, size])
   // 이름 자리 정하기: 행성 몸체를 먼저 놓고 → 행성 이름(노래 많은 순) → 유령 이름 → 구역 이름. 겹치면 숨긴다
   const { labels, ghostLabels, galaxyLabels } = useMemo(() => {
     const bodies = nameItems.map(it => ({ x0: it.sx - it.r - 3, x1: it.sx + it.r + 3, y0: it.sy - it.r - 3, y1: it.sy + it.r }))
-    const labels = level === 'far' ? new Set<number>() : visibleLabels(nameItems, 15, bodies)
-    const taken = [...bodies, ...nameItems.filter(it => labels.has(it.id)).map(it => labelBox(it, 15))]
+    const nameH = 15 * nameGrow
+    const labels = level === 'far' ? new Set<number>() : visibleLabels(nameItems, nameH, bodies)
+    const taken = [...bodies, ...nameItems.filter(it => labels.has(it.id)).map(it => labelBox(it, nameH))]
     let ghostLabels = new Set<number>()
     if (level !== 'far') {
       const gItems = ghosts.map(x => ({ id: x.artistId, sx: x.wx * s + settled.tx, sy: x.wy * s + settled.ty, r: 8, w: Math.min(120, Array.from(x.name).length * 8 + 8), weight: 0 }))
@@ -175,10 +199,10 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
     // 화면 가장자리에 잘리는 구역 이름은 숨긴다
     const galaxyLabels = visibleLabels(galaxies.map(x => ({
       id: x.id, sx: x.wx * s + settled.tx, sy: x.wy * s + settled.ty - 38, r: 0,
-      w: Array.from(x.name ?? '').length * 13 + 8, weight: count.get(x.id) ?? 0,
-    })).filter(it => it.sx - it.w / 2 >= 4 && it.sx + it.w / 2 <= size.width - 4 && it.sy >= 0 && it.sy + 20 <= size.height), 18, level === 'far' ? [] : taken) // 멀리서는 구역 이름이 행성 위에 (테두리로 읽히게)
+      w: (Array.from(x.name ?? '').length * 13 + 8) * galaxyGrow, weight: count.get(x.id) ?? 0,
+    })).filter(it => it.sx - it.w / 2 >= 4 && it.sx + it.w / 2 <= size.width - 4 && it.sy >= 0 && it.sy + 20 * galaxyGrow <= size.height), 18 * galaxyGrow, level === 'far' ? [] : taken) // 멀리서는 구역 이름이 행성 위에 (테두리로 읽히게)
     return { labels, ghostLabels, galaxyLabels }
-  }, [nameItems, ghosts, galaxies, planets, s, settled.tx, settled.ty, level, size])
+  }, [nameItems, ghosts, galaxies, planets, s, settled.tx, settled.ty, level, size, nameGrow, galaxyGrow])
 
   const v = viewRef.current
   return (
@@ -221,19 +245,19 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
                   {(born || ping) && <Ripples r={born ? ro : r} u={u} first={born && fresh.first} />}
                   {p.preparing && <circle className={g.prepRing} r={r + 5 * u} strokeWidth={1.2 * u} strokeDasharray={`${2 * u} ${5 * u}`} />}
                   <g className={born ? (fresh.first ? g.firstPlanet : g.bornPlanet) : undefined}>
-                  {level !== 'far' && <Orbits artistId={p.artistId} rings={p.rings} r={radius.get(p.artistId)!} u={u} members={members} near={level === 'near'} fresh={fresh} />}
+                  {level !== 'far' && <Orbits artistId={p.artistId} rings={p.rings} r={radius.get(p.artistId)!} u={u} grow={grow} members={members} near={level === 'near'} fresh={fresh} spin={inView.has(p.artistId)} />}
                   <circle className={g.planetBody} r={r} fill={p.preparing ? 'none' : 'url(#gl-planet)'} stroke={mine ? '#E6DCFF' : '#5E5794'}
                     strokeWidth={(mine ? 1.8 : 1.1) * u} strokeDasharray={p.preparing ? `${3 * u} ${4 * u}` : undefined} />
                   {level === 'far'
                     ? <text className={g.planetCount} y={r * 0.35} fontSize={Math.max(10 * u, r * 0.95)} textAnchor="middle">{p.songs.length}</text>
                     : <text className={g.planetInitial} y={r * 0.33} fontSize={r * 0.9} textAnchor="middle">{Array.from(p.name)[0]}</text>}
                   {labels.has(p.artistId) && (
-                    <text className={g.planetName} y={ro + 13 * u} fontSize={NAME_PX * u} textAnchor="middle">{p.name}</text>
+                    <text className={g.planetName} y={ro + 13 * nameGrow * u} fontSize={NAME_PX * nameGrow * u} textAnchor="middle">{p.name}</text>
                   )}
                   {p.people.shared > 0 && level !== 'far' && (
                     <g transform={`translate(${r * 0.78} ${-r * 0.78})`}>
-                      <circle r={7 * u} fill="#FFE3B8" stroke="#141225" strokeWidth={u} />
-                      <text y={3 * u} fontSize={9 * u} fontWeight={700} textAnchor="middle" fill="#3B2A10">{p.people.shared}</text>
+                      <circle r={7 * grow * u} fill="#FFE3B8" stroke="#141225" strokeWidth={u} />
+                      <text y={3 * grow * u} fontSize={9 * grow * u} fontWeight={700} textAnchor="middle" fill="#3B2A10">{p.people.shared}</text>
                     </g>
                   )}
                   </g>
@@ -242,7 +266,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
             })}
             {/* 구역 이름은 맨 위에 (멀리서는 행성 위에 겹쳐 그림) */}
             <g aria-hidden="true" className={g.galaxyNames}>
-              {galaxies.filter(x => galaxyLabels.has(x.id)).map(x => <text key={x.id} x={x.wx} y={x.wy - 22 * u} fontSize={GALAXY_PX * u} strokeWidth={3 * u} textAnchor="middle">{x.name}</text>)}
+              {galaxies.filter(x => galaxyLabels.has(x.id)).map(x => <text key={x.id} x={x.wx} y={x.wy - 22 * u} fontSize={GALAXY_PX * galaxyGrow * u} strokeWidth={3 * u} textAnchor="middle">{x.name}</text>)}
             </g>
           </g>
         </svg>
@@ -262,19 +286,21 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
  * 궤도·위성 (규칙 ⑫). 크기는 화면 px로 계산하고 u(세계/px)를 곱해 그린다.
  * 금빛 궤도 = 같이 담은 노래, 사람 궤도 = 그 사람 색 위성(혼자 담은 노래). 가까이(near)에선 위성을 조금 크게.
  */
-function Orbits({ artistId, rings, r, u, members, near, fresh }: {
-  artistId: number; rings: Ring[]; r: number; u: number; members: Map<number, MemberView>; near: boolean; fresh: Fresh
+function Orbits({ artistId, rings, r, u, grow, members, near, fresh, spin }: {
+  artistId: number; rings: Ring[]; r: number; u: number; grow: number; members: Map<number, MemberView>; near: boolean; fresh: Fresh
+  /** 화면 안이면 돈다 */
+  spin: boolean
 }) {
   const color = (id: number) => memberColor(members.get(id)?.colorIdx ?? 0).bg
-  const k = near ? 1.3 : 1
+  const k = (near ? 1.3 : 1) * grow
   return (
     <g aria-hidden="true" className={g.orbits}>
       {rings.map((ring, i) => {
-        const rr = ringRadius(r, i) * u
+        const rr = ringRadius(r, i, grow) * u
         const gold = ring.kind === 'gold'
         const flash = gold && ring.sats.some(s => fresh.gold.has(songKey(artistId, s.trackId)))
         return (
-          <g key={i}>
+          <SpinRing key={i} artistId={artistId} ring={i} guard={rr + 8 * k * u} on={spin}>
             <circle r={rr} fill="none" className={`${gold ? g.goldRing : g.personRing} ${flash ? g.goldFlash : ''}`}
               stroke={gold ? undefined : color(ring.memberIds[0])} strokeWidth={(gold ? 1 : 0.8) * u} />
             {ring.sats.map(sat => {
@@ -290,9 +316,27 @@ function Orbits({ artistId, rings, r, u, members, near, fresh }: {
                 </g>
               )
             })}
-          </g>
+          </SpinRing>
         )
       })}
+    </g>
+  )
+}
+
+/**
+ * 공전하는 궤도 하나 (I-38): 궤도(링) 단위 g 하나를 CSS로 돌린다 → 애니메이션 수 = 화면 안 궤도 수, 위성 수와 무관.
+ * 시작 위상은 벽시계 기준(음수 delay)이라 모든 행성이 같은 시계로 돈다.
+ * 회전 중심이 행성 중심이 되게 fill-box의 대칭을 보이지 않는 보호 원(guard)으로 맞춘다.
+ * 멈춤: 지도 조작 중(.spinPaused) · 행성에 마우스를 올렸을 때 · 움직임 줄이기 설정. 위성 하나를 멈추는 기능이 생기면 같은 class를 쓴다.
+ */
+function SpinRing({ artistId, ring, guard, on, children }: { artistId: number; ring: number; guard: number; on: boolean; children: ReactNode }) {
+  const { seconds, reverse } = orbitSpin(artistId, ring)
+  // 벽시계 위상: 돌기 시작할 때(화면에 들어올 때) 한 번 정하고, 다시 그려도 바꾸지 않는다(바꾸면 튄다)
+  const delay = useMemo(() => -((Date.now() / 1000) % seconds), [on, seconds]) // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <g className={on ? g.spin : g.spinStill} style={on ? { animationDuration: `${seconds}s`, animationDelay: `${delay}s`, animationDirection: reverse ? 'reverse' : 'normal' } : undefined}>
+      <circle r={guard} fill="none" stroke="none" />
+      {children}
     </g>
   )
 }

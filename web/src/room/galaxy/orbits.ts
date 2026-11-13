@@ -68,4 +68,4 @@ export function satelliteRadius(sat: Satellite, kind: Ring['kind']): number {
 
 /** 궤도 사이 간격(px)과 궤도 반지름 */
 export const RING_GAP = 6
-export const ringRadius = (planetR: number, i: number) => planetR + RING_GAP * (i + 1)
+export const ringRadius = (planetR: number, i: number, grow = 1) => planetR + RING_GAP * grow * (i + 1)

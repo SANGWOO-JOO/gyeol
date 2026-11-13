@@ -81,6 +81,22 @@ export const MIN_PLANET_R = 7
 export const NAME_PX = 11
 export const GALAXY_PX = 13
 
+/**
+ * 확대 체감 (I-37): 처음 맞춘 배율보다 확대하면 행성·위성·글자도 완만하게(√) 커진다. 축소 쪽은 1 그대로(최솟값 규칙),
+ * 너무 커지지 않게 GROW_MAX에서 멈춘다.
+ */
+export const GROW_MAX = 1.7
+export function zoomGrow(scale: number, fitScale: number): number {
+  if (!(fitScale > 0)) return 1
+  return Math.min(GROW_MAX, Math.max(1, Math.sqrt(scale / fitScale)))
+}
+
+/** 공전 (I-38): 궤도 한 바퀴 30~60초, 궤도마다 속도·방향을 조금씩 다르게 (행성·궤도 번호로 정해 늘 같다) */
+export function orbitSpin(artistId: number, ring: number): { seconds: number; reverse: boolean } {
+  const h = Math.abs(Math.imul(artistId + 1, 2654435761) ^ Math.imul(ring + 1, 40503)) >>> 0
+  return { seconds: 30 + (h % 31), reverse: ((h >>> 5) + ring) % 3 === 0 }
+}
+
 export function screenPlanetRadius(songs: number, scale: number): number {
   const zoomBoost = Math.sqrt(Math.min(2.2, Math.max(0.6, scale)))
   // 지름 14px 이상

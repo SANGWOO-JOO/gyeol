@@ -105,3 +105,10 @@
 .legend i.legendGhost { width: 11px; height: 11px; box-sizing: border-box; border: 1px dashed var(--r-peach); }
 .selectRing { fill: none; stroke: var(--r-accent-strong); pointer-events: none; }
 .selectedNode .planetName { fill: var(--r-text); font-weight: 700; }
+
+/* I-38 공전: 궤도 단위로 천천히 돈다. 조작 중·행성에 마우스를 올렸을 때 멈춤, 움직임 줄이기면 정지 */
+@keyframes orbitSpin { to { transform: rotate(360deg); } }
+.spin { transform-box: fill-box; transform-origin: center; animation: orbitSpin 45s linear infinite; }
+.spinPaused .spin, .planetNode:hover .spin { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+.spinStill { transform-box: fill-box; transform-origin: center; }

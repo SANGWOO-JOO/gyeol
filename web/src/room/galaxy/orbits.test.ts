@@ -36,3 +36,11 @@ describe('궤도 순서 (규칙 ⑫)', () => {
     expect(orbitLayout(p, [1])).toEqual(orbitLayout(p, [1]))
   })
 })
+
+describe('궤도 간격도 확대 체감을 따른다 (I-37)', () => {
+  it('grow를 주면 간격이 그만큼 넓어진다', async () => {
+    const { ringRadius, RING_GAP } = await import('./orbits')
+    expect(ringRadius(10, 0)).toBe(10 + RING_GAP)
+    expect(ringRadius(10, 1, 2)).toBe(10 + RING_GAP * 2 * 2)
+  })
+})
