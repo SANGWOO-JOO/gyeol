@@ -87,8 +87,8 @@ describe('searchBadge', () => {
   it('같은 가수의 다른 노래', () => {
     expect(searchBadge(item({ sameArtist: ['민지', '지훈'] }))).toEqual({ kind: 'sameArtist', text: '민지님·지훈님과 같은 아티스트' })
   })
-  it('DB에 없는 곡은 찾아서 담는다', () => {
-    expect(searchBadge(item({}, null)).kind).toBe('identify')
+  it('DB에 없는 곡도 따로 표시하지 않는다 (I-29)', () => {
+    expect(searchBadge(item({}, null))).toEqual({ kind: 'none' })
     expect(searchBadge(item()).kind).toBe('none')
   })
 })

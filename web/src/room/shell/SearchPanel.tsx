@@ -95,7 +95,6 @@ function SearchRow({ r, added, pending, busy, onAdd }: { r: RoomSearchItem; adde
         <span className={sh.songSub}>{sub}</span>
         {badge.kind === 'sameSong' && <span className={`${sh.badge} ${sh.badgeGold}`}>{badge.text}</span>}
         {badge.kind === 'sameArtist' && <span className={`${sh.badge} ${sh.badgeFriend}`}>{badge.text}</span>}
-        {badge.kind === 'identify' && !added && <span className={`${sh.badge} ${sh.badgeGold}`}>{badge.text}</span>}
       </span>
       {added ? (
         <span className={sh.added}>

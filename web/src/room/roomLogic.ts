@@ -7,12 +7,14 @@ export function mapCounts(map: RoomMap | null): { songs: number; artists: number
   return { songs: map.planets.reduce((n, p) => n + p.songs.length, 0), artists: map.planets.length }
 }
 
-/** 검색 결과 한 줄의 표시 (⑩): 이미 담음 > 친구가 담은 노래(금빛 나도 담기) > 친구와 같은 가수 > 새 노래 */
+/**
+ * 검색 결과 한 줄의 표시 (⑩): 이미 담음 > 친구가 담은 노래(금빛 나도 담기) > 친구와 같은 가수 > 표시 없음.
+ * DB에 없는 곡도 따로 표시하지 않는다(I-29): 담은 뒤 찾는 중은 지도 점선 고리·찾는 중 띠, 실패하면 4-i 안내.
+ */
 export type SearchBadge =
   | { kind: 'mine' }
   | { kind: 'sameSong'; text: string }
   | { kind: 'sameArtist'; text: string }
-  | { kind: 'identify'; text: string }
   | { kind: 'none' }
 
 export function searchBadge(r: RoomSearchItem): SearchBadge {
@@ -20,7 +22,6 @@ export function searchBadge(r: RoomSearchItem): SearchBadge {
   // names()는 늘 "님"·"명"으로 끝나 받침이 있으므로 조사는 "이"·"과"
   if (r.sameSong.length > 0) return { kind: 'sameSong', text: `${names(r.sameSong)}이 담은 노래` }
   if (r.sameArtist.length > 0) return { kind: 'sameArtist', text: `${names(r.sameArtist)}과 같은 아티스트` }
-  if (r.item.trackId == null) return { kind: 'identify', text: '처음 보는 노래 · 찾아서 담아요' }
   return { kind: 'none' }
 }
 
