@@ -251,7 +251,7 @@ CREATE INDEX idx_artist_recording_date ON artist_recording (artist_id, first_rel
 - 가수별 녹음 수(4-2 시간 추정)
 - fetcher Last.fm 캐시 TTL
 
-## 11. 결정이 필요한 것 (추천 먼저)
+## 11. 결정 (2026-11-14 사용자: A1~A9 추천안, A8만 7일로 변경)
 
 | # | 결정 | 추천 | 다른 선택 |
 |---|---|---|---|
@@ -262,5 +262,5 @@ CREATE INDEX idx_artist_recording_date ON artist_recording (artist_id, first_rel
 | A5 | 수집 큐 | **기존 room-song 큐에 새 메시지 종류** | 새 큐(Terraform·Helm·init-aws.sh 변경) |
 | A6 | 인기순 최대 | **100곡(20곡 × 5페이지)** | 50곡, 제한 없음 |
 | A7 | 최신순 판 표시(Live·Inst.·Remix) | **기본 숨김**(같은 제목은 가장 이른 날짜 하나) | 모두 보이기 |
-| A8 | 최신순 다시 모으기 | **90일 뒤 처음 열 때** | 매번 / 한 번만 |
+| A8 | 최신순 다시 모으기 | **7일 뒤 처음 열 때**(사용자 결정, 추천은 90일이었음). 설정값 `ARTIST_SCAN_REFRESH`(기본 7d)로 빼서 운영 중 조정. 근거: 신곡 반영과 MusicBrainz 부담(초당 1회를 식별과 공유)의 균형, MusicBrainz 입력 지연 때문에 1일은 효과가 적음 | 1일 / 15일 / 90일 |
 | A9 | 구현 순서 | **① → ② → ④ → ③**(③만 V27·worker라 마지막) | 설계 순서대로 |
