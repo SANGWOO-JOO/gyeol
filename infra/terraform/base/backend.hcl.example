@@ -1,0 +1,2 @@
+# cp backend.hcl.example backend.hcl 후 bootstrap 출력(state_bucket)을 적는다. backend.hcl은 git 제외
+bucket = "gyeol-tfstate-<계정ID>"
