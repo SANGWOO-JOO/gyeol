@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, appendSongs, artistCardSub, asSearchItem, canLoadMore, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, appendSongs, artistCardSub, asSearchItem, canLoadMore, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -225,6 +225,9 @@ describe('I-30 가수 화면', () => {
       ['2022', false, 'a'], ['2021', false, 'bc'], ['발매일 모름', true, 'xy'],
     ])
     expect(groupByRelease([])).toEqual([])
+  })
+  it('수집 중 다시 읽기는 처음 빨리, 오래 걸리면 4초', () => {
+    expect([0, 1, 2, 3, 9].map(scanPollMs)).toEqual([1200, 2000, 2000, 4000, 4000])
   })
   it('최신순 수집 안내', () => {
     expect(scanNotice('RUNNING')).toMatchObject({ title: '발매일을 모으는 중이에요', busy: true })

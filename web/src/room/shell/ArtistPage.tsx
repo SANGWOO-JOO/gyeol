@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { roomApi, RoomApiError, type ArtistSongItem, type ArtistSort, type RoomSearchItem, type SearchArtist } from '../roomApi'
-import { appendSongs, artistCardSub, artistSongsErrorText, asSearchItem, canLoadMore, groupByRelease, mergeArtist, releaseText, scanNotice, trackKey } from '../roomLogic'
+import { appendSongs, artistCardSub, artistSongsErrorText, asSearchItem, canLoadMore, groupByRelease, mergeArtist, releaseText, scanNotice, scanPollMs, trackKey } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { SearchRow } from './SearchPanel'
 import s from '../room.module.css'
@@ -11,9 +11,8 @@ export interface ArtistRef { artistId: number | null; name: string; fromPlanet?:
 
 interface Loaded { items: ArtistSongItem[]; page: number; hasMore: boolean; scan: ArtistSongsScan }
 type ArtistSongsScan = 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED' | null
-const SCAN_POLL_MS = 4000
-/** ③ 최신순(V27·worker)은 백엔드 마지막 단계: 준비되면 켠다 */
-const LATEST_READY = false
+/** ③ 최신순(V27·worker): 11-14 백엔드 준비됨 */
+const LATEST_READY = true
 
 const errText = (err: unknown) => err instanceof RoomApiError ? artistSongsErrorText(err.status, err.code, err.message) : '노래를 불러오지 못했어요'
 
@@ -68,9 +67,9 @@ export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack
   const scanBusy = sort === 'latest' && !!scanNotice(cur?.scan)?.busy
   useEffect(() => {
     if (!scanBusy) return
-    const t = setTimeout(() => setScanTick(n => n + 1), SCAN_POLL_MS)
+    const t = setTimeout(() => setScanTick(n => n + 1), scanPollMs(scanTick))
     return () => clearTimeout(t)
-  }, [scanBusy, cur])
+  }, [scanBusy, cur, scanTick])
 
   const more = useCallback(async () => {
     if (!cur || !canLoadMore(cur) || loadingMore || scanBusy) return

@@ -275,6 +275,9 @@ export function groupByRelease(items: ArtistSongItem[]): ReleaseGroup[] {
   return groups
 }
 
+/** 최신순 수집 중 다시 읽기 간격: 실제 수집은 보통 2~4초(11-14 실측)라 처음엔 빨리, 오래 걸리면 4초까지 늘린다 */
+export const scanPollMs = (tick: number) => (tick === 0 ? 1200 : tick < 3 ? 2000 : 4000)
+
 /** 최신순 상단 안내 (③) */
 export function scanNotice(scan: string | null | undefined): { title: string; sub: string; busy: boolean } | null {
   if (scan === 'QUEUED' || scan === 'RUNNING') return { title: '발매일을 모으는 중이에요', sub: '처음 한 번만 걸려요 · 모은 노래부터 보여 드려요', busy: true }
