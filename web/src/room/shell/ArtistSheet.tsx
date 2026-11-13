@@ -10,9 +10,9 @@ import sh from './shell.module.css'
 
 /**
  * 4′ 가수(행성)를 눌렀을 때: 방에 담긴 이 가수 노래(같이 담음 금빛, 내 노래 ✕), 근거로 쓴 설명과 출처,
- * 비슷한 아티스트(우리 우주에 없는 가수는 금빛 "함께 들어 볼 아티스트"), 이 아티스트 노래 담기.
+ * 비슷한 아티스트(우리 우주에 없는 가수는 금빛 "함께 들어 볼 아티스트"), 노래 전체 보기(I-30 4′2 → 가수 화면).
  */
-export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onSearch, onChanged, onError, show, onSelectArtist }: {
+export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onSearch, onChanged, onError, show, onSelectArtist, onOpenSongs }: {
   roomId: string
   artistId: number
   map: RoomMap | null
@@ -24,6 +24,8 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
   onError: (err: unknown) => boolean
   show: (t: Omit<ToastData, 'id'>) => void
   onSelectArtist: (id: number) => void
+  /** 이 가수의 노래 전체(가수 화면)로 */
+  onOpenSongs: (artistId: number, name: string) => void
 }) {
   const [a, setA] = useState<ArtistView | null>(null)
   const [failed, setFailed] = useState(false)
@@ -123,7 +125,10 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
             </div>
           )}
 
-          <button type="button" className={s.primary} style={{ height: 54, fontSize: 16, flex: 'none' }} onClick={() => onSearch(a.name)}>이 아티스트 노래 담기</button>
+          <button type="button" className={s.primary} style={{ height: 54, fontSize: 16, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4 }} onClick={() => onOpenSongs(a.artistId, a.name)}>
+            노래 전체 보기
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
         </>
       )}
     </Sheet>

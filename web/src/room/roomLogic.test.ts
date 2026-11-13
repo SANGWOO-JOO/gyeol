@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, appendSongs, artistCardSub, asSearchItem, canLoadMore, groupByRelease, releaseText, scanNotice, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -164,5 +164,60 @@ describe('새 그림 하루 10장 선착순 (⑯ 변경 11-14)', () => {
     expect(giftResultText(true, 'FAILED').text).toBe('오늘은 새 그림을 만들 수 없어서 미리 준비한 캐릭터를 드려요.')
     expect(giftResultText(true, undefined).text).toBe('오늘은 새 그림을 만들 수 없어서 미리 준비한 캐릭터를 드려요.')
     expect(giftResultText(false, 'DAILY_LIMIT').text).toBeNull()
+  })
+})
+
+describe('I-30 가수 화면', () => {
+  const t = (title: string, trackId: number | null = null) => ({ title, artist: '다비치', mbid: null, listeners: null, releaseYear: null, trackId, coverUrl: null })
+  const song = (title: string, releaseDate: string | null = null, trackId: number | null = null) => ({ item: t(title, trackId), mine: false, sameSong: [], releaseDate })
+
+  it('가수 카드 둘째 줄: 곡 수가 오면 곡 수, 없으면 지도 여부, 둘 다 없으면 빈 줄', () => {
+    expect(artistCardSub({ artistId: 1, name: '다비치', songCountInRoom: 3 })).toBe('우리 우주에 3곡')
+    expect(artistCardSub({ artistId: 1, name: '다비치', songCountInRoom: 0 })).toBe('아직 우리 우주에 담은 노래가 없어요')
+    expect(artistCardSub({ artistId: 1, name: '다비치', onMap: true })).toBe('우리 지도에 있는 가수예요')
+    expect(artistCardSub({ artistId: null, name: '다비치' })).toBe('')
+  })
+  it('인기순은 5페이지(100곡)까지만 이어 불러온다 (A6)', () => {
+    expect(canLoadMore({ hasMore: true, page: 1 })).toBe(true)
+    expect(canLoadMore({ hasMore: true, page: 5 })).toBe(false)
+    expect(canLoadMore({ hasMore: false, page: 2 })).toBe(false)
+  })
+  it('이어 붙일 때 같은 곡은 앞의 것만 남긴다', () => {
+    const a = [song('8282', null, 1), song('My Man')]
+    const b = [song('8282', null, 1), song('my man'), song('시간아 멈춰라')]
+    expect(appendSongs(a, b).map(x => x.item.title)).toEqual(['8282', 'My Man', '시간아 멈춰라'])
+  })
+  it('방 검색 모양으로 바꾸면 담기·금빛 표시를 그대로 쓴다', () => {
+    const r = asSearchItem({ ...song('8282'), sameSong: ['민지'] })
+    expect(r.sameArtist).toEqual([])
+    expect(searchBadge(r)).toEqual({ kind: 'sameSong', text: '민지님이 담은 노래' })
+    expect(trackKey(t('A', 7))).toBe('t7')
+    expect(trackKey(t('My Man'))).toBe('qmy man|다비치')
+  })
+  it('내가 담은 곡을 친구도 담았으면 같이 담음', () => {
+    expect(sharedWithText(['민지'])).toBe('민지님과 같이 담음')
+    expect(sharedWithText(['민지', '지훈'])).toBe('민지님·지훈님과 같이 담음')
+    expect(sharedWithText([])).toBeNull()
+  })
+  it('발매일 표시', () => {
+    expect(releaseText('2021-03-05')).toBe('2021.03.05')
+    expect(releaseText('2021-03')).toBe('2021.03')
+    expect(releaseText('2021')).toBe('2021')
+    expect(releaseText(null)).toBeNull()
+    expect(releaseText('언젠가')).toBeNull()
+  })
+  it('최신순은 연도별로 묶고 날짜 없는 곡은 맨 뒤 "발매일 모름"', () => {
+    const g = groupByRelease([song('a', '2022-01-02'), song('x', null), song('b', '2021-05'), song('c', '2021'), song('y', '')])
+    expect(g.map(x => [x.label, x.unknown, x.items.map(i => i.item.title).join('')])).toEqual([
+      ['2022', false, 'a'], ['2021', false, 'bc'], ['발매일 모름', true, 'xy'],
+    ])
+    expect(groupByRelease([])).toEqual([])
+  })
+  it('최신순 수집 안내', () => {
+    expect(scanNotice('RUNNING')).toMatchObject({ title: '발매일을 모으는 중이에요', busy: true })
+    expect(scanNotice('QUEUED')?.busy).toBe(true)
+    expect(scanNotice('FAILED')).toMatchObject({ busy: false })
+    expect(scanNotice('DONE')).toBeNull()
+    expect(scanNotice(undefined)).toBeNull()
   })
 })

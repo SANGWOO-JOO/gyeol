@@ -1,5 +1,5 @@
 // 방 화면 규칙 (room-plan.md 9절 ⑨⑩⑪, 캔버스 4-d·4-e·4-h·4-i). 화면과 떨어뜨려 테스트한다
-import type { Galaxy, Planet, RoomMap, RoomSearchItem } from './roomApi'
+import type { ArtistSongItem, Galaxy, Planet, RoomMap, RoomSearchItem, SearchArtist, TrackItem } from './roomApi'
 
 /** 머리의 "노래 8곡 · 가수 5명" (같은 노래를 여럿이 담아도 한 곡) */
 export function mapCounts(map: RoomMap | null): { songs: number; artists: number } {
@@ -203,4 +203,64 @@ export function giftResultText(isFallback: boolean, reason?: string | null): { t
   if (!isFallback) return { title: '', text: null }
   if (reason === 'DAILY_LIMIT') return { title: '기본 캐릭터를 보냈어요', text: '방금 오늘 몫이 다 떨어져 기본 캐릭터를 보냈어요.' }
   return { title: '기본 캐릭터를 보냈어요', text: '오늘은 새 그림을 만들 수 없어서 미리 준비한 캐릭터를 드려요.' }
+}
+
+// ── I-30 가수 화면 (docs/todo/artist-search.md) ──
+
+/** 검색 결과·가수 화면에서 한 곡을 구분하는 키 (DB 곡은 trackId, 아니면 제목|가수) */
+export const trackKey = (t: TrackItem) => (t.trackId != null ? `t${t.trackId}` : `q${t.title}|${t.artist}`.toLowerCase())
+
+/** 가수 카드·가수 머리의 둘째 줄. 서버가 곡 수를 안 주면 지도 여부만, 그것도 없으면 빈 줄 */
+export function artistCardSub(a: SearchArtist): string {
+  if (a.songCountInRoom != null) return a.songCountInRoom > 0 ? `우리 우주에 ${a.songCountInRoom}곡` : '아직 우리 우주에 담은 노래가 없어요'
+  return a.onMap ? '우리 지도에 있는 가수예요' : ''
+}
+
+/** 인기순은 100곡(20곡 × 5페이지)까지 (결정 A6) */
+export const ARTIST_MAX_PAGES = 5
+export function canLoadMore(p: { hasMore: boolean; page: number }): boolean {
+  return p.hasMore && p.page < ARTIST_MAX_PAGES
+}
+
+/** 이어 불러온 페이지를 붙인다. 페이지 사이에 같은 곡이 다시 오면 앞의 것을 남긴다 */
+export function appendSongs(prev: ArtistSongItem[], next: ArtistSongItem[]): ArtistSongItem[] {
+  const seen = new Set(prev.map(x => trackKey(x.item)))
+  return [...prev, ...next.filter(x => { const k = trackKey(x.item); if (seen.has(k)) return false; seen.add(k); return true })]
+}
+
+/** 가수 화면 곡을 방 검색과 같은 모양으로 (담기·금빛 표시를 그대로 쓰려고) */
+export const asSearchItem = (x: ArtistSongItem): RoomSearchItem => ({ item: x.item, mine: x.mine, sameSong: x.sameSong, sameArtist: [] })
+
+/** 가수 화면: 내가 담은 곡을 친구도 담았으면 금빛 "민지님과 같이 담음" (names()는 받침이 있어 "과") */
+export function sharedWithText(sameSong: string[]): string | null {
+  return sameSong.length > 0 ? `${names(sameSong)}과 같이 담음` : null
+}
+
+/** "2021-03-05" → "2021.03.05", "2021-03" → "2021.03", "2021" → "2021" */
+export function releaseText(d: string | null | undefined): string | null {
+  const m = d?.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/)
+  return m ? [m[1], m[2], m[3]].filter(Boolean).join('.') : null
+}
+
+/** 최신순 묶음 (③): 서버 순서(최신부터) 그대로 연도별로 나누고, 날짜 없는 곡은 맨 뒤 "발매일 모름" */
+export interface ReleaseGroup { label: string; unknown: boolean; items: ArtistSongItem[] }
+export function groupByRelease(items: ArtistSongItem[]): ReleaseGroup[] {
+  const groups: ReleaseGroup[] = []
+  const unknown: ArtistSongItem[] = []
+  for (const x of items) {
+    const y = x.releaseDate?.match(/^\d{4}/)?.[0]
+    if (!y) { unknown.push(x); continue }
+    const last = groups[groups.length - 1]
+    if (last && last.label === y) last.items.push(x)
+    else groups.push({ label: y, unknown: false, items: [x] })
+  }
+  if (unknown.length > 0) groups.push({ label: '발매일 모름', unknown: true, items: unknown })
+  return groups
+}
+
+/** 최신순 상단 안내 (③) */
+export function scanNotice(scan: string | null | undefined): { title: string; sub: string; busy: boolean } | null {
+  if (scan === 'QUEUED' || scan === 'RUNNING') return { title: '발매일을 모으는 중이에요', sub: '처음 한 번만 걸려요 · 모은 노래부터 보여 드려요', busy: true }
+  if (scan === 'FAILED') return { title: '발매일을 다 모으지 못했어요', sub: '모은 노래만 보여요 · 인기순에서 더 찾아보세요', busy: false }
+  return null
 }

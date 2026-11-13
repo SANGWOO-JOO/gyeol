@@ -24,6 +24,17 @@ export interface MeView {
 export interface TrackItem { title: string; artist: string; mbid: string | null; listeners: number | null; releaseYear: number | null; trackId: number | null; coverUrl: string | null }
 /** mine: 내가 이미 담음 · sameSong: 이 노래를 담은 사람 · sameArtist: 같은 가수의 다른 노래를 담은 사람 */
 export interface RoomSearchItem { item: TrackItem; mine: boolean; sameSong: string[]; sameArtist: string[] }
+/** 검색어가 가수와 맞을 때 결과 맨 위 가수 카드 (I-30 ①). DB에 없는 가수는 artistId 없음 */
+export interface SearchArtist { artistId: number | null; name: string; aliases?: string[] | null; songCountInRoom?: number | null; onMap?: boolean | null }
+export interface SearchResponse { items: RoomSearchItem[]; source: string; artist?: SearchArtist | null }
+/** 가수 화면 (I-30 ②③): 인기순·최신순 20곡씩 */
+export type ArtistSort = 'popular' | 'latest'
+export interface ArtistSongItem { item: TrackItem; mine: boolean; sameSong: string[]; rank?: number | null; releaseDate?: string | null }
+export interface ArtistSongsPage {
+  artist?: SearchArtist | null; sort: ArtistSort; page: number; pageSize: number; hasMore: boolean; items: ArtistSongItem[]
+  /** 최신순 발매일 모으기 상태 (③). RUNNING·QUEUED면 모은 것만 와 있다 */
+  scan?: 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED' | null
+}
 export interface SongView { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; sharedCount: number }
 export interface GiftNotice { boxId: number; milestone: number; status: string }
 /** 201 ADDED(바로 담김) · 202 IDENTIFYING(식별 맡김, requestId로 확인) */
@@ -146,7 +157,12 @@ export const roomApi = {
 
   me: (roomId: string, signal?: AbortSignal) => call<MeView>(`/rooms/${rid(roomId)}/me`, { roomId, signal }),
   search: (roomId: string, q: string, signal?: AbortSignal) =>
-    call<{ items: RoomSearchItem[]; source: string }>(`/rooms/${rid(roomId)}/search?q=${encodeURIComponent(q)}`, { roomId, signal }),
+    call<SearchResponse>(`/rooms/${rid(roomId)}/search?q=${encodeURIComponent(q)}`, { roomId, signal }),
+  /** 가수 노래 전체. DB 가수는 artistId로, 아직 DB에 없는 가수(카드의 artistId 없음)는 이름으로 */
+  artistSongs: (roomId: string, a: { artistId: number | null; name: string }, sort: ArtistSort, page: number, signal?: AbortSignal) =>
+    call<ArtistSongsPage>(a.artistId != null
+      ? `/rooms/${rid(roomId)}/artists/${a.artistId}/songs?sort=${sort}&page=${page}`
+      : `/rooms/${rid(roomId)}/artist-songs?name=${encodeURIComponent(a.name)}&sort=${sort}&page=${page}`, { roomId, signal }),
   addSong: (roomId: string, t: TrackItem) =>
     call<AddSongResponse>(`/rooms/${rid(roomId)}/songs`, {
       method: 'POST', roomId,

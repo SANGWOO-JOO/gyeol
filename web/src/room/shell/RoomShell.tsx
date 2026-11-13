@@ -12,6 +12,7 @@ import { itemKey, SearchPanel } from './SearchPanel'
 import { MineTab } from './MineTab'
 import { PeopleSheet } from './PeopleSheet'
 import { ArtistSheet } from './ArtistSheet'
+import { ArtistPage, type ArtistRef } from './ArtistPage'
 import { MemberSheet, MeSheet, SettingsSheet } from './AccountSheets'
 import { GiftSheet } from './GiftSheet'
 import { PlayTab } from './PlayTab'
@@ -61,6 +62,8 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const fresh = useFreshMarks(map, wide || tab === 'map')
   const [toast, setToast] = useState<ToastData | null>(null)
   const [query, setQuery] = useState('')
+  /** I-30 가수 화면: 검색 탭(PC는 오른쪽 판 검색) 자리에 뜬다 */
+  const [artistPage, setArtistPage] = useState<ArtistRef | null>(null)
   const [added, setAdded] = useState<Map<string, number>>(new Map())
   const [busy, setBusy] = useState<Set<string>>(new Set())
   const [pending, setPending] = useState<Pending[]>([])
@@ -124,7 +127,11 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
 
   /** 내 노래가 바뀜: 지도·내 정보·판들을 다시 받는다 */
   const changed = useCallback(() => { setVersion(v => v + 1); refreshMap(true); refreshMe(); refreshSummary() }, [refreshMap, refreshMe, refreshSummary])
-  const openSearch = useCallback((q: string) => { setQuery(q); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }, [setParams, setSheet])
+  const openSearch = useCallback((q: string) => { setQuery(q); setArtistPage(null); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }, [setParams, setSheet])
+  /** 4′2 지도 행성 → 가수 화면 (검색 탭 자리, PC는 오른쪽 판 검색) */
+  const openArtistSongs = useCallback((artistId: number, name: string) => {
+    setArtistPage({ artistId, name, fromPlanet: artistId }); setSheet(null); setParams({ tab: 'search' }, { replace: true })
+  }, [setParams, setSheet])
 
   // 지도 5초 새로고침 (탭이 보일 때만)
   useEffect(() => {
@@ -247,9 +254,21 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const galaxy = map
     ? <GalaxyView map={map} roomId={roomId} fresh={fresh} meId={me?.member.id ?? -1} fill={wide} selectedId={wide && sheet?.kind === 'artist' ? sheet.id : null} onAddFirst={goSearch} onSelectArtist={id => setSheet({ kind: 'artist', id })} />
     : <p className={sh.center} role="status">우주를 불러오는 중…</p>
-  const searchPanel = (
+  const pendingKeys = new Set(pending.map(p => p.key))
+  /** 가수 화면에서 뒤로: 행성 판에서 왔으면 그 판으로(휴대폰은 지도 탭), 아니면 검색 결과로 */
+  const backFromArtist = () => {
+    const from = artistPage?.fromPlanet
+    setArtistPage(null)
+    if (from == null) return
+    if (!wide) setTab('map')
+    setSheet({ kind: 'artist', id: from })
+  }
+  const searchPanel = artistPage ? (
+    <ArtistPage key={`${artistPage.artistId ?? ''}|${artistPage.name}`} roomId={roomId} artist={artistPage} added={added} pending={pendingKeys} busy={busy} onAdd={add}
+      onError={handle} backLabel={artistPage.fromPlanet != null ? `${artistPage.name} 가수 판으로` : '검색 결과로'} onBack={backFromArtist} />
+  ) : (
     <SearchPanel roomId={roomId} query={query} setQuery={setQuery} added={added}
-      pending={new Set(pending.map(p => p.key))} busy={busy} onAdd={add} />
+      pending={pendingKeys} busy={busy} onAdd={add} onOpenArtist={a => setArtistPage({ artistId: a.artistId, name: a.name })} />
   )
   const playTab = <PlayTab roomId={roomId} meId={me?.member.id ?? -1} version={version} onError={handle} show={show} />
   const mineTab = <MineTab roomId={roomId} me={me} map={map} version={version} onChanged={changed} onError={handle} show={show} onOpenGift={boxId => setSheet({ kind: 'gift', boxId })} />
@@ -265,7 +284,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const artistSheet = sheet?.kind === 'artist' && (
     <ArtistSheet roomId={roomId} artistId={sheet.id} map={map} meId={me?.member.id ?? -1} version={version}
       onClose={() => setSheet(null)} onSearch={openSearch} onChanged={changed} onError={handle} show={show}
-      onSelectArtist={id => setSheet({ kind: 'artist', id })} />
+      onSelectArtist={id => setSheet({ kind: 'artist', id })} onOpenSongs={openArtistSongs} />
   )
   // 방 위에 뜨는 것: 휴대폰은 아래 판, PC는 가운데 대화상자
   const overlays = (
