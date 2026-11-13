@@ -609,7 +609,8 @@ class RoomApiIntegrationTest {
         assertTrue(list.toList().any { it["publicId"].asString() == host.rid && it["memberCount"].asInt() == 2 && it["songCount"].asInt() == 1 && it["hostNickname"].asString() == "상우" })
         val detail = admin("GET", "/api/admin/rooms/${host.rid}", cookie).body!!
         assertTrue(detail["hostEmail"].asString().matches(Regex("a\\*\\*\\*@g\\*\\*\\*\\.com")), detail["hostEmail"].asString())
-        assertEquals(1, detail["recentSongs"].size())
+        assertTrue(!detail.has("recentSongs"), "관리자 상세에는 담긴 노래를 보이지 않는다 (I-19)")
+        assertEquals(1, detail["room"]["songCount"].asInt(), "곡 수만")
 
         // 다른 출처: CORS 단계(본문이 JSON이 아님) 또는 관리자 Origin 확인에서 403
         val evil = http.send(
@@ -684,12 +685,15 @@ class RoomApiIntegrationTest {
         assertEquals(host.memberId, ok.body!!["member"]["id"].asLong())
         assertTrue(ok.headers["set-cookie"]!!.single().contains("Path=/api/rooms/${host.rid}"))
         assertEquals(200, call("GET", "/api/rooms/${host.rid}/me", key = ok.body["key"].asString()).status, "새 열쇠")
-        assertEquals(200, call("GET", "/api/rooms/${host.rid}/me", key = host.key).status, "다른 기기 열쇠는 유지")
+        assertEquals(401, call("GET", "/api/rooms/${host.rid}/me", key = host.key).status, "다른 기기 열쇠는 폐기 (I-10)")
         assertEquals("PIN_MISMATCH", call("POST", "/api/rooms/${host.rid}/session", mapOf("memberId" to host.memberId, "pin" to "1234")).body!!["code"].asString())
         assertEquals(200, call("POST", "/api/rooms/${host.rid}/session", mapOf("memberId" to host.memberId, "pin" to "9876")).status)
         assertEquals("CODE_EXPIRED", call("POST", verifyPath, mapOf("code" to code, "newPin" to "5555")).body!!["code"].asString(), "쓴 코드는 다시 못 쓴다")
         val actions = jdbc.sql("SELECT action FROM audit_log WHERE detail ->> 'roomPublicId' = :p").param("p", host.rid).query(String::class.java).list()
         assertTrue("HOST_RESET_SENT" in actions && "HOST_PIN_RESET" in actions, actions.toString())
+        val revoked = jdbc.sql("SELECT (detail ->> 'revokedKeys')::int FROM audit_log WHERE action = 'HOST_PIN_RESET' AND detail ->> 'roomPublicId' = :p")
+            .param("p", host.rid).query(Int::class.java).single()
+        assertEquals(1, revoked, "방 만들 때 받은 열쇠 1개")
 
         // 5번 틀리면 맞는 코드도 잠김
         backdateSend()

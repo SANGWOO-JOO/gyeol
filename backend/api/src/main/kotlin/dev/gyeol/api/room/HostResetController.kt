@@ -27,7 +27,7 @@ data class HostResetVerify(val code: String?, val newPin: String?)
 /**
  * 방장 암호 재설정 (room-api-db.md 3절, 화면 6-d): 열쇠 없이 방 링크만으로 부른다.
  * 1) 방장 등록 이메일로 6자리 코드 (email_code purpose HOST_RESET, 방마다 최신 코드 하나)
- * 2) 코드 + 새 4자리 → 방장 암호 교체(틀린 횟수·잠금도 풂) → 이 기기 열쇠 발급(다시 들어오기와 같은 응답). 다른 기기 열쇠는 유지
+ * 2) 코드 + 새 4자리 → 방장 암호 교체(틀린 횟수·잠금도 풂) → 방장의 다른 기기 열쇠 모두 폐기(I-10) → 이 기기 열쇠 발급(다시 들어오기와 같은 응답)
  * 막는 장치: 코드 5번 틀리면 그 코드 잠금, 다시 받기 1분, 같은 이메일 1시간 5통·같은 IP 1시간 20통(방 만들기와 같은 mail_send_log), IP 분당 제한
  */
 @Service
@@ -89,9 +89,11 @@ class HostResetService(
             ?: throw ApiException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "이 우주에 방장이 없어요")
         drafts.useCode(ec.id)
         rooms.setPin(host.id, pins.hash(newPin))
+        // 이메일을 빼앗긴 경우까지 막도록 방장의 다른 기기 열쇠는 모두 폐기하고 이번 열쇠만 남긴다 (11-13 I-10 결정. 참가자 새 4자리 setPin은 열쇠 유지 그대로)
+        val revoked = rooms.revokeKeys(host.id)
         val key = Tokens.newToken()
         rooms.addKey(host.id, Tokens.hash(key))
-        rooms.audit("HOST", host.id, room.id, "HOST_PIN_RESET", host.id, json.writeValueAsString(mapOf("ip" to ip)))
+        rooms.audit("HOST", host.id, room.id, "HOST_PIN_RESET", host.id, json.writeValueAsString(mapOf("ip" to ip, "revokedKeys" to revoked)))
         return JoinedResponse(room.publicId, key, host.view())
     }
 }

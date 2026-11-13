@@ -135,6 +135,10 @@ class RoomRepository(private val jdbc: JdbcClient) {
 
     // ── 기기 열쇠 ──
 
+    /** 이 사람의 모든 기기 열쇠 폐기 (방장 암호 재설정 뒤, I-10). 폐기한 수 */
+    fun revokeKeys(memberId: Long): Int =
+        jdbc.sql("UPDATE member_key SET revoked_at = now() WHERE member_id = :m AND revoked_at IS NULL").param("m", memberId).update()
+
     fun addKey(memberId: Long, keyHash: ByteArray) {
         jdbc.sql("INSERT INTO member_key (key_hash, member_id) VALUES (:h, :m)").param("h", keyHash).param("m", memberId).update()
     }

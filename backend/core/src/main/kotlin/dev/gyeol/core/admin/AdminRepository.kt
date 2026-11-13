@@ -20,7 +20,6 @@ data class AdminRoomRow(
 )
 
 data class AdminMemberRow(val id: Long, val nickname: String, val role: String, val songCount: Int, val createdAt: Instant, val removedAt: Instant?)
-data class AdminSongRow(val id: Long, val memberId: Long, val nickname: String, val title: String, val artist: String, val addedAt: Instant)
 data class AuditRow(
     val id: Long, val actorType: String, val actorId: Long?, val roomId: Long?, val action: String,
     val targetMemberId: Long?, val detailJson: String?, val createdAt: Instant,
@@ -120,17 +119,6 @@ class AdminRepository(private val jdbc: JdbcClient) {
             """.trimIndent(),
         ).param("r", roomId).query { rs, _ ->
             AdminMemberRow(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getInt(4), rs.getTimestamp(5).toInstant(), rs.getTimestamp(6)?.toInstant())
-        }.list()
-
-    fun recentSongs(roomId: Long, limit: Int): List<AdminSongRow> =
-        jdbc.sql(
-            """
-            SELECT s.id, s.member_id, m.nickname, t.title, a.name, s.added_at
-            FROM room_song s JOIN member m ON m.id = s.member_id JOIN track t ON t.id = s.track_id JOIN artist a ON a.id = s.artist_id
-            WHERE s.room_id = :r ORDER BY s.id DESC LIMIT :l
-            """.trimIndent(),
-        ).param("r", roomId).param("l", limit).query { rs, _ ->
-            AdminSongRow(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getTimestamp(6).toInstant())
         }.list()
 
     fun hostEmail(roomId: Long): String? =

@@ -87,10 +87,10 @@
 | 검색·담기 | `GET /rooms/{rid}/search?q=`(같은 아티스트·같은 노래·이미 담음·새 가수 표시) · `POST /rooms/{rid}/songs` → 201(담김, 겹침·선물 여부) 또는 202(`song_request`) · `GET /rooms/{rid}/song-requests/{id}` · `DELETE /rooms/{rid}/songs/{id}`(빼기·되돌리기) | 4-d, 4-e, 4-g, 4-h, 4-i |
 | 내 노래 | `GET /rooms/{rid}/me/songs?sort=recent\|genre\|artist&cursor=` | 4-a |
 | 방장 | `GET /rooms/{rid}/members` · `POST /rooms/{rid}/members/{mid}/pin`(새 4자리를 한 번만 보여 줌) · `DELETE /rooms/{rid}/members/{mid}`(내보내기) · `PATCH /rooms/{rid}`(이름·마감) · `DELETE /rooms/{rid}`(숨김, 7일 뒤 완전 삭제) | 4-b, 6-c, 6-e, 6-f |
-| 방장 암호 재설정 | `POST /rooms/{rid}/host-reset`(등록 메일로 코드, 주소는 화면에 안 보임) · `POST /rooms/{rid}/host-reset/verify`(코드 + 새 암호). 11-13 구현: 열쇠 없이 부름, 보내기 202 `{codeExpiresAt, resendAfter}`(이메일 없음, 없는·숨긴 방은 `GET /rooms/{rid}`처럼 404), 확인 200 = 다시 들어오기와 같은 응답(열쇠·쿠키), 다른 기기 열쇠는 유지, 코드 5번 틀리면 잠금·다시 받기 1분·메일 1시간 제한(같은 이메일 5통·같은 IP 20통, 방 만들기와 공유)·IP 분당 제한, 감사 기록 `HOST_RESET_SENT`·`HOST_PIN_RESET` (`HostResetController`) | 6-d |
+| 방장 암호 재설정 | `POST /rooms/{rid}/host-reset`(등록 메일로 코드, 주소는 화면에 안 보임) · `POST /rooms/{rid}/host-reset/verify`(코드 + 새 암호). 11-13 구현: 열쇠 없이 부름, 보내기 202 `{codeExpiresAt, resendAfter}`(이메일 없음, 없는·숨긴 방은 `GET /rooms/{rid}`처럼 404), 확인 200 = 다시 들어오기와 같은 응답(열쇠·쿠키), 방장의 다른 기기 열쇠는 모두 폐기하고 이번 열쇠만 남김(11-13 I-10 결정, 감사 기록 `revokedKeys`. 참가자 새 4자리는 열쇠 유지 그대로), 코드 5번 틀리면 잠금·다시 받기 1분·메일 1시간 제한(같은 이메일 5통·같은 IP 20통, 방 만들기와 공유)·IP 분당 제한, 감사 기록 `HOST_RESET_SENT`·`HOST_PIN_RESET` (`HostResetController`) | 6-d |
 | 선물 | `GET /rooms/{rid}/me/gifts` · `POST /rooms/{rid}/me/gifts/{id}/open`(202) · `GET /rooms/{rid}/me/gifts/{id}` · `PUT /rooms/{rid}/me/avatar` · `GET /rooms/{rid}/characters/{id}/image` | 4-j, 4-k |
 | 놀이터 | `POST /rooms/{rid}/code-match {a,b}`(저장 결과 200, 없으면 202) · `GET /rooms/{rid}/code-match?a=&b=` | 8-a, 8-b |
-| 관리자 | `POST /admin/login` → `POST /admin/login/otp` · `GET /admin/rooms` · `GET /admin/rooms/{id}` · 숨김·되살리기 · 닉네임 변경·내보내기 · `GET /admin/audit` | 7-a~7-c |
+| 관리자 | `POST /admin/login` → `POST /admin/login/otp` · `GET /admin/rooms` · `GET /admin/rooms/{id}`(담긴 노래 목록은 보이지 않음, 곡 수만, 11-13 I-19) · 숨김·되살리기 · 닉네임 변경·내보내기 · `GET /admin/audit` | 7-a~7-c |
 
 ## 4. 비동기 (SQS + 실패 큐)
 
@@ -224,3 +224,4 @@
 - 운영 계정 만들기 절차: ① 운영 키 `ADMIN_TOTP_KEY`(base64 32바이트, 예: `openssl rand -base64 32`)를 비밀 저장소에 두고 API에 환경 변수로 준다. ② 사용자 자신의 터미널에서 `ADMIN_TOTP_KEY=… uv run --directory tools/admin-account python make_admin.py`. ③ 출력된 otpauth 주소를 인증 앱에 등록하고, INSERT 문을 운영 DB에서 실행한다. 출력은 저장하지 않는다. ④ 배포 때 Traefik IP 허용으로 `/api/admin`과 웹 `/admin`을 지정 IP만 연다(Helm 값).
 - 테스트: api `AdminSecurityTest` 4개(RFC 6238 벡터, 시간 칸, Python 도구 암호문 풀기, 이메일 가리기), `RoomApiIntegrationTest` 관리자 3개(로그인 2단계·재사용·로그아웃, 잠금 15분·실패 기록, 방 관리·다른 출처 403·감사 기록·완전 삭제 뒤 IP·닉네임 지움). 전체 api 46(측정 1개 건너뜀)·worker 72 통과.
 - 로컬 확인: 개발 서버에서 V26 적용, 로컬 시드 계정으로 로그인 2단계 → 방 목록 조회.
+- 11-13 I-19 결정: 관리자 방 상세에서 최근 담긴 노래(`recentSongs`)를 뺐다. 관리자는 방 이름·참가자·곡 수·감사 기록만 본다(관련 SQL `AdminRepository.recentSongs` 삭제).

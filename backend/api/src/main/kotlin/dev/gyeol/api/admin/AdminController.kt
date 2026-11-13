@@ -7,7 +7,6 @@ import dev.gyeol.api.web.ApiException
 import dev.gyeol.core.admin.AdminMemberRow
 import dev.gyeol.core.admin.AdminRepository
 import dev.gyeol.core.admin.AdminRoomRow
-import dev.gyeol.core.admin.AdminSongRow
 import dev.gyeol.core.admin.AuditRow
 import dev.gyeol.core.room.Role
 import dev.gyeol.core.room.RoomRepository
@@ -37,7 +36,7 @@ data class AdminMe(val id: Long, val email: String, val sessionExpiresAt: Instan
 
 data class AdminRoomPage(val items: List<AdminRoomRow>, val page: Int, val size: Int)
 data class AdminRoomDetail(
-    val room: AdminRoomRow, val hostEmail: String?, val members: List<AdminMemberRow>, val recentSongs: List<AdminSongRow>, val audit: List<AuditView>,
+    val room: AdminRoomRow, val hostEmail: String?, val members: List<AdminMemberRow>, val audit: List<AuditView>,
 )
 data class AuditView(val id: Long, val actorType: String, val actorId: Long?, val roomId: Long?, val action: String, val targetMemberId: Long?, val detail: Any?, val createdAt: Instant)
 data class AdminReason(val reason: String?)
@@ -135,7 +134,7 @@ class AdminService(
     fun room(publicId: String): AdminRoomDetail {
         val r = repo.room(publicId) ?: throw ApiException.roomNotFound()
         return AdminRoomDetail(
-            r, repo.hostEmail(r.id)?.let(::maskEmail), repo.members(r.id), repo.recentSongs(r.id, 50),
+            r, repo.hostEmail(r.id)?.let(::maskEmail), repo.members(r.id),
             repo.audit(r.publicId, 50, 0).map(::auditView),
         )
     }
