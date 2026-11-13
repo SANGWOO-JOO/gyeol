@@ -35,12 +35,20 @@ export function auditLine(a: AuditView, now: Date = new Date()): { when: string;
   return { when: shortTime(a.createdAt, now), text: `${who} · ${what}${extra ? ` (${extra})` : ''}` }
 }
 
-/** 같은 해면 "11-13 14:02", 아니면 "2025-11-13" */
+// 관리자 화면은 한국 운영자가 보므로 브라우저 시간대와 상관없이 한국 시간으로 보여 준다
+const seoul = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+})
+function seoulParts(d: Date) {
+  const g = (type: string) => seoul.formatToParts(d).find(x => x.type === type)!.value
+  return { y: g('year'), m: g('month'), d: g('day'), hh: g('hour'), mm: g('minute') }
+}
+
+/** 한국 시간 기준, 같은 해면 "11-13 14:02", 아니면 "2025-11-13" */
 export function shortTime(iso: string, now: Date = new Date()): string {
-  const t = new Date(iso)
-  const p = (n: number) => String(n).padStart(2, '0')
-  if (t.getFullYear() !== now.getFullYear()) return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}`
-  return `${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:${p(t.getMinutes())}`
+  const t = seoulParts(new Date(iso))
+  if (t.y !== seoulParts(now).y) return `${t.y}-${t.m}-${t.d}`
+  return `${t.m}-${t.d} ${t.hh}:${t.mm}`
 }
 
 /** "방금" · "5분 전" · "2시간 전" · "어제" · "9일 전" · "3주 전" */
