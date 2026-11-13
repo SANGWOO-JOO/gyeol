@@ -285,7 +285,7 @@
 .mapNotices .pending { box-shadow: 0 8px 28px rgba(0, 0, 0, .35); }
 
 /* 오른쪽 판: 줄 바탕은 밤 보라(캔버스처럼 판보다 한 단계 어둡게) */
-.panel {
+.sidePanel {
   --r-surface: var(--r-bg);
   flex: 0 0 400px; box-sizing: border-box; padding: 18px 22px 22px; border-left: 1px solid #2a2648; background: #1e1b36;
   display: flex; flex-direction: column; gap: 16px; overflow-y: auto;

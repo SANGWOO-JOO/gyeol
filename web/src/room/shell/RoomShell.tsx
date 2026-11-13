@@ -331,7 +331,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
             {(pendingBar || notFoundBox) && <div className={sh.mapNotices}>{pendingBar}{notFoundBox}</div>}
             <Toast toast={toast} onClose={closeToast} wide />
           </section>
-          <aside className={sh.panel} aria-label="자세히">
+          <aside className={sh.sidePanel} aria-label="자세히">
             <nav className={sh.segTabs} aria-label="판 보기">
               {PANEL_TABS.map(t => (
                 <button key={t} type="button" className={sh.segTab} aria-current={!detail && panelTab === t ? 'page' : undefined} onClick={() => setPanel(t)}>
