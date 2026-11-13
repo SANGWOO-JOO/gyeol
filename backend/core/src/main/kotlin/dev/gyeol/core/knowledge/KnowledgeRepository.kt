@@ -36,7 +36,7 @@ class KnowledgeRepository(private val jdbc: JdbcClient) {
         jdbc.sql("SELECT EXISTS (SELECT 1 FROM knowledge_fetch WHERE entity_type = :t AND entity_mbid = :m AND fetched_at > :s)")
             .param("t", type.name).param("m", mbid).param("s", Timestamp.from(since)).query(Boolean::class.java).single()
 
-    /** 대상의 청크를 새로 가져온 것으로 바꾼다 (출처·언어별 한 줄) */
+    /** 대상의 청크를 새로 가져온 것으로 바꾼다 (출처·언어별 한 줄). 위키 각주 "[1][2]"는 지운다 (I-34) */
     fun saveEntity(type: EntityType, mbid: UUID, chunks: List<Chunk>) {
         jdbc.sql("DELETE FROM knowledge_chunk WHERE entity_type = :t AND entity_mbid = :m").param("t", type.name).param("m", mbid).update()
         chunks.distinctBy { it.source to it.lang }.forEach { c ->
@@ -45,7 +45,7 @@ class KnowledgeRepository(private val jdbc: JdbcClient) {
                 INSERT INTO knowledge_chunk (entity_type, entity_mbid, source, lang, url, license, text)
                 VALUES (:t, :m, :s, :l, :u, :lic, :x)
                 """.trimIndent(),
-            ).param("t", type.name).param("m", mbid).param("s", c.source).param("l", c.lang).param("u", c.url).param("lic", c.license).param("x", c.text)
+            ).param("t", type.name).param("m", mbid).param("s", c.source).param("l", c.lang).param("u", c.url).param("lic", c.license).param("x", Citations.stripFootnotes(c.text))
                 .update()
         }
         jdbc.sql(

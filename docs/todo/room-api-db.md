@@ -296,3 +296,16 @@
 - 테스트: api I-31 1개(확인 전 곡만 COVER), worker I-31 1개(COVER 메시지 → 확인 안 한 곡만 cover 큐).
 - 로컬: worker 재시작(02:32) 때 41곡을 보냈고 몇 분 안에 미확인 0. 표지 있는 곡은 306/323(나머지 17곡은 Cover Art Archive에 표지가 없는 곡), track 316도 표지가 생김.
 
+### I-34 설명·근거 조각의 대괄호 숫자 (11-14)
+- 조사(사실, 로컬):
+  - 가수 설명 1,416개 중 163개 끝에 "[564][565]"가 있었다. 모두 **LLM이 근거 조각 번호를 본문에 적은 것**이다. 위키 각주가 아니고, 번호가 그 설명의 evidence와 같다.
+  - 위키 각주 "[1][2]"는 Last.fm 소개글 근거 조각 1,455개 중 9개에 있었다. 위키백과 조각에는 0개.
+  - 은하 이유(107)·코드 맞추기 이유(4)·곡 설명(108)에는 없음.
+- 고침(LLM 다시 부르지 않음):
+  - core `knowledge/Citations`: `stripEvidenceNumbers`(설명 본문의 [숫자] 모두), `stripFootnotes`(1~3자리 [숫자]). 문장부호 앞 공백도 정리한다.
+  - `MapRepository.saveDescription`은 설명을 저장할 때 근거 번호를 지운다. 번호는 evidence 칸에 그대로 있다.
+  - `KnowledgeRepository.saveEntity`는 근거 조각을 저장할 때 각주를 지운다.
+  - `V28__strip_citations.sql`: 기존 데이터를 같은 규칙으로 정리한다(설명 163 → 0, 조각 9 → 0, 로컬 02:39 적용).
+- 남는 것: 설명 벡터는 대괄호가 있던 문장으로 만들어졌다. 차이가 숫자뿐이라 다시 만들지 않는다.
+- 테스트: `CitationsTest` 2개, `RoomApiIntegrationTest` I-34 1개(저장할 때 지움, evidence 유지).
+

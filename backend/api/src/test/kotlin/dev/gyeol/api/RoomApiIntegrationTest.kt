@@ -154,6 +154,7 @@ class RoomApiIntegrationTest {
     @Autowired lateinit var gifts: dev.gyeol.core.room.GiftRepository
     @Autowired lateinit var roomRepo: dev.gyeol.core.room.RoomRepository
     @Autowired lateinit var releases: dev.gyeol.core.identify.ArtistReleaseRepository
+    @Autowired lateinit var knowledge: dev.gyeol.core.knowledge.KnowledgeRepository
 
     private val http = HttpClient.newHttpClient()
 
@@ -957,5 +958,21 @@ class RoomApiIntegrationTest {
         }
         assertTrue(unchecked in covers, covers.toString())
         assertTrue(checked !in covers)
+    }
+
+    @Test
+    fun `I-34 저장할 때 가수 설명의 근거 번호와 근거 조각의 위키 각주를 지운다`() {
+        val a = ArtistInfo(UUID.randomUUID(), "각주 가수", "각주 가수", emptyList())
+        val aid = songs.trackArtist(identify.upsertTrack(TrackInfo(UUID.randomUUID(), "각주 노래", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020", "Single")))!!
+        maps.ensureProfile(aid, "KR")
+        maps.saveDescription(aid, "록 음악을 선보인다. [653][654]", listOf(653L, 654L), "test")
+        assertEquals("록 음악을 선보인다.", maps.detail(aid)!!.description)
+        assertEquals(listOf(653L, 654L), maps.detail(aid)!!.evidence, "근거 번호는 evidence 칸에 그대로")
+
+        knowledge.saveEntity(dev.gyeol.core.knowledge.EntityType.ARTIST, a.mbid, listOf(
+            dev.gyeol.core.knowledge.Chunk("LASTFM", "en", "https://last.fm/x", "CC-BY-SA", "Best Female Vocalist in 2005.[1] Lee hosted[2][3] a show."),
+        ))
+        val text = jdbc.sql("SELECT text FROM knowledge_chunk WHERE entity_mbid = :m").param("m", a.mbid).query(String::class.java).single()
+        assertEquals("Best Female Vocalist in 2005. Lee hosted a show.", text)
     }
 }

@@ -79,8 +79,9 @@ class MapRepository(private val jdbc: JdbcClient) {
         ).param("l", limit).query { rs, _ -> ArtistRef(rs.getLong(1), rs.getObject(2) as UUID, rs.getString(3)) }.list()
 
     fun saveDescription(artistId: Long, description: String?, evidence: List<Long>, model: String) {
+        // 본문의 "[564]" 같은 근거 번호는 지운다: 번호는 evidence 칸에 따로 있다 (I-34)
         jdbc.sql("UPDATE artist_profile SET description = :d, evidence = :e, model = :m, described_at = now() WHERE artist_id = :a")
-            .param("a", artistId).param("d", description).param("e", evidence.toTypedArray()).param("m", model).update()
+            .param("a", artistId).param("d", description?.let(dev.gyeol.core.knowledge.Citations::stripEvidenceNumbers)?.ifBlank { null }).param("e", evidence.toTypedArray()).param("m", model).update()
     }
 
     /** 설명이 있는 가수 (artistId, 설명) */
