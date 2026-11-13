@@ -14,6 +14,13 @@ aws:
   recommendDlq: gyeol-local-recommend-dlq
   guessQueue: gyeol-local-guess
   artistImageQueue: gyeol-local-artist-image
+  # 음악 방 큐 (Terraform base sqs.tf · local/localstack/init-aws.sh와 같은 이름)
+  roomSongQueue: gyeol-local-room-song
+  roomSongDlq: gyeol-local-room-song-dlq
+  giftQueue: gyeol-local-gift-image
+  giftDlq: gyeol-local-gift-image-dlq
+  codeMatchQueue: gyeol-local-code-match
+  codeMatchDlq: gyeol-local-code-match-dlq
   coverBucket: gyeol-local-covers
   endpoint: http://host.k3d.internal:4566
   publicEndpoint: http://localhost:4566

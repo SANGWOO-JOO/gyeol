@@ -40,6 +40,13 @@ aws:
   recommendDlq: gyeol-recommend-dlq
   guessQueue: gyeol-guess
   artistImageQueue: gyeol-artist-image
+  # 음악 방 큐 (Terraform base sqs.tf · local/localstack/init-aws.sh와 같은 이름)
+  roomSongQueue: gyeol-room-song
+  roomSongDlq: gyeol-room-song-dlq
+  giftQueue: gyeol-gift-image
+  giftDlq: gyeol-gift-image-dlq
+  codeMatchQueue: gyeol-code-match
+  codeMatchDlq: gyeol-code-match-dlq
   coverBucket: gyeol-covers
   # 비우면 AWS 기본 주소. LocalStack일 때만 채운다
   endpoint: ""
@@ -67,7 +74,7 @@ worker:
   replicas: 1
   port: 18082
   # 처리할 큐 역할. EKS 측정 때는 parse·identify를 Deployment로 나눠 따로 늘릴 수 있다
-  role: parse,identify,cover,enrich,recommend,guess,artist
+  role: parse,identify,cover,enrich,recommend,guess,artist,room
   autoRecommend: false
   cleanupEnabled: true
   identifyTopN: 300
