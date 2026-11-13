@@ -8,6 +8,9 @@ import { Avatar } from '../components/Avatar'
 import { Wordmark } from '../components/Wordmark'
 import { GalaxyView } from '../galaxy/GalaxyView'
 import { itemKey, SearchPanel } from './SearchPanel'
+import { MineTab } from './MineTab'
+import { PeopleSheet } from './PeopleSheet'
+import { ArtistSheet } from './ArtistSheet'
 import { Toast, type ToastData } from './Toast'
 import s from '../room.module.css'
 import sh from './shell.module.css'
@@ -42,6 +45,10 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const [pending, setPending] = useState<Pending[]>([])
   const [notFound, setNotFound] = useState<NotFound | null>(null)
   const [pollTick, setPollTick] = useState(0)
+  const [sheet, setSheet] = useState<{ kind: 'people' } | { kind: 'artist'; id: number } | null>(null)
+  // 담기·빼기가 일어날 때마다 올린다 → 내 노래·참가자·가수 판이 다시 받는다
+  const [version, setVersion] = useState(0)
+  const [capacity, setCapacity] = useState(5)
   const etag = useRef<string | null>(null)
   const toastId = useRef(0)
 
@@ -70,6 +77,11 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   }, [roomId, handle])
 
   useEffect(() => { refreshMe(); refreshMap(true) }, [refreshMe, refreshMap])
+  useEffect(() => { roomApi.summary(roomId).then(r => setCapacity(r.capacity)).catch(() => { /* 기본 5명 */ }) }, [roomId])
+
+  /** 내 노래가 바뀜: 지도·내 정보·판들을 다시 받는다 */
+  const changed = useCallback(() => { setVersion(v => v + 1); refreshMap(true); refreshMe() }, [refreshMap, refreshMe])
+  const openSearch = useCallback((q: string) => { setQuery(q); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }, [setParams])
 
   // 지도 5초 새로고침 (탭이 보일 때만)
   useEffect(() => {
@@ -85,15 +97,15 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       sub: `${song.title} · ${song.artist}`,
       action: { label: '되돌리기', run: () => undo(song) },
     })
-    refreshMap(true); refreshMe()
-  }, [show, refreshMap, refreshMe])
+    changed()
+  }, [show, changed])
 
   async function undo(song: SongView) {
     try {
       await roomApi.removeSong(roomId, song.id)
       setAdded(prev => { const n = new Map(prev); n.delete(`t${song.trackId}`); return n })
       show({ title: '담은 노래를 뺐어요', sub: song.title })
-      refreshMap(true); refreshMe()
+      changed()
     } catch (err) {
       if (!handle(err)) show({ title: '빼지 못했어요', sub: err instanceof RoomApiError ? err.message : undefined, tone: 'error' })
     }
@@ -171,7 +183,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
         <div className={sh.headRow}>
           <Link to="/" aria-label="첫 화면"><Wordmark size={20} /></Link>
           <div className={sh.headRight}>
-            <button type="button" className={sh.faces} aria-label={`참가자 ${members.length}명 보기`} onClick={() => setTab('mine')}>
+            <button type="button" className={sh.faces} aria-label={`참가자 ${members.length}명 보기`} onClick={() => setSheet({ kind: 'people' })}>
               {members.map(m => <Avatar key={m.id} nickname={m.nickname} colorIdx={m.colorIdx} size={32} />)}
             </button>
             <button type="button" className={sh.iconButton} aria-label="친구 초대하기" onClick={invite}>
@@ -207,7 +219,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
         )}
 
         {tab === 'map' && (map
-          ? <GalaxyView map={map} meId={me?.member.id ?? -1} onAddFirst={() => setTab('search')} />
+          ? <GalaxyView map={map} meId={me?.member.id ?? -1} onAddFirst={() => setTab('search')} onSelectArtist={id => setSheet({ kind: 'artist', id })} />
           : <p className={sh.center} role="status">우주를 불러오는 중…</p>)}
 
         {tab === 'search' && (
@@ -216,8 +228,17 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
         )}
 
         {tab === 'play' && <Soon title="놀이터가 곧 열려요" text="친구와 코드가 얼마나 맞는지 알아보는 '코드 맞추기'를 준비하고 있어요." />}
-        {tab === 'mine' && <Soon title="내 노래·참가자 판을 준비하고 있어요" text={me ? `지금 ${me.songCount}곡을 담았어요 · 오늘 ${me.todayAdded}/${me.dailyLimit}곡` : ''} />}
+        {tab === 'mine' && <MineTab roomId={roomId} me={me} map={map} version={version} onChanged={changed} onError={handle} show={show} />}
       </main>
+
+      {sheet?.kind === 'people' && (
+        <PeopleSheet roomId={roomId} capacity={capacity} version={version} onClose={() => setSheet(null)} onInvite={invite} onError={handle} />
+      )}
+      {sheet?.kind === 'artist' && (
+        <ArtistSheet roomId={roomId} artistId={sheet.id} map={map} meId={me?.member.id ?? -1} version={version}
+          onClose={() => setSheet(null)} onSearch={openSearch} onChanged={changed} onError={handle} show={show}
+          onSelectArtist={id => setSheet({ kind: 'artist', id })} />
+      )}
 
       <Toast toast={toast} onClose={closeToast} />
 

@@ -106,3 +106,75 @@
 .dialog p { margin: 0; font-size: 14px; line-height: 1.6; color: #e6d6ec; }
 .dialogButtons { display: flex; gap: 8px; }
 .dialogButtons > * { flex: 1; height: 44px; }
+
+/* 아래에서 올라오는 판 (4-b·4′) */
+.sheetLayer { position: fixed; inset: 0; z-index: 10; display: flex; align-items: flex-end; justify-content: center; }
+.backdrop { position: absolute; inset: 0; background: rgba(11, 9, 24, .62); animation: fade .2s ease-out; }
+.sheet {
+  position: relative; width: 100%; max-width: 480px; max-height: min(86dvh, 760px); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 14px; padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+  border-radius: 28px 28px 0 0; background: var(--r-surface); border-top: 1px solid var(--r-border-soft);
+  animation: sheet-up .25s ease-out; outline: none;
+}
+.handle { align-self: center; width: 36px; height: 4px; border-radius: 2px; background: #3a3466; flex: none; }
+.sheetHead { display: flex; align-items: center; gap: 12px; flex: none; }
+.sheetTitleBox { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.sheetTitle { max-width: 100%; margin: 0; font-family: var(--r-font-title); font-size: 20px; font-weight: 700; }
+.close { width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: none; color: var(--r-text-2); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.close:hover { background: var(--r-field); }
+.close:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+.sheetBody > * { flex-shrink: 0; }
+.sheetBody { overflow-y: auto; display: flex; flex-direction: column; gap: 16px; margin: 0 -4px; padding: 0 4px 4px; }
+@keyframes sheet-up { from { transform: translateY(40px); opacity: .4; } }
+@keyframes fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sheet, .backdrop { animation: none; } }
+
+.sectionHead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.sectionHead h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.sectionHead span { font-size: 12px; color: var(--r-text-3); }
+
+/* 사람 줄 (4-b) */
+.person { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 12px; box-sizing: border-box; border-radius: 16px; background: var(--r-bg); }
+.personText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.personName { font-size: 15px; display: flex; align-items: center; gap: 6px; }
+.roleTag { font-size: 11px; color: #3b2a10; background: var(--r-peach); border-radius: 999px; padding: 1px 7px; }
+.inviteBox {
+  height: 52px; border: 1.5px dashed #5e5794; border-radius: 16px; background: none; color: #e6dcff; font: inherit; font-size: 15px;
+  display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+}
+.inviteBox:hover { background: var(--r-field); }
+.inviteBox:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+
+/* 노래 줄 (4-a·4′) */
+.songRow { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 4px 8px 12px; box-sizing: border-box; border-radius: 14px; background: var(--r-bg); }
+.songRowGold { background: #2a2540; box-shadow: inset 0 0 0 1px #5e5332; }
+.songRow .cover { width: 44px; height: 44px; }
+.who { font-size: 12px; color: var(--r-text-2); flex: none; max-width: 45%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.whoGold { color: var(--r-peach); }
+.goldCount { width: 18px; height: 18px; flex: none; border-radius: 50%; background: var(--r-peach); color: #3b2a10; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.colorDot { width: 10px; height: 10px; flex: none; border-radius: 50%; }
+.remove { width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: none; color: #8f87b0; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.remove:hover { color: var(--r-text); background: var(--r-field); }
+.remove:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+
+.why { display: flex; flex-direction: column; gap: 8px; background: var(--r-field); border-radius: 16px; padding: 14px; }
+.why h3 { margin: 0; font-size: 14px; font-weight: 700; color: #e6dcff; }
+.why p { margin: 0; font-size: 13px; line-height: 1.65; color: var(--r-silver); }
+.evidence { display: flex; gap: 6px; flex-wrap: wrap; }
+.evidence a { font-size: 11px; color: var(--r-text-2); border: 1px solid #3a3466; border-radius: 999px; padding: 4px 10px; text-decoration: none; }
+.evidence a:hover { color: var(--r-text); border-color: #5e5794; }
+.nearby { display: flex; gap: 8px; flex-wrap: wrap; }
+.nearby button { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: #2a2650; color: var(--r-silver); font: inherit; font-size: 13px; cursor: pointer; }
+.nearby .nearbyGhost { background: #3b3324; color: var(--r-peach); }
+.nearby button:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+
+.giftLine { display: flex; align-items: center; gap: 6px; min-height: 34px; box-sizing: border-box; padding: 0 12px; border-radius: 12px; background: #2a2650; color: var(--r-accent-strong); font-size: 12px; font-weight: 500; }
+.giftLine span:last-child { margin-left: auto; font-size: 11px; color: #8f87b0; font-weight: 400; }
+.chipsRow { display: flex; gap: 6px; flex-wrap: wrap; }
+.sortChip { height: 32px; padding: 0 12px; display: inline-flex; align-items: center; box-sizing: border-box; border: 1px solid var(--r-border); border-radius: 999px; background: none; color: var(--r-text-2); font: inherit; font-size: 12px; }
+.sortChip[aria-pressed='true'] { background: #3a3366; border-color: #3a3366; color: #e6dcff; }
+.sortChip:disabled { opacity: .55; }
+.mineHead { display: flex; justify-content: space-between; align-items: center; }
+.mineHead h2 { margin: 0; font-family: var(--r-font-title); font-size: 20px; font-weight: 700; }
+.mineHead strong { color: var(--r-accent-strong); }
+.orbBig { width: 52px; height: 52px; flex: none; border-radius: 50%; background: var(--r-chip); border: 1.5px solid #e6dcff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; }

@@ -33,6 +33,15 @@ export interface Galaxy { id: number; name: string | null; x: number; y: number 
 export interface Ghost { artistId: number; name: string; x: number; y: number; near: number }
 export interface RoomMap { rev: number; placeholder: boolean; members: MemberView[]; planets: Planet[]; galaxies: Galaxy[]; ghosts: Ghost[] }
 
+export interface MemberRow { id: number; nickname: string; role: Role; colorIdx: number; songCount: number; me: boolean; avatarCharacterId?: number | null }
+export interface MySong { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; addedAt: string; sharedWith: number }
+export interface MySongsPage { items: MySong[]; nextCursor: number | null }
+export interface Evidence { id: number; source: string; url: string }
+export interface ArtistView {
+  artistId: number; name: string; description: string | null; evidence: Evidence[]
+  songs: MapSong[]; nearby: { artistId: number; name: string; inRoom: boolean }[]; preparing: boolean
+}
+
 /** 서버 오류: code는 화면 분기용, detail에 남은 시도 횟수·잠금 남은 초 등 */
 export class RoomApiError extends Error {
   constructor(
@@ -105,6 +114,12 @@ export const roomApi = {
   songRequest: (roomId: string, id: number, signal?: AbortSignal) => call<RequestView>(`/rooms/${rid(roomId)}/song-requests/${id}`, { roomId, signal }),
   removeSong: (roomId: string, songId: number) => call<void>(`/rooms/${rid(roomId)}/songs/${songId}`, { method: 'DELETE', roomId }),
   map: (roomId: string, etag: string | null, signal?: AbortSignal) => fetchMap(roomId, etag, signal),
+  members: (roomId: string, signal?: AbortSignal) => call<MemberRow[]>(`/rooms/${rid(roomId)}/members`, { roomId, signal }),
+  mySongs: (roomId: string, cursor: number | null, limit = 30, signal?: AbortSignal) =>
+    call<MySongsPage>(`/rooms/${rid(roomId)}/me/songs?limit=${limit}${cursor != null ? `&cursor=${cursor}` : ''}`, { roomId, signal }),
+  artist: (roomId: string, artistId: number, signal?: AbortSignal) => call<ArtistView>(`/rooms/${rid(roomId)}/artists/${artistId}`, { roomId, signal }),
+  /** 되돌리기로 다시 담을 때 (trackId만) */
+  addTrack: (roomId: string, trackId: number) => call<AddSongResponse>(`/rooms/${rid(roomId)}/songs`, { method: 'POST', roomId, body: { trackId } }),
 }
 
 /** 지도는 ETag(map_rev)로 바뀌었을 때만 받는다. 바뀌지 않았으면 null */

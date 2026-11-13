@@ -1,6 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, failText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge } from './roomLogic'
+import { addedMessage, failText, galaxyOfTrack, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+
+describe('가수 판', () => {
+  const nameOf = (id: number) => ({ 1: '상우', 2: '민지', 3: '지훈' } as Record<number, string>)[id]
+  it('같이 담은 노래는 금빛, 나를 앞에', () => {
+    expect(songOwners([2, 1], 1, nameOf)).toEqual({ label: '나 · 민지 같이 담음', mine: true, gold: true })
+    expect(songOwners([2, 3], 1, nameOf)).toEqual({ label: '민지 · 지훈 같이 담음', mine: false, gold: true })
+  })
+  it('혼자 담은 노래', () => {
+    expect(songOwners([1], 1, nameOf)).toEqual({ label: '나', mine: true, gold: false })
+    expect(songOwners([3], 1, nameOf)).toEqual({ label: '지훈', mine: false, gold: false })
+  })
+  it('출처 이름', () => {
+    expect(sourceName('WIKIPEDIA')).toBe('위키백과')
+    expect(sourceName('ETC')).toBe('ETC')
+  })
+})
 
 const item = (over: Partial<RoomSearchItem> = {}, trackId: number | null = 1): RoomSearchItem => ({
   item: { title: '밤편지', artist: '아이유', mbid: null, listeners: null, releaseYear: 2017, trackId, coverUrl: null },
@@ -72,5 +88,12 @@ describe('지도 집계', () => {
 
   it('행성의 사람과 같이 담은 노래', () => {
     expect(planetPeople(m.planets[0])).toEqual({ memberIds: [1, 2], shared: 1 })
+  })
+
+  it('트랙의 구역 이름 (이름 없는 구역·구역 없는 가수는 빠짐)', () => {
+    const g = galaxyOfTrack(m)
+    expect(g.get(100)).toBe('새벽 감성 발라드')
+    expect(g.has(200)).toBe(false)
+    expect(g.has(300)).toBe(false)
   })
 })

@@ -79,6 +79,36 @@ export function groupByGalaxy(map: RoomMap): GalaxyGroup[] {
     .sort((a, b) => (a.id == null ? 1 : 0) - (b.id == null ? 1 : 0) || songCount(b.planets) - songCount(a.planets))
 }
 
+/** 트랙 → 그 노래가 있는 구역 이름 (내 노래 줄의 "가수 · 구역") */
+export function galaxyOfTrack(map: RoomMap | null): Map<number, string> {
+  const out = new Map<number, string>()
+  if (!map) return out
+  const names = new Map(map.galaxies.map(g => [g.id, g.name]))
+  for (const p of map.planets) {
+    const name = p.galaxyId != null ? names.get(p.galaxyId) : null
+    if (name) p.songs.forEach(s => out.set(s.trackId, name))
+  }
+  return out
+}
+
+/** 가수 판의 노래 한 줄: 같이 담음(금빛) · 내 노래(✕) · 친구 노래 */
+export function songOwners(memberIds: number[], meId: number, nameOf: (id: number) => string | undefined): { label: string; mine: boolean; gold: boolean } {
+  const mine = memberIds.includes(meId)
+  const others = memberIds.filter(id => id !== meId).map(nameOf).filter((n): n is string => !!n)
+  if (memberIds.length >= 2) return { label: `${[...(mine ? ['나'] : []), ...others].join(' · ')} 같이 담음`, mine, gold: true }
+  return { label: mine ? '나' : others[0] ?? '', mine, gold: false }
+}
+
+/** 근거 출처 표시 이름 */
+export function sourceName(source: string): string {
+  switch (source) {
+    case 'WIKIPEDIA': return '위키백과'
+    case 'LASTFM': return 'Last.fm'
+    case 'MUSICBRAINZ': return 'MusicBrainz'
+    default: return source
+  }
+}
+
 /** 행성에 노래를 담은 사람들 (위성 색), 같이 담은 노래 수 (금빛) */
 export function planetPeople(p: Planet): { memberIds: number[]; shared: number } {
   const ids = new Set<number>()
