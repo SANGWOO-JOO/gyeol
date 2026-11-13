@@ -73,7 +73,7 @@ class TrackSearchController(props: GyeolProperties, private val db: TrackSearchR
             log.warn("곡 검색 실패: {}", e.message)
             if (local.isNotEmpty()) return TrackSearchResponse(local, "db")
             throw ApiException(HttpStatus.SERVICE_UNAVAILABLE, "SEARCH_UNAVAILABLE", "지금은 곡을 검색할 수 없습니다. 잠시 뒤 다시 시도해 주세요")
-        }
+        }.let(::cleanRemote)
         if (local.isEmpty()) return TrackSearchResponse(remote, "lastfm")
 
         // 같은 곡(정규화한 곡명+가수, 또는 같은 mbid)은 DB 쪽만 남긴다
@@ -82,5 +82,29 @@ class TrackSearchController(props: GyeolProperties, private val db: TrackSearchR
         return TrackSearchResponse((strong + rest + weak).take(limit), "db+lastfm")
     }
 
-    private fun key(t: TrackItem) = "${SearchText.norm(t.title)}|${SearchText.norm(t.artist)}"
+    companion object {
+        /** "Clairo • Lossless", "가수 • Recommended for you" 처럼 스트리밍 앱 문구가 붙은 가수명 (11-13 갈래 A 발견) */
+        private val ARTIST_NOISE = Regex("""\s+•\s+.*$""")
+
+        fun key(t: TrackItem) = "${SearchText.norm(t.title)}|${SearchText.norm(t.artist)}"
+
+        /**
+         * Last.fm 결과 정리: 가수명의 " • 잡음"을 잘라 내고, 정리 뒤 같은 (곡, 가수)는 하나로 합친다.
+         * 남기는 쪽: mbid가 있는 것 → 청취자가 많은 것. 순서는 처음 나온 자리를 따른다.
+         * (잡음이 붙은 가수명으로 담으면 식별이 실패했다. 곡 고르기 검색과 방 검색이 같은 경로를 쓴다)
+         */
+        fun cleanRemote(items: List<TrackItem>): List<TrackItem> {
+            val cleaned = items.map { it.copy(artist = it.artist.replace(ARTIST_NOISE, "").trim().ifEmpty { it.artist }) }
+            val best = linkedMapOf<String, TrackItem>()
+            for (t in cleaned) {
+                val k = key(t)
+                val old = best[k]
+                if (old == null || better(t, old)) best[k] = t
+            }
+            return best.values.toList()
+        }
+
+        private fun better(a: TrackItem, b: TrackItem): Boolean =
+            if ((a.mbid != null) != (b.mbid != null)) a.mbid != null else (a.listeners ?: 0) > (b.listeners ?: 0)
+    }
 }

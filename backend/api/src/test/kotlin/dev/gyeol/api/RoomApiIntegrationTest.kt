@@ -65,7 +65,17 @@ class RoomApiIntegrationTest {
         // 가짜 Last.fm 검색: 항상 "새 노래 / 가수 A"
         private val fakeFetcher = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress(0), 0).apply {
             createContext("/internal/lastfm/search") { ex ->
-                val body = """{"items":[{"title":"새 노래","artist":"가수 A","mbid":null,"listeners":10,"releaseYear":null}],"source":"lastfm","cached":false}""".toByteArray()
+                // 검색어에 "Pretty"가 있으면 스트리밍 앱 문구가 붙은 가수명 결과 (11-13 " • 잡음" 정리 확인)
+                val noisy = ex.requestURI.rawQuery.orEmpty().contains("Pretty")
+                val body = (
+                    if (noisy) {
+                        """{"items":[{"title":"Pretty Girl","artist":"Clairo • Lossless","mbid":null,"listeners":5,"releaseYear":null},""" +
+                            """{"title":"Pretty Girl","artist":"Clairo","mbid":"0b0b0b0b-0000-0000-0000-000000000001","listeners":100,"releaseYear":null},""" +
+                            """{"title":"Pretty Girl","artist":"Clairo • Recommended for you","mbid":null,"listeners":7,"releaseYear":null}],"source":"lastfm","cached":false}"""
+                    } else {
+                        """{"items":[{"title":"새 노래","artist":"가수 A","mbid":null,"listeners":10,"releaseYear":null}],"source":"lastfm","cached":false}"""
+                    }
+                    ).toByteArray()
                 ex.responseHeaders.add("Content-Type", "application/json")
                 ex.sendResponseHeaders(200, body.size.toLong()); ex.responseBody.use { it.write(body) }
             }
@@ -695,5 +705,16 @@ class RoomApiIntegrationTest {
         val code3 = mail.outbox[email]!!
         jdbc.sql("UPDATE email_code SET expires_at = now() - interval '1 second' WHERE purpose = 'HOST_RESET' AND used_at IS NULL").update()
         assertEquals("CODE_EXPIRED", call("POST", verifyPath, mapOf("code" to code3, "newPin" to "1111")).body!!["code"].asString())
+    }
+
+    @Test
+    fun `검색 - Last fm 가수명의 점 뒤 잡음을 잘라 같은 곡은 한 줄로, 방 검색과 곡 고르기 검색 모두`() {
+        val host = newRoom()
+        val room = call("GET", "/api/rooms/${host.rid}/search?q=Pretty%20Girl", key = host.key).body!!["items"].toList()
+        assertEquals(1, room.size, room.toString())
+        assertEquals("Clairo", room.single()["item"]["artist"].asString())
+        assertEquals("0b0b0b0b-0000-0000-0000-000000000001", room.single()["item"]["mbid"].asString(), "mbid가 있는 쪽을 남긴다")
+        val pick = call("GET", "/api/tracks/search?q=Pretty%20Girl").body!!["items"].toList()
+        assertEquals(listOf("Clairo"), pick.map { it["artist"].asString() })
     }
 }
