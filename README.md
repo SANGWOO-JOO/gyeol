@@ -33,6 +33,30 @@ EKS·AI 경험을 실측 수치와 함께 쌓으려고 만든 사이드 프로�
 - 계정 없이 무작위 토큰 링크로 접근, 즉시 삭제 버튼, 청취 기록 원본 7일·결과 30일 뒤 자동 삭제 (음악 방은 방장이 지울 때까지 보관, 숨긴 뒤 7일 뒤 완전 삭제)
 - **원본 파일은 서버로 보내지 않습니다.** 브라우저(Web Worker)에서 음악 기록만 골라 올리고, 일반 영상 제목은 서버에 오지 않습니다.
 
+## 화면
+
+로컬 테스트 방 데이터로 찍었습니다 (휴대폰 390px, PC 1440px).
+
+| 첫 화면 | 방 지도 (행성·궤도·금빛 위성) |
+|:---:|:---:|
+| <img src="docs/images/mobile-landing.webp" width="260" alt="첫 화면"> | <img src="docs/images/mobile-map.webp" width="260" alt="방 지도를 확대한 모습. 행성 주위로 사람 색 위성과 같이 담은 노래의 금빛 궤도가 보인다"> |
+| **검색해 담기** | **내 노래 (선물 줄)** |
+| <img src="docs/images/mobile-search.webp" width="260" alt="노래 검색 결과와 담기 버튼"> | <img src="docs/images/mobile-mine.webp" width="260" alt="내 노래 목록과 맨 위 선물 줄"> |
+| **코드 맞추기 결과** | **50곡 선물 상자** |
+| <img src="docs/images/mobile-code-match.webp" width="260" alt="두 사람의 코드 맞추기 결과. 점수와 장르 비율·지도 거리·겹친 아티스트·같이 담은 노래"> | <img src="docs/images/mobile-gift-box.webp" width="260" alt="선물 상자와 오늘 남은 새 그림 장수"> |
+| **새 캐릭터** | |
+| <img src="docs/images/mobile-gift-character.webp" width="260" alt="담은 노래로 만든 새 캐릭터"> | |
+
+**PC 배치** — 왼쪽 지도, 오른쪽 판(놀이터·검색·내 노래·참가자)
+
+| 방 전체 | 가수 자세히 |
+|:---:|:---:|
+| <img src="docs/images/pc-room.webp" alt="PC 방 화면. 왼쪽 지도와 오른쪽 내 노래 판"> | <img src="docs/images/pc-artist.webp" alt="PC에서 행성을 눌러 오른쪽 판에 가수 자세히를 연 모습"> |
+
+**관리자 우주 목록**
+
+<img src="docs/images/pc-admin.webp" alt="관리자 우주 목록. 우주 이름·방장 닉네임·참가자·노래 수·상태">
+
 ## 구조
 
 ```mermaid
