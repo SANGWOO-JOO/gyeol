@@ -57,3 +57,4 @@ v0.3.0 push → checks(1절 전체) → images → release → deploy
 | 11-14 | 설계, 결정 3가지(GHCR 공개·태그 배포·Argo CD 없음). CI 구현을 갈래 1에 맡김 |
 | 11-14 | CI 구현·첫 통과(`664bae7`~`ecd6581`, CI #3 전 작업 통과) |
 | 11-14 | images·release 구현(`release.yml`): ubuntu-24.04-arm 러너로 arm64 5개 → `ghcr.io/sangwoo-joo/gyeol-<이름>:<태그>`(하이픈 없는 태그만 latest), 노트에 마이그레이션 표시, 하이픈 태그는 prerelease. Helm `values-single.yaml`이 GHCR 주소를 쓰고 k3d는 그대로. 운영 배포 때 `--set image.tag=v…` 필수(GHCR에 `dev` 없음). 아직 태그로 실행해 보지 않음 |
+| 11-14 | 첫 릴리스 시험 `v0.1.0-rc1` 성공(Release #1, 6분 34초): pre-release 생성, 노트 초안 정상, arm64 이미지 5개가 GHCR에 올라가 **로그인 없이 받을 수 있음**(익명 토큰으로 매니페스트 200 확인, 공개 전환 손작업 불필요) |
