@@ -13,7 +13,13 @@ data class DbTrackHit(
     val releaseYear: Int?,
     val coverUrl: String?,
     val score: Int,
+    /** 가수 묶기·같은 곡 합치기용 (I-30): 우리 가수 id, MusicBrainz 원래 제목 */
+    val artistId: Long = 0,
+    val mbTitle: String = "",
 )
+
+/** 가수 이름·별칭 (I-30 가수 묶기). plays: 그 가수 곡의 누적 재생 수 */
+data class ArtistNames(val id: Long, val name: String, val aliases: List<String>, val plays: Long)
 
 /** L2-4 우리 DB 곡 검색 (docs/l2-design.md). 색인은 곡을 저장하거나 캐시를 기록할 때 함께 넣는다 */
 @Repository
@@ -105,7 +111,7 @@ class TrackSearchRepository(private val jdbc: JdbcClient) {
             ), m AS (
                 SELECT track_id, max(score) AS score, max(sim) AS sim FROM hits GROUP BY track_id
             )
-            SELECT t.id, t.recording_mbid, t.release_date, t.cover_url, m.score,
+            SELECT t.id, t.recording_mbid, t.release_date, t.cover_url, m.score, t.artist_id, t.title AS mb_title,
                    coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_title) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED'), t.title) AS title,
                    coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED'), a.name) AS artist
             FROM m JOIN track t ON t.id = m.track_id JOIN artist a ON a.id = t.artist_id
@@ -121,7 +127,66 @@ class TrackSearchRepository(private val jdbc: JdbcClient) {
                 releaseYear = rs.getString("release_date")?.take(4)?.toIntOrNull(),
                 coverUrl = rs.getString("cover_url"),
                 score = rs.getInt("score"),
+                artistId = rs.getLong("artist_id"),
+                mbTitle = rs.getString("mb_title"),
             )
         }.list()
     }
+
+    private val hitSelect = """
+        SELECT t.id, t.recording_mbid, t.release_date, t.cover_url, t.artist_id, t.title AS mb_title,
+               coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_title) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED'), t.title) AS title,
+               coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED'), a.name) AS artist
+        FROM track t JOIN artist a ON a.id = t.artist_id
+    """.trimIndent()
+
+    private fun hitOf(rs: java.sql.ResultSet, score: Int) = DbTrackHit(
+        rs.getLong("id"), rs.getString("title"), rs.getString("artist"), rs.getObject("recording_mbid", UUID::class.java),
+        rs.getString("release_date")?.take(4)?.toIntOrNull(), rs.getString("cover_url"), score, rs.getLong("artist_id"), rs.getString("mb_title"),
+    )
+
+    /** 곡 id로 (검색 결과와 같은 표시 제목·가수). 점수는 0 */
+    fun hits(ids: Collection<Long>): List<DbTrackHit> =
+        if (ids.isEmpty()) emptyList()
+        else jdbc.sql("$hitSelect WHERE t.id IN (:ids)").param("ids", ids).query { rs, _ -> hitOf(rs, 0) }.list()
+
+    /** 한 가수의 곡 전부 (가수 화면에서 Last.fm 곡을 우리 곡과 맞출 때) */
+    fun hitsOfArtist(artistId: Long): List<DbTrackHit> =
+        jdbc.sql("$hitSelect WHERE t.artist_id = :a ORDER BY t.plays_total DESC, t.id LIMIT 300").param("a", artistId).query { rs, _ -> hitOf(rs, 0) }.list()
+
+    /** 녹음 MBID → 곡 id */
+    fun trackIdsByMbids(mbids: Collection<UUID>): Map<UUID, Long> =
+        if (mbids.isEmpty()) emptyMap()
+        else jdbc.sql("SELECT recording_mbid, id FROM track WHERE recording_mbid IN (:m)").param("m", mbids)
+            .query { rs, _ -> rs.getObject(1, UUID::class.java) to rs.getLong(2) }.list().toMap()
+
+    /** 식별 캐시(title_alias) 키 → 곡 id (MATCHED만) */
+    fun aliasTracks(keys: Collection<String>): Map<String, Long> =
+        if (keys.isEmpty()) emptyMap()
+        else jdbc.sql("SELECT alias_key, track_id FROM title_alias WHERE status = 'MATCHED' AND alias_key IN (:k)").param("k", keys)
+            .query { rs, _ -> rs.getString(1) to rs.getLong(2) }.list().toMap()
+
+    /**
+     * 이름·별칭이 [lowered] 중 하나와 (소문자로) 같은 가수 후보. 최종 비교는 호출하는 쪽이 SearchText.norm으로 한다.
+     * 정규화(공백·문장부호 제거)는 SQL로 똑같이 만들기 어려워 소문자 비교로 후보만 좁힌다
+     */
+    fun artistsByNames(lowered: Collection<String>): List<ArtistNames> =
+        if (lowered.isEmpty()) emptyList()
+        else jdbc.sql(
+            """
+            SELECT a.id, a.name, a.aliases, coalesce((SELECT sum(plays_total) FROM track t WHERE t.artist_id = a.id), 0)
+            FROM artist a
+            WHERE lower(a.name) IN (:l) OR EXISTS (SELECT 1 FROM unnest(a.aliases) x WHERE lower(x) IN (:l))
+            """.trimIndent(),
+        ).param("l", lowered).query { rs, _ ->
+            @Suppress("UNCHECKED_CAST")
+            ArtistNames(rs.getLong(1), rs.getString(2), (rs.getArray(3).array as Array<String>).toList(), rs.getLong(4))
+        }.list()
+
+    fun artistNames(id: Long): ArtistNames? =
+        jdbc.sql("SELECT a.id, a.name, a.aliases, coalesce((SELECT sum(plays_total) FROM track t WHERE t.artist_id = a.id), 0) FROM artist a WHERE a.id = :id")
+            .param("id", id).query { rs, _ ->
+                @Suppress("UNCHECKED_CAST")
+                ArtistNames(rs.getLong(1), rs.getString(2), (rs.getArray(3).array as Array<String>).toList(), rs.getLong(4))
+            }.optional().orElse(null)
 }

@@ -2,7 +2,6 @@ package dev.gyeol.api.search
 
 import dev.gyeol.api.config.GyeolProperties
 import dev.gyeol.api.web.ApiException
-import dev.gyeol.core.identify.DbTrackHit
 import dev.gyeol.core.identify.SearchText
 import dev.gyeol.core.identify.TrackSearchRepository
 import org.slf4j.LoggerFactory
@@ -26,6 +25,8 @@ data class TrackItem(
     val releaseYear: Int?,
     val trackId: Long? = null,
     val coverUrl: String? = null,
+    /** 우리 가수 id (DB 곡이거나 Last.fm 가수 이름이 우리 가수 한 명과 맞을 때, I-30) */
+    val artistId: Long? = null,
 )
 data class TrackSearchResponse(val items: List<TrackItem>, val source: String)
 
@@ -36,7 +37,7 @@ data class TrackSearchResponse(val items: List<TrackItem>, val source: String)
  * Last.fm이 장애여도 DB 결과가 있으면 그것만 돌려준다.
  */
 @RestController
-class TrackSearchController(props: GyeolProperties, private val db: TrackSearchRepository) {
+class TrackSearchController(props: GyeolProperties, private val db: TrackSearchRepository, private val merger: TrackMerger) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     private val fetcher: RestClient = RestClient.builder()
@@ -57,11 +58,11 @@ class TrackSearchController(props: GyeolProperties, private val db: TrackSearchR
 
         // 확실한 DB 결과는 앞에, 조각 유사도로만 걸린 약한 결과는 Last.fm 뒤에 (DB에 없는 곡을 같은 가수의 다른 곡이 가로채지 않게)
         val hits = db.search(query, limit)
-        fun item(h: DbTrackHit) = TrackItem(h.title, h.artist, h.recordingMbid.toString(), null, h.releaseYear, h.trackId, h.coverUrl)
-        val strong = hits.filter { it.score >= TrackSearchRepository.STRONG }.map(::item)
-        val weak = hits.filter { it.score < TrackSearchRepository.STRONG }.map(::item)
-        val local = strong + weak
-        if (strong.size >= limit) return TrackSearchResponse(strong, "db")
+        val strongHits = hits.filter { it.score >= TrackSearchRepository.STRONG }
+        val weakHits = hits.filter { it.score < TrackSearchRepository.STRONG }
+        val strong = strongHits.map(TrackMerger::item)
+        val local = strong + weakHits.map(TrackMerger::item)
+        if (strong.size >= limit) return TrackSearchResponse(merger.unifyArtistNames(strong), "db")
 
         val remote = try {
             fetcher.get()
@@ -71,15 +72,12 @@ class TrackSearchController(props: GyeolProperties, private val db: TrackSearchR
                 ?.items ?: throw IllegalStateException("빈 응답")
         } catch (e: Exception) {
             log.warn("곡 검색 실패: {}", e.message)
-            if (local.isNotEmpty()) return TrackSearchResponse(local, "db")
+            if (local.isNotEmpty()) return TrackSearchResponse(merger.unifyArtistNames(local), "db")
             throw ApiException(HttpStatus.SERVICE_UNAVAILABLE, "SEARCH_UNAVAILABLE", "지금은 곡을 검색할 수 없습니다. 잠시 뒤 다시 시도해 주세요")
         }.let(::cleanRemote)
-        if (local.isEmpty()) return TrackSearchResponse(remote, "lastfm")
-
-        // 같은 곡(정규화한 곡명+가수, 또는 같은 mbid)은 DB 쪽만 남긴다
-        val seen = local.flatMap { listOf(key(it), it.mbid) }.filterNotNull().toSet()
-        val rest = remote.filter { r -> listOfNotNull(key(r), r.mbid).none { it in seen } }
-        return TrackSearchResponse((strong + rest + weak).take(limit), "db+lastfm")
+        // 가수 묶기·같은 곡 합치기 (I-30 ①): 같은 곡은 DB 쪽만, Last.fm 가수 이름은 우리 가수 표기로
+        val merged = merger.merge(strongHits, weakHits, remote, limit)
+        return TrackSearchResponse(merged, if (local.isEmpty() && merged.none { it.trackId != null }) "lastfm" else "db+lastfm")
     }
 
     companion object {

@@ -41,7 +41,11 @@ data class RequestView(val id: Long, val status: String, val song: SongView?, va
 
 /** 검색 결과 + 방 안 표시: mine(내가 담음), sameSong(같은 노래를 담은 사람), sameArtist(같은 가수 다른 노래를 담은 사람) */
 data class RoomSearchItem(val item: TrackItem, val mine: Boolean, val sameSong: List<String>, val sameArtist: List<String>)
-data class RoomSearchResponse(val items: List<RoomSearchItem>, val source: String)
+/**
+ * 가수 카드 (I-30 ①): 검색어가 가수와 맞으면 결과 맨 위에 하나. artistId가 없으면 우리 DB에 아직 없는 가수(Last.fm 이름만, 인기순만 열 수 있음)
+ */
+data class ArtistCard(val artistId: Long?, val name: String, val aliases: List<String>, val songCountInRoom: Int, val onMap: Boolean)
+data class RoomSearchResponse(val items: List<RoomSearchItem>, val source: String, val artist: ArtistCard? = null)
 
 data class MySongView(val id: Long, val trackId: Long, val title: String, val artist: String, val coverUrl: String?, val addedAt: Instant, val sharedWith: Int)
 data class MySongsPage(val items: List<MySongView>, val nextCursor: Long?)
@@ -77,6 +81,8 @@ class RoomSongService(
     private val props: GyeolProperties,
     private val maps: MapRepository,
     private val gifts: GiftRepository,
+    private val merger: dev.gyeol.api.search.TrackMerger,
+    private val trackSearch: dev.gyeol.core.identify.TrackSearchRepository,
 ) {
     private val p get() = props.room
 
@@ -95,7 +101,35 @@ class RoomSongService(
                 artistOwners.filter { it != me }.mapNotNull(names::get),
             )
         }
-        return RoomSearchResponse(items, r.source)
+        return RoomSearchResponse(items, r.source, artistCard(ctx, q.orEmpty(), r.items))
+    }
+
+    /**
+     * 가수 카드 판정: ① 검색어가 우리 가수 한 명의 이름·별칭과 같음 ② 결과 절반 이상이 한 가수이고 검색어가 그 이름의 앞부분
+     * ③ 우리 DB에 없는 가수: Last.fm 결과 절반 이상의 가수 이름이 검색어와 같음 (artistId 없음)
+     */
+    private fun artistCard(ctx: RoomContext, q: String, items: List<TrackItem>): ArtistCard? {
+        val qn = dev.gyeol.core.identify.SearchText.norm(q)
+        if (qn.length < 2 || items.isEmpty()) return null
+        val half = (items.size + 1) / 2
+        fun names(a: dev.gyeol.core.identify.ArtistNames) = listOf(a.name) + a.aliases
+        val exact = merger.resolveArtists(listOf(q))[qn]
+        val byCount = items.mapNotNull { it.artistId }.groupingBy { it }.eachCount().maxByOrNull { it.value }
+        val prefix = byCount?.takeIf { it.value >= half }?.let { (id, _) ->
+            trackSearch.artistNames(id)?.takeIf { a -> names(a).any { dev.gyeol.core.identify.SearchText.norm(it).startsWith(qn) } }
+        }
+        val artist = exact ?: prefix
+        if (artist != null) {
+            val shown = items.filter { it.artistId == artist.id }.groupingBy { it.artist }.eachCount().maxByOrNull { it.value }?.key ?: artist.name
+            val version = maps.activeVersion()
+            return ArtistCard(
+                artist.id, shown, names(artist).filter { it != shown }.distinct(),
+                songs.mapSongs(ctx.room.id).count { it.artistId == artist.id },
+                version != null && maps.positions(version, listOf(artist.id)).isNotEmpty(),
+            )
+        }
+        val remote = items.filter { it.artistId == null && dev.gyeol.core.identify.SearchText.norm(it.artist) == qn }
+        return remote.takeIf { it.size >= half }?.let { ArtistCard(null, it.first().artist, emptyList(), 0, false) }
     }
 
     /** DB 곡은 바로 담고(201), Last.fm 곡은 식별을 맡긴다(202). 하루 한도는 둘 다 여기서 센다 */

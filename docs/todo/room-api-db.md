@@ -226,3 +226,26 @@
 - 테스트: api `AdminSecurityTest` 4개(RFC 6238 벡터, 시간 칸, Python 도구 암호문 풀기, 이메일 가리기), `RoomApiIntegrationTest` 관리자 3개(로그인 2단계·재사용·로그아웃, 잠금 15분·실패 기록, 방 관리·다른 출처 403·감사 기록·완전 삭제 뒤 IP·닉네임 지움). 전체 api 46(측정 1개 건너뜀)·worker 72 통과.
 - 로컬 확인: 개발 서버에서 V26 적용, 로컬 시드 계정으로 로그인 2단계 → 방 목록 조회.
 - 11-13 I-19 결정: 관리자 방 상세에서 최근 담긴 노래(`recentSongs`)를 뺐다. 관리자는 방 이름·참가자·곡 수·감사 기록만 본다(관련 SQL `AdminRepository.recentSongs` 삭제).
+
+## 13. I-30 가수 화면 구현 기록 (11-14, 설계 `artist-search.md`, 결정 A1~A9)
+
+### ① 가수 묶기·같은 곡 합치기·가수 카드
+- `api/search/TrackMerger`: 곡 고르기 검색(`/api/tracks/search`)과 방 검색이 함께 쓴다.
+  - Last.fm 가수 이름(정규화)이 우리 가수 이름·별칭과 맞으면 그 가수로 바꿔 쓴다. 여럿이 맞으면 대표 이름이 같은 가수 하나 → 들린 곡이 있는 가수 하나 순으로 고르고, 그래도 못 고르면 그대로 둔다.
+  - 같은 곡: ① 녹음 MBID ② 식별 캐시 `title_alias`("제목|가수 - Topic") ③ 같은 가수이고 제목 표기가 겹침. 표기는 전체, 괄호 앞·안("A (B)"), 한글·로마자로 한 번 나뉜 두 쪽("NAN CHUN 난춘"). 괄호 안이 판 표시(Inst.·Live·Remix·ver.·feat. 등)면 나누지 않는다.
+  - 같은 곡이면 DB 곡을 남기고, Last.fm 곡이 DB 곡으로 바뀐다(`trackId`·표지).
+  - 결과 안에서 같은 가수는 한 표기로 맞춘다(가장 많이 나온 표기).
+- `TrackItem.artistId` 추가(우리 가수 id, 없으면 null).
+- 방 검색 응답 `artist`(가수 카드, 없으면 null): `{artistId, name, aliases, songCountInRoom, onMap}`. 판정 순서는 아래와 같다.
+  1. 검색어가 우리 가수 한 명의 이름·별칭과 같음
+  2. 결과 절반 이상이 한 가수이고 검색어가 그 이름의 앞부분
+  3. 우리 DB에 없으면 Last.fm 결과 절반 이상의 가수 이름이 검색어와 같음(`artistId: null`)
+  - 설계 2-3의 Last.fm `artist.getInfo` 호출 대신 3번 규칙을 썼다(검색마다 외부 호출 1번을 아끼려고).
+- core `TrackSearchRepository`: `DbTrackHit`에 `artistId`·`mbTitle`, `hits(ids)`·`hitsOfArtist`·`trackIdsByMbids`·`aliasTracks`·`artistsByNames`·`artistNames`.
+- 테스트:
+  - api `TrackMergerFormsTest` 3개
+  - `RoomApiIntegrationTest` I-30 ① 1개: 다비치·DAVICHI 한 가수, 8282 한 줄, Every Moment Of You·너의 모든 순간(Sung Si Kyung)이 DB 곡 하나로, 같은 표기, 가수 카드
+- 로컬 실제 Last.fm 확인:
+  - "다비치": 카드 DAVICHI(별칭 다비치·Davichi), 10곡 모두 DAVICHI 표기
+  - "너의 모든 순간": 성시경 DB 곡 1줄, "Every Moment of You 너의 모든 순간"(Sung Si Kyung)은 합쳐짐, "- Piano Ver."는 다른 곡으로 남음
+

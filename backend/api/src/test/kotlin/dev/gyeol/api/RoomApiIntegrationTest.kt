@@ -67,8 +67,16 @@ class RoomApiIntegrationTest {
             createContext("/internal/lastfm/search") { ex ->
                 // 검색어에 "Pretty"가 있으면 스트리밍 앱 문구가 붙은 가수명 결과 (11-13 " • 잡음" 정리 확인)
                 val noisy = ex.requestURI.rawQuery.orEmpty().contains("Pretty")
+                val q = ex.requestURI.query.orEmpty()
                 val body = (
-                    if (noisy) {
+                    if (q.contains("다비치") || q.contains("성시경")) {
+                        // I-30 ①: 같은 가수 두 이름(다비치/DAVICHI), 같은 곡 다른 표기(Every Moment Of You/너의 모든 순간)
+                        """{"items":[{"title":"8282","artist":"다비치","mbid":null,"listeners":9,"releaseYear":null},""" +
+                            """{"title":"시간아 멈춰라","artist":"DAVICHI","mbid":null,"listeners":8,"releaseYear":null},""" +
+                            """{"title":"시간아 멈춰라","artist":"다비치","mbid":null,"listeners":7,"releaseYear":null},""" +
+                            """{"title":"Every Moment Of You","artist":"성시경","mbid":null,"listeners":6,"releaseYear":null},""" +
+                            """{"title":"너의 모든 순간","artist":"Sung Si Kyung","mbid":null,"listeners":5,"releaseYear":null}],"source":"lastfm","cached":false}"""
+                    } else if (noisy) {
                         """{"items":[{"title":"Pretty Girl","artist":"Clairo • Lossless","mbid":null,"listeners":5,"releaseYear":null},""" +
                             """{"title":"Pretty Girl","artist":"Clairo","mbid":"0b0b0b0b-0000-0000-0000-000000000001","listeners":100,"releaseYear":null},""" +
                             """{"title":"Pretty Girl","artist":"Clairo • Recommended for you","mbid":null,"listeners":7,"releaseYear":null}],"source":"lastfm","cached":false}"""
@@ -783,5 +791,35 @@ class RoomApiIntegrationTest {
         val chars = call("GET", "/api/rooms/${host.rid}/me/gifts", key = host.key).body!!["characters"].toList()
         assertEquals("FAILED", chars.single { it["id"].asLong() == failedId }["fallbackReason"].asString())
         jdbc.sql("DELETE FROM llm_call WHERE purpose = 'GIFT_IMAGE' AND model = 'test'").update()
+    }
+
+    @Test
+    fun `I-30 가수 묶기 - 다비치·DAVICHI는 한 가수, 같은 곡 다른 표기는 한 줄, 가수 카드`() {
+        val host = newRoom()
+        val davichi = ArtistInfo(UUID.randomUUID(), "DAVICHI", "DAVICHI", listOf("다비치", "Davichi"))
+        val t8282 = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "8282", davichi, UUID.randomUUID(), UUID.randomUUID(), "음반", "2009-01-01", "Single"))
+        val ssk = ArtistInfo(UUID.randomUUID(), "성시경", "Sung Si Kyung", listOf("Sung Si Kyung"))
+        val moment = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "너의 모든 순간 (Every Moment of You)", ssk, UUID.randomUUID(), UUID.randomUUID(), "음반", "2014-02-12", "Single"))
+        assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to t8282), host.key).status)
+
+        val r = call("GET", "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("다비치", "UTF-8"), key = host.key).body!!
+        val items = r["items"].toList().map { it["item"] }
+        val davichiId = songs.trackArtist(t8282)!!
+        assertEquals(1, items.count { it["title"].asString() == "8282" }, "DB 곡과 Last.fm 8282는 한 줄: $items")
+        assertEquals(t8282, items.single { it["title"].asString() == "8282" }["trackId"].asLong())
+        val stop = items.filter { it["title"].asString() == "시간아 멈춰라" }
+        assertEquals(1, stop.size, "DAVICHI·다비치 두 Last.fm 결과가 한 가수로 합쳐짐")
+        assertEquals(davichiId, stop.single()["artistId"].asLong())
+        assertEquals(1, items.count { it["trackId"]?.asLong(-1) == moment }, "Every Moment Of You·너의 모든 순간(Sung Si Kyung)은 DB 곡 하나로")
+        assertEquals(0, items.count { it["title"].asString() == "Every Moment Of You" || it["title"].asString() == "너의 모든 순간" && it["trackId"].isNull })
+        assertEquals(1, items.map { it["artist"].asString() }.filter { it in setOf("다비치", "DAVICHI") }.distinct().size, "같은 가수는 한 표기로")
+
+        val card = r["artist"]
+        assertEquals(davichiId, card["artistId"].asLong())
+        assertEquals(1, card["songCountInRoom"].asInt())
+        assertTrue(!card["onMap"].asBoolean())
+        // 가수와 상관없는 검색어에는 카드 없음
+        val other = call("GET", "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("새 노래", "UTF-8"), key = host.key).body!!
+        assertTrue(other["artist"] == null || other["artist"].isNull)
     }
 }
