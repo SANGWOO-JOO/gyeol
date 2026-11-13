@@ -17,6 +17,8 @@ data class Room(
 data class Member(
     val id: Long, val roomId: Long, val nickname: String, val role: Role, val colorIdx: Int,
     val pinHash: String, val failCount: Int, val lockedUntil: Instant?, val createdAt: Instant, val removedAt: Instant?,
+    /** 선물로 받은 캐릭터를 얼굴로 쓰는 경우 (V24) */
+    val avatarCharacterId: Long? = null,
 )
 
 /** 방·참가자·기기 열쇠·감사 기록 (V21) */
@@ -35,6 +37,7 @@ class RoomRepository(private val jdbc: JdbcClient) {
             rs.getLong("id"), rs.getLong("room_id"), rs.getString("nickname"), Role.valueOf(rs.getString("role")), rs.getInt("color_idx"),
             rs.getString("pin_hash"), rs.getInt("fail_count"), rs.getTimestamp("locked_until")?.toInstant(),
             rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("removed_at")?.toInstant(),
+            rs.getObject("avatar_character_id") as Long?,
         )
     }
 

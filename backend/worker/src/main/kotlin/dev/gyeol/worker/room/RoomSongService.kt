@@ -4,6 +4,7 @@ import dev.gyeol.core.identify.AliasKey
 import dev.gyeol.core.identify.Target
 import dev.gyeol.core.identify.TargetStatus
 import dev.gyeol.core.listen.Source
+import dev.gyeol.core.room.GiftRepository
 import dev.gyeol.core.room.RoomRepository
 import dev.gyeol.core.room.RoomSongRepository
 import dev.gyeol.worker.WorkerProperties
@@ -46,6 +47,7 @@ class RoomSongService(
     private val props: WorkerProperties,
     private val map: MapService,
     private val maps: MapRepository,
+    private val gifts: GiftRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val kst = ZoneId.of("Asia/Seoul")
@@ -95,6 +97,8 @@ class RoomSongService(
             } else {
                 rooms.bumpMapRev(r.roomId)
                 songs.finishRequest(requestId, "DONE", trackId, songId, null)
+                // 50곡 단위 상자 (API의 바로 담기와 같은 규칙, 방 행 잠금 안). 화면은 내 정보의 선물 요약으로 안다
+                gifts.onSongAdded(r.memberId, java.time.LocalDate.now(kst))
             }
             true
         } ?: false

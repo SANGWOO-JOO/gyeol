@@ -4,6 +4,7 @@ import dev.gyeol.api.config.GyeolProperties
 import dev.gyeol.api.search.TrackItem
 import dev.gyeol.api.search.TrackSearchController
 import dev.gyeol.api.web.ApiException
+import dev.gyeol.core.room.GiftRepository
 import dev.gyeol.core.room.MapSong
 import dev.gyeol.core.room.RoomRepository
 import dev.gyeol.core.room.RoomSongRepository
@@ -30,8 +31,11 @@ data class AddSongRequest(val trackId: Long?, val title: String?, val artist: St
 
 data class SongView(val id: Long, val trackId: Long, val title: String, val artist: String, val coverUrl: String?, val sharedCount: Int)
 
-/** 201: song이 있음. 202: requestId로 식별 상태를 읽는다 */
-data class AddSongResponse(val status: String, val song: SongView?, val requestId: Long?, val todayAdded: Int, val dailyLimit: Int)
+/** 201: song이 있음. 202: requestId로 식별 상태를 읽는다. gift: 이번 담기로 50곡 단위 상자가 생겼으면 (④) */
+data class AddSongResponse(val status: String, val song: SongView?, val requestId: Long?, val todayAdded: Int, val dailyLimit: Int, val gift: GiftNotice? = null)
+
+/** status: READY(바로 열 수 있음) 또는 WAITING(오늘 이미 받아 내일 열림) */
+data class GiftNotice(val boxId: Long, val milestone: Int, val status: String)
 
 data class RequestView(val id: Long, val status: String, val song: SongView?, val failReason: String?)
 
@@ -72,6 +76,7 @@ class RoomSongService(
     private val json: JsonMapper,
     private val props: GyeolProperties,
     private val maps: MapRepository,
+    private val gifts: GiftRepository,
 ) {
     private val p get() = props.room
 
@@ -105,7 +110,9 @@ class RoomSongService(
             val id = songs.add(room.id, me, body.trackId, artistId)!!
             rooms.bumpMapRev(room.id)
             requestPrepareIfNeeded(artistId)
-            return HttpStatus.CREATED to AddSongResponse("ADDED", songView(room.id, me, id), null, today, p.dailySongLimit)
+            // 방 행을 잠근 같은 트랜잭션에서 50곡 단위 상자 (식별 경로는 worker RoomSongService가 같은 함수를 부른다)
+            val box = gifts.onSongAdded(me, todayKst())?.let { GiftNotice(it.id, it.milestone, it.status.name) }
+            return HttpStatus.CREATED to AddSongResponse("ADDED", songView(room.id, me, id), null, today, p.dailySongLimit, box)
         }
         val title = body.title?.trim()?.takeIf { it.length in 1..300 } ?: throw ApiException.validation("제목은 1~300자예요")
         val artist = body.artist?.trim()?.takeIf { it.length in 1..300 } ?: throw ApiException.validation("가수는 1~300자예요")

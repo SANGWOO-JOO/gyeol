@@ -2,6 +2,8 @@ package dev.gyeol.api.room
 
 import dev.gyeol.api.config.GyeolProperties
 import dev.gyeol.api.web.ApiException
+import dev.gyeol.core.room.GiftRepository
+import dev.gyeol.core.room.GiftSummary
 import dev.gyeol.core.room.Member
 import dev.gyeol.core.room.Role
 import dev.gyeol.core.room.RoomRepository
@@ -36,14 +38,16 @@ data class RoomPatch(val name: String?, val closed: Boolean?)
 data class MeView(
     val roomId: String, val roomName: String, val roomStatus: String, val member: MemberView,
     val songCount: Int, val todayAdded: Int, val dailyLimit: Int, val pendingRequests: Int,
+    /** ④ 선물 요약 (아래 바·탭 배지·다음 날 상자 바로 열기) */
+    val gift: GiftSummary? = null,
 )
 
-data class MemberRow(val id: Long, val nickname: String, val role: String, val colorIdx: Int, val songCount: Int, val me: Boolean)
+data class MemberRow(val id: Long, val nickname: String, val role: String, val colorIdx: Int, val songCount: Int, val me: Boolean, val avatarCharacterId: Long? = null)
 data class NewPin(val memberId: Long, val pin: String)
 
 val KST: ZoneId = ZoneId.of("Asia/Seoul")
 fun todayKst(): LocalDate = LocalDate.now(KST)
-fun Member.view() = MemberView(id, nickname, role.name, colorIdx)
+fun Member.view() = MemberView(id, nickname, role.name, colorIdx, avatarCharacterId)
 
 @Service
 class RoomService(
@@ -52,6 +56,7 @@ class RoomService(
     private val access: RoomAccess,
     private val pins: PinHasher,
     private val props: GyeolProperties,
+    private val gifts: GiftRepository,
 ) {
     private val p get() = props.room
 
@@ -104,11 +109,15 @@ class RoomService(
         return JoinedResponse(publicId, key, view)
     }
 
+    /** 다음 날 첫 조회 때 기다리는 상자를 하루 1개 READY로 올린 뒤 선물 요약을 함께 준다 */
     fun me(ctx: RoomContext): MeView {
         val m = ctx.member
+        val today = todayKst()
+        gifts.promoteWaiting(m.id, today)
         return MeView(
             ctx.room.publicId, ctx.room.name, ctx.room.status.name, m.view(),
-            songs.countOf(m.id), songs.daily(m.id, todayKst()), p.dailySongLimit, songs.pendingRequests(m.id),
+            songs.countOf(m.id), songs.daily(m.id, today), p.dailySongLimit, songs.pendingRequests(m.id),
+            gifts.summary(m.id, today),
         )
     }
 
@@ -123,7 +132,7 @@ class RoomService(
 
     fun members(ctx: RoomContext): List<MemberRow> {
         val counts = songs.countsByMember(ctx.room.id)
-        return rooms.members(ctx.room.id).map { MemberRow(it.id, it.nickname, it.role.name, it.colorIdx, counts[it.id] ?: 0, it.id == ctx.member.id) }
+        return rooms.members(ctx.room.id).map { MemberRow(it.id, it.nickname, it.role.name, it.colorIdx, counts[it.id] ?: 0, it.id == ctx.member.id, it.avatarCharacterId) }
     }
 
     // ── 방장 ──

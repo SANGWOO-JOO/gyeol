@@ -21,6 +21,8 @@ data class GyeolProperties(
     data class Room(
         /** 방 담기 식별을 맡기는 큐 (worker room-song) */
         val songQueue: String = "gyeol-local-room-song",
+        /** ④ 선물 상자 열기 → worker가 캐릭터를 만든다 */
+        val giftQueue: String = "gyeol-local-gift-image",
         val maxMembers: Int = 5,
         val dailySongLimit: Int = 100,
         /** 한 사람이 동시에 식별을 기다리는 곡 수 */

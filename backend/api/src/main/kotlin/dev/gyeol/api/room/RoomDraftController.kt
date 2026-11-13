@@ -27,7 +27,8 @@ data class VerifyRequest(val code: String?)
 /** 참가·다시 들어오기·방 만들기가 돌려주는 열쇠 (localStorage용. 같은 값이 HttpOnly 쿠키로도 간다) */
 data class JoinedResponse(val roomId: String, val key: String, val member: MemberView)
 
-data class MemberView(val id: Long, val nickname: String, val role: String, val colorIdx: Int)
+/** avatarCharacterId: 선물 캐릭터를 얼굴로 쓰면 그 id (그림은 GET /api/rooms/{rid}/characters/{id}/image) */
+data class MemberView(val id: Long, val nickname: String, val role: String, val colorIdx: Int, val avatarCharacterId: Long? = null)
 
 object RoomInput {
     private val EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")

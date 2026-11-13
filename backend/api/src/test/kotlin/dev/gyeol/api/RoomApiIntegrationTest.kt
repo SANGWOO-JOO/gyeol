@@ -35,6 +35,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** 음악 방 ① 방·참가·담기 (docs/todo/room-api-db.md). worker 쪽 식별은 DB에 직접 넣어 흉내 낸다 */
@@ -44,6 +45,8 @@ class RoomApiIntegrationTest {
 
     companion object {
         private const val SONG_QUEUE = "gyeol-test-room-song"
+        private const val GIFT_QUEUE = "gyeol-test-gift-image"
+        private const val COVERS = "gyeol-test-room-covers"
 
         @Container
         @ServiceConnection
@@ -73,6 +76,8 @@ class RoomApiIntegrationTest {
             registry.add("spring.cloud.aws.credentials.access-key") { localstack.accessKey }
             registry.add("spring.cloud.aws.credentials.secret-key") { localstack.secretKey }
             registry.add("gyeol.room.song-queue") { SONG_QUEUE }
+            registry.add("gyeol.room.gift-queue") { GIFT_QUEUE }
+            registry.add("gyeol.cover-bucket") { COVERS }
             // 한 테스트에서 방을 여러 번 만들므로 IP 제한을 넉넉히
             registry.add("gyeol.room.draft-per-minute") { "1000" }
             registry.add("gyeol.room.join-per-minute") { "1000" }
@@ -84,10 +89,16 @@ class RoomApiIntegrationTest {
             .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localstack.accessKey, localstack.secretKey)))
             .build()
 
+        fun s3(): software.amazon.awssdk.services.s3.S3Client = software.amazon.awssdk.services.s3.S3Client.builder()
+            .endpointOverride(localstack.endpoint).region(Region.of(localstack.region)).forcePathStyle(true)
+            .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localstack.accessKey, localstack.secretKey)))
+            .build()
+
         @BeforeAll
         @JvmStatic
         fun createQueue() {
-            sqs().use { it.createQueue { q -> q.queueName(SONG_QUEUE) } }
+            sqs().use { it.createQueue { q -> q.queueName(SONG_QUEUE) }; it.createQueue { q -> q.queueName(GIFT_QUEUE) } }
+            s3().use { it.createBucket { b -> b.bucket(COVERS) } }
         }
     }
 
@@ -98,6 +109,7 @@ class RoomApiIntegrationTest {
     @Autowired lateinit var identify: IdentifyRepository
     @Autowired lateinit var songs: RoomSongRepository
     @Autowired lateinit var maps: MapRepository
+    @Autowired lateinit var gifts: dev.gyeol.core.room.GiftRepository
 
     private val http = HttpClient.newHttpClient()
 
@@ -368,5 +380,78 @@ class RoomApiIntegrationTest {
         assertEquals(2, statuses.count { it == 409 })
         assertNotNull(call("GET", "/api/rooms/${host.rid}").body)
         assertEquals(5, call("GET", "/api/rooms/${host.rid}").body!!["members"].size())
+    }
+
+    @Test
+    fun `선물 - 50곡째 담기에 상자, 내 정보 요약, 열기는 READY만, 캐릭터 그림은 같은 방만, 얼굴 바꾸기`() {
+        val host = newRoom()
+        val minji = join(host.rid, "민지").joined()
+        val other = newRoom()
+        val songsPath = "/api/rooms/${host.rid}/songs"
+        repeat(49) { i -> assertNull(call("POST", songsPath, mapOf("trackId" to track("선물 $i")), host.key).body!!["gift"]?.takeUnless { it.isNull }) }
+        val fiftieth = call("POST", songsPath, mapOf("trackId" to track("선물 49")), host.key)
+        assertEquals(201, fiftieth.status)
+        val gift = fiftieth.body!!["gift"]
+        assertEquals(50, gift["milestone"].asInt())
+        assertEquals("READY", gift["status"].asString())
+        val boxId = gift["boxId"].asLong()
+
+        val me = call("GET", "/api/rooms/${host.rid}/me", key = host.key).body!!["gift"]
+        assertEquals(50, me["songCount"].asInt())
+        assertEquals(50, me["remaining"].asInt())
+        assertTrue(me["receivedToday"].asBoolean())
+        assertEquals(boxId, me["readyBoxId"].asLong())
+
+        // 열기: 남의 상자 404, READY만 202, 두 번째는 409, 큐에 상자 번호
+        val open = "/api/rooms/${host.rid}/me/gifts/$boxId/open"
+        assertEquals(404, call("POST", "/api/rooms/${minji.rid}/me/gifts/$boxId/open", key = minji.key).status)
+        val opened = call("POST", open, key = host.key)
+        assertEquals(202, opened.status)
+        assertEquals("GENERATING", opened.body!!["box"]["status"].asString())
+        assertEquals("GIFT_NOT_READY", call("POST", open, key = host.key).body!!["code"].asString())
+        val msgs = sqs().use { c ->
+            val url = c.getQueueUrl { it.queueName(GIFT_QUEUE) }.queueUrl()
+            c.receiveMessage { it.queueUrl(url).maxNumberOfMessages(10).waitTimeSeconds(5) }.messages()
+        }.map { json.readTree(it.body())["boxId"].asLong() }
+        assertTrue(boxId in msgs)
+
+        // worker 흉내: 그림을 S3에 올리고 캐릭터 저장
+        val key = "characters/${host.memberId}/$boxId.png"
+        s3().use { it.putObject({ r -> r.bucket(COVERS).key(key).contentType("image/png") }, software.amazon.awssdk.core.sync.RequestBody.fromBytes(byteArrayOf(1, 2, 3))) }
+        val characterId = gifts.finishOpening(boxId, key, "prompt", "test", false)!!
+        val detail = call("GET", "/api/rooms/${host.rid}/me/gifts/$boxId", key = host.key).body!!
+        assertEquals("OPENED", detail["box"]["status"].asString())
+        assertEquals(characterId, detail["character"]["id"].asLong())
+
+        // 그림: 같은 방(민지)은 보이고, 다른 방은 404
+        val imgPath = "/api/rooms/${host.rid}/characters/$characterId/image"
+        val img = http.send(HttpRequest.newBuilder(URI("http://localhost:$port$imgPath")).header("X-Room-Key", minji.key).build(), HttpResponse.BodyHandlers.ofByteArray())
+        assertEquals(200, img.statusCode())
+        assertEquals("image/png", img.headers().firstValue("Content-Type").get())
+        assertEquals(listOf<Byte>(1, 2, 3), img.body().toList())
+        assertEquals(404, call("GET", "/api/rooms/${other.rid}/characters/$characterId/image", key = other.key).status)
+
+        // 기본 캐릭터는 내장 SVG
+        val fallbackId = jdbc.sql("INSERT INTO gift_character (member_id, s3_key, model, is_fallback) VALUES (:m, 'preset:3', 'preset', true) RETURNING id")
+            .param("m", host.memberId).query(Long::class.java).single()
+        val svg = http.send(
+            HttpRequest.newBuilder(URI("http://localhost:$port/api/rooms/${host.rid}/characters/$fallbackId/image")).header("X-Room-Key", host.key).build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        assertEquals(200, svg.statusCode())
+        assertTrue(svg.body().startsWith("<svg"))
+
+        // 얼굴 바꾸기: 내 캐릭터만, 참가자 목록에 보이고 지도 rev가 오른다, null이면 기본
+        val rev = call("GET", "/api/rooms/${host.rid}/map", key = host.key).body!!["rev"].asLong()
+        assertEquals(404, call("PUT", "/api/rooms/${minji.rid}/me/avatar", mapOf("characterId" to characterId), minji.key).status)
+        assertEquals(characterId, call("PUT", "/api/rooms/${host.rid}/me/avatar", mapOf("characterId" to characterId), host.key).body!!["avatarCharacterId"].asLong())
+        val members = call("GET", "/api/rooms/${host.rid}/members", key = minji.key).body!!
+        assertEquals(characterId, members.toList().single { it["id"].asLong() == host.memberId }["avatarCharacterId"].asLong())
+        assertTrue(call("GET", "/api/rooms/${host.rid}/map", key = host.key).body!!["rev"].asLong() > rev)
+        assertTrue(call("PUT", "/api/rooms/${host.rid}/me/avatar", mapOf("characterId" to null), host.key).body!!["avatarCharacterId"]?.isNull ?: true)
+
+        val list = call("GET", "/api/rooms/${host.rid}/me/gifts", key = host.key).body!!
+        assertEquals(2, list["characters"].size())
+        assertEquals(1, list["boxes"].size())
     }
 }

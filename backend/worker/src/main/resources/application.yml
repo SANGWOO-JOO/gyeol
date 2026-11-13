@@ -26,6 +26,13 @@ gyeol:
     room:
       song-queue: ${ROOM_SONG_QUEUE:gyeol-local-room-song}
       song-dlq: ${ROOM_SONG_DLQ:gyeol-local-room-song-dlq}
+    # ④ 50곡 선물 캐릭터 (llm.mode=bedrock일 때만 실제 이미지 생성, 비용 발생)
+    gift:
+      queue: ${GIFT_QUEUE:gyeol-local-gift-image}
+      dlq: ${GIFT_DLQ:gyeol-local-gift-image-dlq}
+      image-model: ${GIFT_IMAGE_MODEL:stability.stable-image-core-v1:1}
+      image-region: ${GIFT_IMAGE_REGION:us-west-2}
+      daily-image-limit: ${GIFT_DAILY_IMAGE_LIMIT:50}
     # 음악 지도 데이터 만들기 내부 엔드포인트 (로컬에서만 true)
     map:
       admin-endpoint: ${MAP_ADMIN_ENDPOINT:false}

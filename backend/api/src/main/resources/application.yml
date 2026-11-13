@@ -25,6 +25,7 @@ gyeol:
   enrich-queue: ${ENRICH_QUEUE:gyeol-local-enrich}
   room:
     song-queue: ${ROOM_SONG_QUEUE:gyeol-local-room-song}
+    gift-queue: ${GIFT_QUEUE:gyeol-local-gift-image}
     secure-cookie: ${ROOM_SECURE_COOKIE:false}
   upload:
     bucket: ${UPLOAD_BUCKET:gyeol-local-uploads}

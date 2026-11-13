@@ -1,6 +1,10 @@
 package dev.gyeol.worker.room
 
 import com.sun.net.httpserver.HttpServer
+import dev.gyeol.core.identify.ArtistInfo
+import dev.gyeol.core.identify.IdentifyRepository
+import dev.gyeol.core.identify.TrackInfo
+import dev.gyeol.core.room.GiftRepository
 import dev.gyeol.core.room.Role
 import dev.gyeol.core.room.RoomRepository
 import dev.gyeol.core.room.RoomSongRepository
@@ -102,6 +106,8 @@ class RoomSongIntegrationTest {
     @Autowired lateinit var songs: RoomSongRepository
     @Autowired lateinit var jdbc: JdbcClient
     @Autowired lateinit var json: JsonMapper
+    @Autowired lateinit var identifyRepo: IdentifyRepository
+    @Autowired lateinit var gifts: GiftRepository
 
     private val today get() = LocalDate.now(ZoneId.of("Asia/Seoul"))
 
@@ -189,5 +195,24 @@ class RoomSongIntegrationTest {
         assertEquals(0, songs.daily(s.memberId, today))
         service.fail(id, "ERROR") // 두 번 와도 한도를 두 번 빼지 않는다
         assertEquals(0, songs.daily(s.memberId, today))
+    }
+
+    @Test
+    fun `식별로 담은 곡이 50곡째면 선물 상자가 생긴다 (API 바로 담기와 같은 규칙)`() {
+        val s = setup()
+        repeat(49) { i ->
+            val a = ArtistInfo(UUID.randomUUID(), "가수 $i", "가수 $i", emptyList())
+            val t = identifyRepo.upsertTrack(TrackInfo(UUID.randomUUID(), "노래 $i", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
+            songs.add(s.roomId, s.memberId, t, songs.trackArtist(t)!!)
+            gifts.onSongAdded(s.memberId, today)
+        }
+        assertTrue(gifts.boxes(s.memberId).isEmpty())
+
+        service.identifyRequest(request(s, "곡1", "가수A"))
+
+        val box = gifts.boxes(s.memberId).single()
+        assertEquals(50, box.milestone)
+        assertEquals("READY", box.status.name)
+        assertEquals(today, box.readyOn)
     }
 }

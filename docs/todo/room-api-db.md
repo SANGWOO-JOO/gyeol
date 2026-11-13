@@ -47,8 +47,8 @@
 | 테이블 | 주요 열 | 메모 |
 |---|---|---|
 | `member_progress` | `member_id`, `best_count`(최고 기록), `next_milestone` | 빼고 다시 담아 같은 단계를 넘어도 상자 없음 |
-| `gift_box` | `member_id`, `milestone`, `status`(WAITING·READY·GENERATING·OPENED·FAILED), `earned_at`, `opened_on` | 하루 1개. 넘친 상자는 WAITING |
-| `character` | `member_id`, `gift_box_id`, `s3_key`, 프롬프트, 모델, `is_fallback` | 비공개 S3 + API 전달 |
+| `gift_box` | `member_id`, `milestone`, `status`(WAITING·READY·GENERATING·OPENED·FAILED), `earned_at`, `ready_on`, `opened_at`, `character_id` | 하루 1개(`(member_id, ready_on)` 고유 색인). 넘친 상자는 WAITING |
+| `gift_character` | `member_id`, `gift_box_id`, `s3_key`, 프롬프트, 모델, `is_fallback` | 비공개 S3(covers 버킷 `characters/`) + API 전달. 기본 캐릭터는 `preset:N`. 표 이름은 SQL 예약어 `character`를 피함 |
 | (기존 `llm_call`) | 이미지 호출도 기록 | 서비스 전체 하루 예산 계산 |
 
 ### V25 놀이터
@@ -153,3 +153,16 @@
 
 ### 알려진 한계
 - 근거를 90일 뒤 다시 가져오면 knowledge_chunk id가 바뀌어 설명의 근거 번호가 끊긴다. 다시 설명을 만들 때 고친다
+
+## 9. ④ 선물 구현 기록 (11-13)
+
+- 결정(11-13): 이미지 모델 Stable Image Core(us-west-2, 장당 약 $0.04, 화풍은 프롬프트로 고정), 서비스 전체 하루 50장, 기본 캐릭터 6종(SVG, `core/src/main/resources/gift/`), 실제 Bedrock 이미지 호출은 Marketplace 구독 확인 뒤 따로.
+- 마이그레이션 `V24__gift.sql`: member_progress·gift_box·gift_character, `member.avatar_character_id`(V21 열)에 참조 추가.
+- core `GiftRepository`: `onSongAdded`(담기와 같은 트랜잭션, 방 행 잠금 안), `promoteWaiting`(다음 날 첫 조회 때 하루 1개), `summary`, 열기 시작·끝, `genreMix`(구역 이름 비율, 가수 이름 없음), `imagesToday`, 완전 삭제할 방의 그림 키.
+- api: `RoomSongService.add` 201 응답에 `gift`, `GET /me`에 `gift` 요약, `GiftController`(목록·상자·열기 202·얼굴 바꾸기·그림 전달). 그림은 같은 방 참가자만, `Cache-Control: private`, SVG는 `Content-Security-Policy: default-src 'none'`.
+- worker: 식별 경로 담기(`RoomSongService.identifyRequest`)에도 `onSongAdded`. `gift/GiftService`·`GiftListener`(큐 `gift-image` + 실패 큐 → FAILED): 구역 비율 → Haiku 묘사 → 이미지 → S3 → 캐릭터. 하루 예산 초과·생성 실패는 기본 캐릭터. `llm_call`에 `GIFT_PROMPT`·`GIFT_IMAGE` 기록. 가짜 모드는 기본 그림을 S3에 올린다.
+- 정리 작업: 방 완전 삭제 전에 캐릭터 그림을 S3에서 지우고, 실패하면 그 날은 방을 지우지 않는다.
+- 설정: api `gyeol.room.gift-queue`, worker `gyeol.worker.gift.*`, 로컬 큐 `gyeol-local-gift-image`(+dlq, 표시 제한 5분). Terraform·Helm은 배포 단계에서(room-song 큐와 함께).
+- 테스트: api `RoomApiIntegrationTest` 선물 1개(50곡째 상자·요약·열기·그림 권한·기본 그림·얼굴), worker `GiftIntegrationTest` 4개(50곡·최고 기록·하루 1개·다음 날, S3 저장·중복 메시지, 예산 초과, 실패 큐), `RoomSongIntegrationTest` 식별 경로 50곡째 1개. 전체 api 27·worker 70 통과.
+- 로컬 확인(11-13, fake): 개발 서버에서 50곡 담기 → 상자 READY → 열기 → 1초 안에 OPENED → 그림 200(S3 `characters/…svg`).
+- 아직: 실제 Bedrock 이미지 호출(요청·응답 형식은 문서 기준, 미확인), 웹 화면(갈래 A: 4-j·4-k·4-l).

@@ -22,6 +22,7 @@ data class WorkerProperties(
     val artistImage: ArtistImageProps = ArtistImageProps(),
     val room: RoomProps = RoomProps(),
     val map: MapProps = MapProps(),
+    val gift: GiftProps = GiftProps(),
     /** 청취 기록 세션에서 식별 뒤 보강·추천까지 자동으로 이어 갈지 (기본은 분석까지만) */
     val autoRecommend: Boolean = false,
     /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
@@ -29,6 +30,19 @@ data class WorkerProperties(
 ) {
     /** 음악 지도 데이터 만들기 내부 엔드포인트 (/internal/map 아래, 로컬에서만 켠다) */
     data class MapProps(val adminEndpoint: Boolean = false, val knowledgeRetryWait: Duration = Duration.ofSeconds(30))
+
+    /**
+     * ④ 50곡 선물 캐릭터 (room-plan.md ⑯). 이미지 모델은 us-west-2에만 있어 그 리전으로 부른다 (보내는 것은 장르·분위기 프롬프트뿐).
+     * llm.mode가 bedrock일 때만 실제 호출, 그 밖에는 기본 캐릭터 그림을 S3에 저장하는 가짜 생성
+     */
+    data class GiftProps(
+        val queue: String = "gyeol-local-gift-image",
+        val dlq: String = "gyeol-local-gift-image-dlq",
+        val imageModel: String = "stability.stable-image-core-v1:1",
+        val imageRegion: String = "us-west-2",
+        /** 서비스 전체 하루(한국 날짜) 이미지 생성 수. 넘으면 기본 캐릭터 (11-13 결정: 50장 ≈ $2) */
+        val dailyImageLimit: Int = 50,
+    )
 
     /** 음악 방 담기 식별 (docs/todo/room-api-db.md) */
     data class RoomProps(val songQueue: String = "gyeol-local-room-song", val songDlq: String = "gyeol-local-room-song-dlq")
