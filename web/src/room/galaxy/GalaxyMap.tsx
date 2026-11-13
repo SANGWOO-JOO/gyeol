@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { MemberView, RoomMap } from '../roomApi'
 import { memberColor } from '../roomApi'
 import { planetPeople } from '../roomLogic'
-import { fitView, labelBox, pan, planetRadius, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomLevel, type View } from './galaxyMath'
+import { fitView, GALAXY_PX, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomLevel, type View } from './galaxyMath'
+import { orbitLayout, ringRadius, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
 
 /**
@@ -20,9 +21,15 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
   const settleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const fitted = useRef(false)
+  // 처음 맞추기 전 한 프레임(배율 1)이 보이지 않게
+  const [ready, setReady] = useState(false)
 
   const members = useMemo(() => new Map<number, MemberView>(map.members.map(m => [m.id, m])), [map.members])
-  const planets = useMemo(() => map.planets.map(p => ({ ...p, wx: toWorld(p.x), wy: toWorld(p.y), people: planetPeople(p) })), [map.planets])
+  // 궤도 순서(규칙 ⑫)는 지도 데이터가 바뀔 때만 다시 정한다
+  const planets = useMemo(() => {
+    const order = map.members.map(m => m.id)
+    return map.planets.map(p => ({ ...p, wx: toWorld(p.x), wy: toWorld(p.y), people: planetPeople(p), rings: orbitLayout(p, order) }))
+  }, [map.planets, map.members])
   const galaxies = useMemo(() => map.galaxies.filter(x => x.name).map(x => ({ ...x, wx: toWorld(x.x), wy: toWorld(x.y) })), [map.galaxies])
   const ghosts = useMemo(() => map.ghosts.map(x => ({ ...x, wx: toWorld(x.x), wy: toWorld(x.y) })), [map.ghosts])
   const starField = useMemo(() => stars(roomId), [roomId])
@@ -38,7 +45,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
 
   const fit = useCallback(() => {
     if (size.width === 0) return
-    apply(fitView(planets.map(p => ({ x: p.wx, y: p.wy, r: planetRadius(p.songs.length) + 30 })), size), true)
+    apply(fitView(planets.map(p => ({ x: p.wx, y: p.wy })), size), true)
   }, [apply, planets, size])
 
   useLayoutEffect(() => {
@@ -57,6 +64,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
     if (fitted.current && touched.current) return
     fitted.current = true
     fit()
+    setReady(true)
   }, [size, planets.length, fit])
   const refit = () => { touched.current = false; fit() }
 
@@ -70,7 +78,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
 
   function onPointerDown(e: React.PointerEvent) {
     if (e.button !== 0 && e.pointerType === 'mouse') return
-    wrapRef.current?.setPointerCapture(e.pointerId)
+    try { wrapRef.current?.setPointerCapture(e.pointerId) } catch { /* 이미 끝난 포인터: 캡처 없이 진행 */ }
     pointers.current.set(e.pointerId, local(e))
     if (pointers.current.size === 1) gesture.current = { moved: 0, downTarget: e.target, pinch: null }
     if (pointers.current.size === 2) {
@@ -128,15 +136,26 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
   // ── 멈춘 배율 기준 크기·이름 ──
   const s = settled.scale
   const u = 1 / s // 화면 1px = 세계 u
-  const level = zoomLevel(s)
+  const spacing = useMemo(() => screenSpacing(planets.map(p => ({ x: p.wx, y: p.wy })), settled, size), [planets, settled, size])
+  const level = zoomLevel(s, spacing)
   const radius = useMemo(() => new Map(planets.map(p => [p.artistId, screenPlanetRadius(p.songs.length, s)])), [planets, s])
+  // 궤도까지 포함한 바깥 반지름(px): 멀리서는 궤도를 그리지 않으므로 행성만
+  const outer = useMemo(() => new Map(planets.map(p => {
+    const r = radius.get(p.artistId)!
+    return [p.artistId, level === 'far' || p.rings.length === 0 ? r : ringRadius(r, p.rings.length - 1) + 2]
+  })), [planets, radius, level])
   const nameItems = useMemo(() => planets.map(p => ({
-    id: p.artistId, sx: p.wx * s + settled.tx, sy: p.wy * s + settled.ty, r: radius.get(p.artistId)!,
+    id: p.artistId, sx: p.wx * s + settled.tx, sy: p.wy * s + settled.ty, r: outer.get(p.artistId)!,
     w: Math.min(130, Array.from(p.name).length * 9 + 8), weight: p.songs.length + (p.people.memberIds.includes(meId) ? 0.5 : 0),
-  })), [planets, s, settled.tx, settled.ty, radius, meId])
+  })), [planets, s, settled.tx, settled.ty, outer, meId])
+  // 화면 밖(한 화면 거리 이상) 행성은 그리지 않는다: 수백 개여도 가볍게. 이동 중엔 이 여유 안에서 보인다
+  const onScreen = useMemo(() => {
+    const mx = size.width, my = size.height
+    return new Set(nameItems.filter(it => it.sx > -mx - it.r && it.sx < size.width + mx + it.r && it.sy > -my - it.r && it.sy < size.height + my + it.r).map(it => it.id))
+  }, [nameItems, size])
   // 이름 자리 정하기: 행성 몸체를 먼저 놓고 → 행성 이름(노래 많은 순) → 유령 이름 → 구역 이름. 겹치면 숨긴다
   const { labels, ghostLabels, galaxyLabels } = useMemo(() => {
-    const bodies = nameItems.map(it => ({ x0: it.sx - it.r - 5, x1: it.sx + it.r + 5, y0: it.sy - it.r - 10, y1: it.sy + it.r }))
+    const bodies = nameItems.map(it => ({ x0: it.sx - it.r - 3, x1: it.sx + it.r + 3, y0: it.sy - it.r - 3, y1: it.sy + it.r }))
     const labels = level === 'far' ? new Set<number>() : visibleLabels(nameItems, 15, bodies)
     const taken = [...bodies, ...nameItems.filter(it => labels.has(it.id)).map(it => labelBox(it, 15))]
     let ghostLabels = new Set<number>()
@@ -150,7 +169,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
     const galaxyLabels = visibleLabels(galaxies.map(x => ({
       id: x.id, sx: x.wx * s + settled.tx, sy: x.wy * s + settled.ty - 38, r: 0,
       w: Array.from(x.name ?? '').length * 13 + 8, weight: count.get(x.id) ?? 0,
-    })), 18, taken)
+    })), 18, level === 'far' ? [] : taken) // 멀리서는 구역 이름이 행성 위에 (테두리로 읽히게)
     return { labels, ghostLabels, galaxyLabels }
   }, [nameItems, ghosts, galaxies, planets, s, settled.tx, settled.ty, level])
 
@@ -158,7 +177,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
   return (
     <div className={g.mapWrap}>
       <div ref={wrapRef} className={g.map} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
-        <svg width="100%" height="100%" role="group" aria-label={`우리 음악 은하. 행성 ${planets.length}개. 행성을 누르면 자세히 보여요`}>
+        <svg width="100%" height="100%" style={{ opacity: ready ? 1 : 0 }} role="group" aria-label={`우리 음악 은하. 행성 ${planets.length}개. 행성을 누르면 자세히 보여요`}>
           <defs>
             <radialGradient id="gl-planet" cx="35%" cy="30%" r="75%">
               <stop offset="0%" stopColor="#4a4385" />
@@ -169,36 +188,34 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
             <g aria-hidden="true">
               {starField.map((st, i) => <circle key={i} cx={st.x} cy={st.y} r={st.r * u} fill="#2A2650" opacity={st.o} />)}
             </g>
-            <g aria-hidden="true" className={g.galaxyNames}>
-              {galaxies.filter(x => galaxyLabels.has(x.id)).map(x => <text key={x.id} x={x.wx} y={x.wy - 22 * u} fontSize={13 * u} textAnchor="middle">{x.name}</text>)}
-            </g>
             {/* ⑧ 근처 추천 가수: 흐린 점선 유령 행성 */}
             {level !== 'far' && ghosts.map(x => (
               <g key={`gh${x.artistId}`} className={g.ghost} data-artist={x.artistId} transform={`translate(${x.wx} ${x.wy})`}
                 role="button" tabIndex={0} aria-label={`근처 행성 ${x.name} (아직 우리 우주에 없음)`} onKeyDown={onKey(x.artistId)}>
                 <circle className={g.ghostHit} r={20 * u} />
                 <circle r={8 * u} strokeWidth={1.2 * u} strokeDasharray={`${3 * u} ${4 * u}`} />
-                {ghostLabels.has(x.artistId) && <text y={(8 + 12) * u} fontSize={10 * u} textAnchor="middle">{x.name}</text>}
+                {ghostLabels.has(x.artistId) && <text y={(8 + 12) * u} fontSize={NAME_PX * u} textAnchor="middle">{x.name}</text>}
               </g>
             ))}
-            {planets.map(p => {
+            {planets.filter(p => onScreen.has(p.artistId)).map(p => {
               const r = radius.get(p.artistId)! * u
+              const ro = outer.get(p.artistId)! * u
               const mine = p.people.memberIds.includes(meId)
               const who = p.people.memberIds.map(id => members.get(id)?.nickname).filter(Boolean).join(', ')
               return (
                 <g key={p.artistId} className={`${g.planetNode} ${p.preparing ? g.preparingNode : ''}`} data-artist={p.artistId}
                   transform={`translate(${p.wx} ${p.wy})`} role="button" tabIndex={0} onKeyDown={onKey(p.artistId)}
                   aria-label={`${p.name}, 노래 ${p.songs.length}곡${who ? `, ${who}` : ''}${p.people.shared ? `, 같이 담은 노래 ${p.people.shared}곡` : ''}${p.preparing ? ', 우주에 올리는 중' : ''}`}>
-                  <circle className={g.planetHit} r={r + 10 * u} />
+                  <circle className={g.planetHit} r={Math.max(ro, r + 10 * u)} />
+                  {level !== 'far' && <Orbits rings={p.rings} r={radius.get(p.artistId)!} u={u} members={members} near={level === 'near'} />}
                   <circle className={g.planetBody} r={r} fill={p.preparing ? 'none' : 'url(#gl-planet)'} stroke={mine ? '#E6DCFF' : '#5E5794'}
                     strokeWidth={(mine ? 1.8 : 1.1) * u} strokeDasharray={p.preparing ? `${3 * u} ${4 * u}` : undefined} />
                   {level === 'far'
                     ? <text className={g.planetCount} y={r * 0.35} fontSize={Math.max(10 * u, r * 0.95)} textAnchor="middle">{p.songs.length}</text>
                     : <text className={g.planetInitial} y={r * 0.33} fontSize={r * 0.9} textAnchor="middle">{Array.from(p.name)[0]}</text>}
                   {labels.has(p.artistId) && (
-                    <text className={g.planetName} y={r + 13 * u} fontSize={11 * u} textAnchor="middle">{p.name}</text>
+                    <text className={g.planetName} y={ro + 13 * u} fontSize={NAME_PX * u} textAnchor="middle">{p.name}</text>
                   )}
-                  {level !== 'far' && <PeopleDots ids={p.people.memberIds} members={members} r={r} u={u} />}
                   {p.people.shared > 0 && level !== 'far' && (
                     <g transform={`translate(${r * 0.78} ${-r * 0.78})`}>
                       <circle r={7 * u} fill="#FFE3B8" stroke="#141225" strokeWidth={u} />
@@ -208,6 +225,10 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
                 </g>
               )
             })}
+            {/* 구역 이름은 맨 위에 (멀리서는 행성 위에 겹쳐 그림) */}
+            <g aria-hidden="true" className={g.galaxyNames}>
+              {galaxies.filter(x => galaxyLabels.has(x.id)).map(x => <text key={x.id} x={x.wx} y={x.wy - 22 * u} fontSize={GALAXY_PX * u} strokeWidth={3 * u} textAnchor="middle">{x.name}</text>)}
+            </g>
           </g>
         </svg>
       </div>
@@ -222,13 +243,29 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist }: {
   )
 }
 
-/** 9-1: 행성 위 사람 색 점 (9-2에서 궤도·위성으로 바뀐다) */
-function PeopleDots({ ids, members, r, u }: { ids: number[]; members: Map<number, MemberView>; r: number; u: number }) {
-  const step = 8 * u
-  const start = -((ids.length - 1) * step) / 2
+/**
+ * 궤도·위성 (규칙 ⑫). 크기는 화면 px로 계산하고 u(세계/px)를 곱해 그린다.
+ * 금빛 궤도 = 같이 담은 노래, 사람 궤도 = 그 사람 색 위성(혼자 담은 노래). 가까이(near)에선 위성을 조금 크게.
+ */
+function Orbits({ rings, r, u, members, near }: { rings: Ring[]; r: number; u: number; members: Map<number, MemberView>; near: boolean }) {
+  const color = (id: number) => memberColor(members.get(id)?.colorIdx ?? 0).bg
+  const k = near ? 1.3 : 1
   return (
-    <g aria-hidden="true" transform={`translate(0 ${-r - 6 * u})`}>
-      {ids.map((id, i) => <circle key={id} cx={start + i * step} r={3 * u} fill={memberColor(members.get(id)?.colorIdx ?? 0).bg} />)}
+    <g aria-hidden="true" className={g.orbits}>
+      {rings.map((ring, i) => {
+        const rr = ringRadius(r, i) * u
+        const gold = ring.kind === 'gold'
+        return (
+          <g key={i}>
+            <circle r={rr} fill="none" className={gold ? g.goldRing : g.personRing}
+              stroke={gold ? undefined : color(ring.memberIds[0])} strokeWidth={(gold ? 1 : 0.8) * u} />
+            {ring.sats.map(sat => (
+              <circle key={sat.trackId} cx={Math.cos(sat.angle) * rr} cy={Math.sin(sat.angle) * rr} r={satelliteRadius(sat, ring.kind) * k * u}
+                className={gold ? g.goldSat : undefined} fill={gold ? undefined : color(sat.memberIds[0])} />
+            ))}
+          </g>
+        )
+      })}
     </g>
   )
 }

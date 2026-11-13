@@ -34,7 +34,7 @@
 .map { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; background: var(--r-bg); }
 .map:active { cursor: grabbing; }
 .map svg { display: block; }
-.galaxyNames text { fill: #5e5794; font-family: var(--r-font-title); font-weight: 700; pointer-events: none; }
+.galaxyNames text { paint-order: stroke; stroke: var(--r-bg); stroke-linejoin: round; fill: #a39ade; font-family: var(--r-font-title); font-weight: 700; pointer-events: none; }
 .planetNode { cursor: pointer; outline: none; }
 .planetHit { fill: transparent; }
 .planetBody { transition: stroke .2s; }
@@ -56,3 +56,9 @@
 .ctrl:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
 .viewToggle { align-self: flex-end; min-height: 32px; padding: 0 12px; border: 1px solid var(--r-border); border-radius: 999px; background: none; color: var(--r-text-2); font: inherit; font-size: 12px; cursor: pointer; }
 .viewToggle:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+
+/* 9-2: 궤도·위성 (규칙 ⑫) */
+.orbits { pointer-events: none; }
+.goldRing { stroke: #FFE3B8; opacity: .55; }
+.personRing { opacity: .32; }
+.goldSat { fill: #FFE3B8; }

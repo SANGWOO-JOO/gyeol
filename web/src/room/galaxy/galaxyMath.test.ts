@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampScale, fitView, MAX_SCALE, MIN_SCALE, pan, planetRadius, screenPlanetRadius, stars, visibleLabels, zoomAt, zoomLevel } from './galaxyMath'
+import { clampScale, screenSpacing, fitView, MAX_SCALE, MIN_SCALE, pan, planetRadius, screenPlanetRadius, stars, visibleLabels, zoomAt, zoomLevel } from './galaxyMath'
 
 const size = { width: 390, height: 600 }
 
@@ -80,5 +80,28 @@ describe('장애물', () => {
   it('장애물과 겹치는 이름은 숨긴다', () => {
     const items = [{ id: 1, sx: 100, sy: 100, r: 0, w: 40, weight: 1 }, { id: 2, sx: 300, sy: 100, r: 0, w: 40, weight: 1 }]
     expect([...visibleLabels(items, 14, [{ x0: 90, x1: 110, y0: 95, y1: 110 }])]).toEqual([2])
+  })
+})
+
+describe('최소 크기와 맞춤 여백', () => {
+  it('행성 지름은 어느 배율에서도 14px 이상', () => {
+    expect(screenPlanetRadius(1, 0.15) * 2).toBeGreaterThanOrEqual(14)
+  })
+  it('맞춤은 행성 범위에 12% 여백만 둔다 (가로가 좁으면 가로를 꽉 채움)', () => {
+    const v = fitView([{ x: 100, y: 100 }, { x: 830, y: 800 }], { width: 375, height: 568 })
+    expect(730 * v.scale).toBeCloseTo(375 * 0.76)
+  })
+})
+
+describe('빽빽할 때 확대 단계', () => {
+  it('행성이 빽빽하면 배율이 커도 멀리 보기(숫자만)', () => {
+    expect(zoomLevel(0.5, 30)).toBe('far')
+    expect(zoomLevel(2, 60)).toBe('mid')
+    expect(zoomLevel(0.5, 100)).toBe('mid')
+  })
+  it('평균 간격은 화면 안 행성만 센다', () => {
+    const v = { scale: 1, tx: 0, ty: 0 }
+    expect(screenSpacing([{ x: 10, y: 10 }, { x: 5000, y: 10 }], v, { width: 100, height: 100 })).toBeCloseTo(100)
+    expect(screenSpacing([], v, { width: 100, height: 100 })).toBe(Infinity)
   })
 })
