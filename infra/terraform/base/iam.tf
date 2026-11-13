@@ -31,10 +31,32 @@ data "aws_iam_policy_document" "app" {
       "arn:aws:bedrock:::foundation-model/${m}",
     ]])
   }
+
+  # ③ 방장 인증 메일. mail_domain이 있을 때만. 보내는 주소는 noreply@<도메인> 하나로 묶는다.
+  # SES v2 SendEmail은 발신 identity와 설정 세트에 권한을 확인하고, 샌드박스에서는 받는 사람 identity도 확인한다(추정, 문서 기준)
+  dynamic "statement" {
+    for_each = local.mail_on ? [1] : []
+    content {
+      sid     = "SendMail"
+      actions = ["ses:SendEmail"]
+      resources = concat(
+        [
+          aws_sesv2_email_identity.domain[0].arn,
+          aws_sesv2_configuration_set.main[0].arn,
+        ],
+        [for r in aws_sesv2_email_identity.test_recipient : r.arn],
+      )
+      condition {
+        test     = "StringEquals"
+        variable = "ses:FromAddress"
+        values   = [local.mail_from]
+      }
+    }
+  }
 }
 
 resource "aws_iam_policy" "app" {
   name        = "gyeol-app"
-  description = "gyeol 앱: SQS 큐, S3 버킷(업로드·표지·백업), Bedrock 모델 호출"
+  description = "gyeol 앱: SQS 큐, S3 버킷(업로드·표지·백업), Bedrock 모델 호출, SES 메일(도메인 있을 때)"
   policy      = data.aws_iam_policy_document.app.json
 }

@@ -5,7 +5,10 @@
     (dict "name" "GYEOL_UPLOAD_PUBLICENDPOINT" "value" .Values.aws.publicEndpoint)
     (dict "name" "IDENTIFY_QUEUE" "value" .Values.aws.identifyQueue)
     (dict "name" "ENRICH_QUEUE" "value" .Values.aws.enrichQueue)
-    (dict "name" "GYEOL_COVERBUCKET" "value" .Values.aws.coverBucket)))
+    (dict "name" "GYEOL_COVERBUCKET" "value" .Values.aws.coverBucket)
+    (dict "name" "MAIL_MODE" "value" .Values.api.mail.mode)
+    (dict "name" "MAIL_FROM" "value" .Values.api.mail.from)
+    (dict "name" "MAIL_CONFIG_SET" "value" .Values.api.mail.configurationSet)))
   "worker" (dict "cfg" .Values.worker "service" false "env" (list
     (dict "name" "WORKER_ROLE" "value" .Values.worker.role)
     (dict "name" "PARSE_QUEUE" "value" .Values.aws.parseQueue)

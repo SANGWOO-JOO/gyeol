@@ -1,6 +1,8 @@
 package dev.gyeol.api.room
 
 import dev.gyeol.api.config.GyeolProperties
+import dev.gyeol.api.mail.LogMailSender
+import dev.gyeol.api.mail.MailSender
 import dev.gyeol.api.web.ApiException
 import dev.gyeol.core.room.Role
 import dev.gyeol.core.room.RoomDraft

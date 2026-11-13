@@ -27,6 +27,12 @@ gyeol:
     song-queue: ${ROOM_SONG_QUEUE:gyeol-local-room-song}
     gift-queue: ${GIFT_QUEUE:gyeol-local-gift-image}
     secure-cookie: ${ROOM_SECURE_COOKIE:false}
+  mail:
+    # log(가짜 메일, 기본) | ses. ses는 MAIL_FROM이 SES에서 인증한 도메인 주소여야 한다 (infra/terraform/base/ses.tf)
+    mode: ${MAIL_MODE:log}
+    from: ${MAIL_FROM:}
+    from-name: 내 음악 결
+    configuration-set: ${MAIL_CONFIG_SET:}
   upload:
     bucket: ${UPLOAD_BUCKET:gyeol-local-uploads}
     max-bytes: 20971520 # 20MB

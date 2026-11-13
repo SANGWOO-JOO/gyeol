@@ -1,6 +1,6 @@
 package dev.gyeol.api
 
-import dev.gyeol.api.room.LogMailSender
+import dev.gyeol.api.mail.LogMailSender
 import dev.gyeol.core.identify.ArtistInfo
 import dev.gyeol.core.identify.IdentifyRepository
 import dev.gyeol.core.identify.TrackInfo

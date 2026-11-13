@@ -12,3 +12,9 @@ output "helm_set" {
     "postgres.backup.bucket=${aws_s3_bucket.this["backups"].bucket}",
   ])
 }
+
+# ③ 메일 (mail_domain이 비면 빈 값)
+output "mail_from" { value = local.mail_from }
+output "mail_configuration_set" { value = local.mail_on ? aws_sesv2_configuration_set.main[0].configuration_set_name : "" }
+# Route 53을 쓰지 않을 때 DNS에 직접 넣을 레코드
+output "ses_dns_records" { value = values(local.mail_dns_records) }

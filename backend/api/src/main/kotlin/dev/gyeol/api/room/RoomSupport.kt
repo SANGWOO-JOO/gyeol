@@ -1,6 +1,5 @@
 package dev.gyeol.api.room
 
-import dev.gyeol.api.config.GyeolProperties
 import dev.gyeol.api.web.ApiException
 import dev.gyeol.core.room.Member
 import dev.gyeol.core.room.Room
@@ -152,30 +151,5 @@ class AfterCommitSender(private val sqs: SqsTemplate) {
                 override fun afterCommit() { run() }
             })
         } else run()
-    }
-}
-
-/** 메일 발송. 로컬·테스트는 로그(가짜 메일함), 실제 SES는 ③에서 붙인다 */
-interface MailSender {
-    fun sendCode(to: String, purpose: String, code: String)
-}
-
-@Component
-class LogMailSender(private val props: GyeolProperties) : MailSender {
-    private val log = LoggerFactory.getLogger(javaClass)
-    /** 테스트가 읽는 가짜 메일함 (받는 사람 → 마지막 코드) */
-    val outbox = ConcurrentHashMap<String, String>()
-
-    override fun sendCode(to: String, purpose: String, code: String) {
-        outbox[to.lowercase()] = code
-        // 로컬 개발용 가짜 메일: 코드만 찍고 주소는 일부 가린다
-        log.info("[가짜 메일] {} → {}: 코드 {}", purpose, mask(to), code)
-    }
-
-    companion object {
-        fun mask(email: String): String {
-            val (local, domain) = email.split('@', limit = 2).let { it[0] to it.getOrElse(1) { "" } }
-            return local.take(1) + "***@" + domain
-        }
     }
 }

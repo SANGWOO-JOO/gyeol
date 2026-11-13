@@ -166,3 +166,17 @@
 - 테스트: api `RoomApiIntegrationTest` 선물 1개(50곡째 상자·요약·열기·그림 권한·기본 그림·얼굴), worker `GiftIntegrationTest` 4개(50곡·최고 기록·하루 1개·다음 날, S3 저장·중복 메시지, 예산 초과, 실패 큐), `RoomSongIntegrationTest` 식별 경로 50곡째 1개. 전체 api 27·worker 70 통과.
 - 로컬 확인(11-13, fake): 개발 서버에서 50곡 담기 → 상자 READY → 열기 → 1초 안에 OPENED → 그림 200(S3 `characters/…svg`).
 - 아직: 실제 Bedrock 이미지 호출(요청·응답 형식은 문서 기준, 미확인), 웹 화면(갈래 A: 4-j·4-k·4-l).
+
+## 10. ③ 메일 구현 기록 (11-13, 갈래 B)
+
+- 메일 코드를 `RoomSupport.kt`에서 `backend/api/.../api/mail/`로 옮김: `MailSender`(인터페이스, 시그니처 그대로) · `LogMailSender`(가짜 메일함, `mask` 포함) · `MailTemplates`(CREATE·HOST_RESET 한국어 제목·텍스트·HTML) · `SesMailSender` + `MailProperties`·`MailConfig`
+- 고르기: `gyeol.mail.mode`(`MAIL_MODE`) log(기본, 값이 없어도) | ses. ses는 `MAIL_FROM` 필수(없으면 시작 실패), `MAIL_CONFIG_SET` 선택. 발신 표시 이름 "내 음악 결"(RFC 2047)
+- SES 실패(샌드박스에서 인증 안 된 받는 사람 포함) → 503 `MAIL_FAILED`. 로그에는 가린 주소와 messageId만 남기고 코드는 남기지 않는다
+- 테스트: `SesMailSenderTest` 6개(가짜 SesV2Client, 실제 AWS 호출 없음). api 전체 32개 통과(방 9 + 세션 17 + 메일 6)
+- Terraform `infra/terraform/base/ses.tf`: `mail_domain`이 비면 자원 없음. 값이 있으면 도메인 identity(Easy DKIM 2048) · MAIL FROM `mail.<도메인>` · 설정 세트 `gyeol` · 계정 단위 자동 억제(BOUNCE·COMPLAINT) · 샌드박스 테스트 받는 사람 · (zone id가 있으면) Route 53 DKIM·MX·SPF·DMARC 레코드. 앱 IAM 정책에 `ses:SendEmail`(identity·설정 세트·테스트 받는 사람 ARN, 조건 `ses:FromAddress = noreply@<도메인>`)
+- plan(읽기만, apply 안 함): 도메인 없음 29개 추가(base 전체가 아직 apply 전) · 도메인 있음 +SES 5 +레코드 6
+
+### 알려진 한계
+- 메일은 코드 저장과 같은 트랜잭션 안에서 보낸다. 실패하면 코드 행·발송 기록이 함께 롤백되지만, 반대로 메일은 나갔는데 커밋이 실패하는 경우가 남는다(사용자는 다시 받기). SES 호출(수백 ms, 추정) 동안 DB 연결을 잡는다. 지금 규모에서는 허용
+- `ses:FromAddress` 조건이 표시 이름을 붙인 발신 주소에서도 주소 부분만 비교하는지, 설정 세트·받는 사람 ARN 권한이 꼭 필요한지는 문서 기준 추정. 첫 실제 발송 때 확인
+- `HOST_RESET` 문구만 있고 호출하는 API는 아직 없다(6-d)

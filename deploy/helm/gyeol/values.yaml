@@ -58,6 +58,11 @@ javaResources:
 api:
   replicas: 1
   port: 18080
+  # 방장 인증 메일. log(가짜 메일) | ses. ses는 파드에 ses:SendEmail 권한과 인증된 발신 도메인이 있어야 한다 (base ses.tf)
+  mail:
+    mode: log
+    from: ""
+    configurationSet: ""
 worker:
   replicas: 1
   port: 18082

@@ -1,3 +1,6 @@
 # cp terraform.tfvars.example terraform.tfvars (git 제외)
 # budget_email = "you@example.com"
 # web_origins  = ["https://gyeol.example"]
+# mail_domain          = "gyeol.example"   # ③ 메일. 비우면 SES 자원 없음
+# mail_route53_zone_id = "Z0123456789ABC"  # Route 53이면. 비우면 output ses_dns_records를 직접 DNS에
+# ses_test_recipients  = ["me@example.com"] # 샌드박스 동안 받을 주소
