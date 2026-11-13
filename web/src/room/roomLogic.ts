@@ -113,11 +113,21 @@ export function sourceName(source: string): string {
  * 선물 표시 (room-plan ⑯ 남은 곡 표시, 캔버스 4-l). 내 노래 탭 맨 위 줄은 늘 있고, 탭 배지는
  * 곧 받거나(3곡 이하) 상자가 있을 때만 뜬다. 오늘 이미 받았으면 배지 없음.
  */
-export interface GiftSummaryLike { songCount: number; nextMilestone: number; remaining: number; receivedToday: boolean; waiting: number; readyBoxId: number | null }
+export interface GiftSummaryLike {
+  songCount: number; nextMilestone: number; remaining: number; receivedToday: boolean; waiting: number; readyBoxId: number | null
+  /** ⑯ 변경(11-14): 서비스 전체 오늘 남은 새 그림 장수. API가 아직 안 주면 없음 → 표시 생략 */
+  imagesLeftToday?: number | null
+}
 export interface GiftLineState { text: string; gold: boolean; badge: string | null; canOpen: boolean }
 
 export function giftLine(g: GiftSummaryLike): GiftLineState {
-  if (g.readyBoxId != null) return { text: '선물 상자가 왔어요 · 눌러서 열어요', gold: true, badge: '상자', canOpen: true }
+  if (g.readyBoxId != null) {
+    const left = g.imagesLeftToday
+    const text = left == null ? '선물 상자가 왔어요 · 눌러서 열어요'
+      : left > 0 ? `선물 상자가 왔어요 · 오늘 새 그림 ${left}장 남음`
+      : '선물 상자가 왔어요 · 오늘 새 그림은 다 나갔어요'
+    return { text, gold: true, badge: '상자', canOpen: true }
+  }
   if (g.waiting > 0) return { text: `기다리는 상자 ${g.waiting}개 · 내일 열려요`, gold: true, badge: '상자', canOpen: false }
   if (g.receivedToday) return { text: `오늘 선물은 받았어요 · ${g.nextMilestone}곡까지 ${g.remaining}곡`, gold: false, badge: null, canOpen: false }
   const soon = g.remaining <= 3
@@ -174,4 +184,22 @@ export function planetPeople(p: Planet): { memberIds: number[]; shared: number }
     if (s.memberIds.length >= 2) shared++
   }
   return { memberIds: [...ids], shared }
+}
+
+/**
+ * ⑯ 변경(11-14) 새 그림 하루 10장 선착순: 상자 판(4-j)에 열기 전에 남은 장수를 알린다.
+ * 둘 중 하나라도 없으면(API 준비 전) null → 표시하지 않고 지금 화면 그대로.
+ */
+export interface ImageQuota { text: string; soldOut: boolean }
+export function imageQuota(left?: number | null, limit?: number | null): ImageQuota | null {
+  if (left == null || limit == null) return null
+  const n = Math.max(0, left)
+  return { text: `오늘 남은 새 그림 ${n}/${limit}장 · 선착순`, soldOut: n === 0 }
+}
+
+/** 4-k 결과 문구: 기본 캐릭터를 준 이유(fallbackReason)에 따라 사실대로 */
+export function giftResultText(isFallback: boolean, reason?: string | null): { title: string; text: string | null } {
+  if (!isFallback) return { title: '', text: null }
+  if (reason === 'DAILY_LIMIT') return { title: '기본 캐릭터를 보냈어요', text: '방금 오늘 몫이 다 떨어져 기본 캐릭터를 보냈어요.' }
+  return { title: '기본 캐릭터를 보냈어요', text: '오늘은 새 그림을 만들 수 없어서 미리 준비한 캐릭터를 드려요.' }
 }

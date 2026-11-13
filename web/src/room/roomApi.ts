@@ -11,7 +11,11 @@ export interface DraftResponse { draftToken: string; email: string; expiresAt: s
 export interface JoinedResponse { roomId: string; key: string; member: MemberView }
 
 /** ④ 선물 요약 (6단계에서 씀) */
-export interface GiftSummary { songCount: number; bestCount: number; nextMilestone: number; remaining: number; receivedToday: boolean; waiting: number; readyBoxId: number | null }
+export interface GiftSummary {
+  songCount: number; bestCount: number; nextMilestone: number; remaining: number; receivedToday: boolean; waiting: number; readyBoxId: number | null
+  /** ⑯ 변경(11-14) 새 그림 하루 한도: 작업 세션이 더하는 중이라 없을 수 있음 */
+  imagesLeftToday?: number | null; imageDailyLimit?: number | null
+}
 export interface MeView {
   roomId: string; roomName: string; roomStatus: RoomStatus; member: MemberView
   songCount: number; todayAdded: number; dailyLimit: number; pendingRequests: number; gift: GiftSummary | null
@@ -54,10 +58,14 @@ export interface CodeMatchView {
 
 export type GiftStatus = 'WAITING' | 'READY' | 'GENERATING' | 'OPENED' | 'FAILED'
 export interface GiftBoxView { id: number; milestone: number; status: GiftStatus; earnedAt: string; readyOn: string | null; openedAt: string | null; characterId: number | null }
-export interface CharacterView { id: number; giftBoxId: number | null; isFallback: boolean; createdAt: string }
+export interface CharacterView { id: number; giftBoxId: number | null; isFallback: boolean; createdAt: string; fallbackReason?: 'DAILY_LIMIT' | 'FAILED' | string | null }
 export interface GiftsResponse { summary: GiftSummary; boxes: GiftBoxView[]; characters: CharacterView[]; avatarCharacterId: number | null }
 /** genreMix: OPENED 상자에만, 구역별 곡 수 상위 4개 (그 밖은 빈 배열) */
-export interface GiftBoxDetail { box: GiftBoxView; character: CharacterView | null; genreMix?: { galaxy: string; songs: number }[] }
+export interface GiftBoxDetail {
+  box: GiftBoxView; character: CharacterView | null; genreMix?: { galaxy: string; songs: number }[]
+  /** ⑯ 변경(11-14): 없을 수 있음 → 표시 생략 */
+  imagesLeftToday?: number | null; imageDailyLimit?: number | null; fallbackReason?: 'DAILY_LIMIT' | 'FAILED' | string | null
+}
 
 /** 캐릭터 그림은 같은 방 참가자만 볼 수 있어 열쇠 헤더를 붙여 받고, 화면에는 blob 주소로 넣는다 (쿠키가 안 남는 브라우저 대비) */
 const imageCache = new Map<string, Promise<string | null>>()

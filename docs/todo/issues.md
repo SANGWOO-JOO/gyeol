@@ -9,7 +9,7 @@
 | # | 날짜 | 영역 | 제목 | 상태 |
 |---|---|---|---|---|
 | I-1 | 11-13 | 로컬 환경 | LocalStack 재시작 때 `init-aws.sh`가 중간에 멈춤 | 닫힘 (11-14: make_queue 멱등·버킷 먼저·마지막 검사·상태 검사 연결, 앱 queue-not-found-strategy=fail, dev-up·k3d-up `--wait`. 원인 추정: 앱이 기본 설정으로 큐를 먼저 만들어 스크립트가 QueueAlreadyExists로 멈춤, 그날 로그 없어 큐 이름은 미확인) |
-| I-25 | 11-14 | 배포 | 운영 Terraform·Helm에 음악 방 큐 3쌍(room-song·gift-image·code-match)과 큐 환경 변수가 없고, Helm worker role에 room이 없어 방·선물·코드 맞추기 리스너가 꺼짐. 큐 자동 생성을 끈 뒤라 배포하면 보내기가 실패 | 처리 중 (갈래 1) |
+| I-25 | 11-14 | 배포 | 운영 Terraform·Helm에 음악 방 큐 3쌍(room-song·gift-image·code-match)과 큐 환경 변수가 없고, Helm worker role에 room이 없어 방·선물·코드 맞추기 리스너가 꺼짐. 큐 자동 생성을 끈 뒤라 배포하면 보내기가 실패 | 닫힘 (`0a2802e`: sqs.tf 3쌍 추가·plan 35 추가 중 큐 20개, Helm 큐 환경 변수 api·worker, worker role에 room 추가. apply는 안 함) |
 | I-2 | 11-13 | 테스트 | worker `RoomSongIntegrationTest`가 api와 함께 돌릴 때 SQS 404로 시작 실패 | 열림 |
 | I-3 | 11-13 | 백엔드 | 방 숨김 시각(DB 시계)과 삭제 예정 시각(앱 시계)이 어긋나 7일이 6일로 계산 | 닫힘 |
 | I-4 | 11-13 | 문서 | `room-api-db.md` 구현 기록 절 번호가 두 갈래에서 같은 9절로 겹침 | 닫힘 |

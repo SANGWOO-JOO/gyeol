@@ -134,7 +134,8 @@ function GiftLine({ gift, songCount, onOpen }: { gift: NonNullable<MeView['gift'
     <>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M3 7h18v3H3zM12 7v13M12 7c-2-4-6-3-5-1 .6 1.2 3 1 5 1zM12 7c2-4 6-3 5-1-.6 1.2-3 1-5 1z" /></svg>
       <span>{g.text}</span>
-      <span>내 노래 {songCount}곡</span>
+      {/* 남은 새 그림 장수까지 보일 때는 한 줄에 들어가게 곡 수를 뺀다(아래 제목에 곡 수가 있음) */}
+      {!(g.canOpen && gift.imagesLeftToday != null) && <span>내 노래 {songCount}곡</span>}
     </>
   )
   const cls = `${sh.giftLine} ${g.gold ? sh.giftLineGold : ''}`

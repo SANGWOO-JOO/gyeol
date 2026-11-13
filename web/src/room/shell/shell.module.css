@@ -313,3 +313,6 @@
 .toastWide { position: absolute; left: 50%; right: auto; bottom: 84px; width: 440px; max-width: calc(100% - 32px); margin: 0; transform: translateX(-50%); }
 @keyframes toast-in-wide { from { transform: translate(-50%, 12px); opacity: 0; } }
 .toastWide { animation-name: toast-in-wide; }
+
+/* ⑯ 변경(11-14): 새 그림 하루 10장 선착순 안내 */
+.quota { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 999px; background: #3b3324; color: var(--r-peach); font-size: 12px; font-weight: 500; }

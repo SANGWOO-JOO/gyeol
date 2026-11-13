@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { roomApi, RoomApiError, type CharacterView, type GiftBoxView, type MeView } from '../roomApi'
+import { roomApi, RoomApiError, type CharacterView, type GiftBoxDetail, type GiftBoxView, type MeView } from '../roomApi'
 import { Avatar, useCharacterImage } from '../components/Avatar'
-import { genreMixText } from '../roomLogic'
+import { genreMixText, giftResultText, imageQuota } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { Sheet } from './Sheet'
 import type { ToastData } from './Toast'
@@ -19,6 +19,7 @@ export function GiftSheet({ roomId, boxId, me, onClose, onAvatarChanged, onError
   const [box, setBox] = useState<GiftBoxView | null>(null)
   const [character, setCharacter] = useState<CharacterView | null>(null)
   const [mix, setMix] = useState<string | null>(null)
+  const [detail, setDetail] = useState<GiftBoxDetail | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,7 +31,7 @@ export function GiftSheet({ roomId, boxId, me, onClose, onAvatarChanged, onError
       try {
         const d = await roomApi.giftBox(roomId, boxId)
         if (!alive) return
-        setBox(d.box); setCharacter(d.character); setMix(genreMixText(d.genreMix))
+        setBox(d.box); setCharacter(d.character); setMix(genreMixText(d.genreMix)); setDetail(d)
         if (d.box.status === 'GENERATING') timer = setTimeout(load, 2000)
       } catch (err) {
         if (alive && !onError(err)) setError(err instanceof RoomApiError ? err.message : '상자를 불러오지 못했어요')
@@ -68,6 +69,9 @@ export function GiftSheet({ roomId, boxId, me, onClose, onAvatarChanged, onError
 
   const status = box?.status
   const milestone = box?.milestone ?? 50
+  // ⑯ 변경(11-14): 오늘 남은 새 그림 (상자 상세 → 없으면 내 정보 요약, 둘 다 없으면 표시 생략)
+  const quota = imageQuota(detail?.imagesLeftToday ?? me.gift?.imagesLeftToday, detail?.imageDailyLimit ?? me.gift?.imageDailyLimit)
+  const fallbackReason = detail?.fallbackReason ?? character?.fallbackReason ?? null
   return (
     <Sheet title={status === 'OPENED' ? '새 캐릭터가 왔어요' : `내 노래 ${milestone}곡 선물`} onClose={onClose}>
       {!box && !error && <p className={sh.center} role="status"><Spinner size={14} /> 불러오는 중…</p>}
@@ -79,9 +83,24 @@ export function GiftSheet({ roomId, boxId, me, onClose, onAvatarChanged, onError
           <span className={sh.goldTag}>내 노래 {milestone}곡 달성</span>
           {status === 'READY' ? (
             <>
-              <h2 className={sh.giftTitle}>{me.member.nickname}님 취향으로<br />캐릭터를 만들어 드려요</h2>
-              <p className={sh.giftText}>담은 노래의 장르와 분위기로 하나뿐인 캐릭터를 그려요</p>
-              <button type="button" className={s.primary} style={{ height: 52, fontSize: 16 }} onClick={open} disabled={busy}>{busy ? <Spinner /> : '상자 열기'}</button>
+              {quota?.soldOut ? (
+                <>
+                  <h2 className={sh.giftTitle}>오늘 새 그림은<br />다 나갔어요</h2>
+                  <p className={sh.giftText}>기본 캐릭터를 지금 받거나, 내일 새 그림으로 열 수 있어요.<br />내일 열기를 고르면 상자는 그대로 남아요.</p>
+                  <span className={sh.quota}>{quota.text}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+                    <button type="button" className={s.primary} style={{ height: 52, fontSize: 16 }} onClick={open} disabled={busy}>{busy ? <Spinner /> : '기본 캐릭터로 지금 받기'}</button>
+                    <button type="button" className={s.secondary} onClick={onClose} disabled={busy}>내일 새 그림으로 열기</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className={sh.giftTitle}>{me.member.nickname}님 취향으로<br />캐릭터를 만들어 드려요</h2>
+                  <p className={sh.giftText}>담은 노래의 장르와 분위기로 하나뿐인 캐릭터를 그려요</p>
+                  {quota && <span className={sh.quota}>{quota.text}</span>}
+                  <button type="button" className={s.primary} style={{ height: 52, fontSize: 16 }} onClick={open} disabled={busy}>{busy ? <Spinner /> : '상자 열기'}</button>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -95,7 +114,7 @@ export function GiftSheet({ roomId, boxId, me, onClose, onAvatarChanged, onError
       )}
 
       {status === 'OPENED' && character && (
-        <Pick roomId={roomId} me={me} character={character} milestone={milestone} mix={mix} busy={busy} onUse={useCharacter} onKeep={onClose} />
+        <Pick roomId={roomId} me={me} character={character} fallbackReason={fallbackReason} milestone={milestone} mix={mix} busy={busy} onUse={useCharacter} onKeep={onClose} />
       )}
 
       {status === 'FAILED' && (
@@ -116,21 +135,22 @@ export function GiftSheet({ roomId, boxId, me, onClose, onAvatarChanged, onError
 }
 
 /** 4-k 새 캐릭터 받기 · 바꿀까요 */
-function Pick({ roomId, me, character, milestone, mix, busy, onUse, onKeep }: {
-  roomId: string; me: MeView; character: CharacterView; milestone: number; mix: string | null; busy: boolean; onUse: () => void; onKeep: () => void
+function Pick({ roomId, me, character, fallbackReason, milestone, mix, busy, onUse, onKeep }: {
+  roomId: string; me: MeView; character: CharacterView; fallbackReason: string | null; milestone: number; mix: string | null; busy: boolean; onUse: () => void; onKeep: () => void
 }) {
   const img = useCharacterImage(roomId, character.id)
   const using = me.member.avatarCharacterId === character.id
+  const fb = giftResultText(character.isFallback, fallbackReason)
   return (
     <div className={sh.giftStage} style={{ gap: 14 }}>
       <span className={sh.goldText}>✦ {milestone}곡 선물</span>
       <div className={sh.characterBig}>
         {img ? <img src={img} alt={`${me.member.nickname}님 취향으로 만든 캐릭터`} /> : <Spinner size={28} />}
       </div>
-      <h2 className={sh.giftTitle}>{character.isFallback ? '기본 캐릭터를 보냈어요' : `${me.member.nickname}님 취향을 닮은 캐릭터예요`}</h2>
+      <h2 className={sh.giftTitle}>{character.isFallback ? fb.title : `${me.member.nickname}님 취향을 닮은 캐릭터예요`}</h2>
       <p className={sh.giftText}>
         {character.isFallback
-          ? '오늘은 새 그림을 만들 수 없어서 미리 준비한 캐릭터를 드려요.'
+          ? fb.text
           : mix ? `${mix}을 담은 ${me.member.nickname}님 취향으로 만들었어요` : `담은 노래 ${milestone}곡의 장르와 분위기로 만들었어요.`}
       </p>
       <div className={sh.compare} aria-hidden="true">

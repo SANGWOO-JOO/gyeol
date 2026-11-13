@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -139,5 +139,30 @@ describe('지도 집계', () => {
     expect(g.get(100)).toBe('새벽 감성 발라드')
     expect(g.has(200)).toBe(false)
     expect(g.has(300)).toBe(false)
+  })
+})
+
+describe('새 그림 하루 10장 선착순 (⑯ 변경 11-14)', () => {
+  it('남은 장수가 없으면(API 준비 전) 표시하지 않는다', () => {
+    expect(imageQuota(undefined, 10)).toBeNull()
+    expect(imageQuota(3, null)).toBeNull()
+  })
+  it('남은 장수와 선착순 안내, 0장이면 다 나감', () => {
+    expect(imageQuota(3, 10)).toEqual({ text: '오늘 남은 새 그림 3/10장 · 선착순', soldOut: false })
+    expect(imageQuota(0, 10)).toMatchObject({ soldOut: true, text: '오늘 남은 새 그림 0/10장 · 선착순' })
+    expect(imageQuota(-1, 10)?.soldOut).toBe(true)
+  })
+  it('내 노래 선물 줄: 열 수 있는 상자가 있으면 남은 장수도 짧게', () => {
+    const g = { songCount: 50, nextMilestone: 100, remaining: 50, receivedToday: false, waiting: 0, readyBoxId: 7 }
+    expect(giftLine(g).text).toBe('선물 상자가 왔어요 · 눌러서 열어요')
+    expect(giftLine({ ...g, imagesLeftToday: 3 }).text).toBe('선물 상자가 왔어요 · 오늘 새 그림 3장 남음')
+    expect(giftLine({ ...g, imagesLeftToday: 0 }).text).toBe('선물 상자가 왔어요 · 오늘 새 그림은 다 나갔어요')
+    expect(giftLine({ ...g, readyBoxId: null, imagesLeftToday: 3 }).text).toBe('100곡 선물까지 50곡')
+  })
+  it('4-k 결과: 기본 캐릭터 이유에 따라 사실대로', () => {
+    expect(giftResultText(true, 'DAILY_LIMIT').text).toBe('방금 오늘 몫이 다 떨어져 기본 캐릭터를 보냈어요.')
+    expect(giftResultText(true, 'FAILED').text).toBe('오늘은 새 그림을 만들 수 없어서 미리 준비한 캐릭터를 드려요.')
+    expect(giftResultText(true, undefined).text).toBe('오늘은 새 그림을 만들 수 없어서 미리 준비한 캐릭터를 드려요.')
+    expect(giftResultText(false, 'DAILY_LIMIT').text).toBeNull()
   })
 })
