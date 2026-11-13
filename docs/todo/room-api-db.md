@@ -288,3 +288,11 @@
 - 로컬 실제 Last.fm: NewJeans 100곡·IVE 99곡에 잡음 0. 전에는 NewJeans에서 직캠·cover by·1시간 가사·Performance Video·방송 녹화가 보였다.
 - 인기순 줄의 연도는 우리 DB 곡(trackId 있음)만 나온다(그대로 둠).
 
+### I-31 방에 바로 담은 DB 곡의 표지 확인 (11-14)
+- 원인: 표지 확인(cover 큐)은 식별 경로(`IdentifyService.requestCovers`)에서만 요청됐다. 방에 DB 곡을 바로 담는 경로(201)와 예전 데이터는 `cover_checked_at`이 비어 있었다(로컬 323곡 중 41곡, 예: track 316 "넌 감동이었어").
+- 고침:
+  1. api 바로 담기에서 확인 전 곡이면 room-song 큐에 `COVER {trackIds}`를 보내고, worker가 `requestCovers`(확인 안 한 곡만 cover 큐로)를 부른다.
+  2. worker `identify/CoverBackfill`: cover 역할 worker가 켜질 때 한 번, 확인 안 한 곡(최대 2,000)을 cover 큐로 보낸다. 이미 확인한 곡은 고르지 않아 여러 번 켜도 같다. `gyeol.worker.cover.backfill-on-start=false`로 끈다.
+- 테스트: api I-31 1개(확인 전 곡만 COVER), worker I-31 1개(COVER 메시지 → 확인 안 한 곡만 cover 큐).
+- 로컬: worker 재시작(02:32) 때 41곡을 보냈고 몇 분 안에 미확인 0. 표지 있는 곡은 306/323(나머지 17곡은 Cover Art Archive에 표지가 없는 곡), track 316도 표지가 생김.
+

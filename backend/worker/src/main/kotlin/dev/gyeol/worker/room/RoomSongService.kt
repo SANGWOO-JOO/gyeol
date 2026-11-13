@@ -60,6 +60,8 @@ class RoomSongService(
             "PREPARE_ARTIST" -> m.artistId?.let(map::prepare)
             // I-30 ③ 가수 화면 최신순: 녹음 발매일 모으기
             "SCAN_ARTIST_RELEASES" -> m.artistId?.let(releaseScanner::scan)
+            // I-31 방에 바로 담은 DB 곡의 표지 확인 (확인한 적 없는 곡만 cover 큐로)
+            "COVER" -> if (m.trackIds.isNotEmpty()) identify.requestCovers(m.trackIds)
         }
     }
 

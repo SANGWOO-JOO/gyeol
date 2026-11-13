@@ -278,4 +278,20 @@ class RoomSongIntegrationTest {
         assertEquals("FAILED", releases.scan(bad)!!.status)
         assertTrue(releases.requestScan(bad, java.time.Instant.now().minusSeconds(60)), "실패한 가수는 다시 요청 가능")
     }
+
+    @Test
+    fun `I-31 COVER 메시지 - 표지 확인 안 한 곡만 cover 큐로`() {
+        val a = ArtistInfo(UUID.randomUUID(), "표지 가수", "표지 가수", emptyList())
+        val unchecked = identifyRepo.upsertTrack(TrackInfo(UUID.randomUUID(), "표지 없는 곡", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
+        val checked = identifyRepo.upsertTrack(TrackInfo(UUID.randomUUID(), "표지 확인한 곡", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
+        jdbc.sql("UPDATE track SET cover_checked_at = now() WHERE id = :id").param("id", checked).update()
+        val coverUrl = sqs.getQueueUrl { it.queueName("gyeol-test-cover") }.queueUrl()
+        sqs.purgeQueue { it.queueUrl(coverUrl) }
+
+        service.handle(RoomSongMessage("COVER", trackIds = listOf(unchecked, checked)))
+
+        val ids = sqs.receiveMessage { it.queueUrl(coverUrl).maxNumberOfMessages(10).waitTimeSeconds(5) }.messages()
+            .flatMap { m -> json.readTree(m.body())["trackIds"].toList().map { it.asLong() } }
+        assertEquals(listOf(unchecked), ids)
+    }
 }

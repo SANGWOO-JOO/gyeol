@@ -144,6 +144,10 @@ class RoomSongService(
             val id = songs.add(room.id, me, body.trackId, artistId)!!
             rooms.bumpMapRev(room.id)
             requestPrepareIfNeeded(artistId)
+            // 표지를 한 번도 확인하지 않은 DB 곡이면 worker에 맡긴다 (I-31: 이 경로는 식별·cover 큐를 거치지 않았다)
+            if (songs.coverUnchecked(body.trackId)) {
+                sender.send(p.songQueue, json.writeValueAsString(mapOf("type" to "COVER", "trackIds" to listOf(body.trackId))))
+            }
             // 방 행을 잠근 같은 트랜잭션에서 50곡 단위 상자 (식별 경로는 worker RoomSongService가 같은 함수를 부른다)
             val box = gifts.onSongAdded(me, todayKst())?.let { GiftNotice(it.id, it.milestone, it.status.name) }
             return HttpStatus.CREATED to AddSongResponse("ADDED", songView(room.id, me, id), null, today, p.dailySongLimit, box)

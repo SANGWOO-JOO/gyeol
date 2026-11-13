@@ -95,6 +95,10 @@ class RoomSongRepository(private val jdbc: JdbcClient) {
     // ── 검색 결과에 친구 표시 ──
 
     /** 이 방에서 이 곡들을 담은 사람 (track_id → 참가자 id들) */
+    /** 표지를 아직 한 번도 확인하지 않은 곡인가 (I-31) */
+    fun coverUnchecked(trackId: Long): Boolean =
+        jdbc.sql("SELECT cover_checked_at IS NULL FROM track WHERE id = :id").param("id", trackId).query(Boolean::class.java).optional().orElse(false)
+
     fun whoHasTracks(roomId: Long, trackIds: Collection<Long>): Map<Long, List<Long>> =
         if (trackIds.isEmpty()) emptyMap() else
             jdbc.sql("SELECT track_id, array_agg(member_id ORDER BY added_at) FROM room_song WHERE room_id = :r AND track_id = ANY (:ids) GROUP BY track_id")

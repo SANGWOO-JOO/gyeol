@@ -935,4 +935,27 @@ class RoomApiIntegrationTest {
         // DB에 없는 가수(이름만)는 최신순 400
         assertEquals(400, call("GET", "/api/rooms/${host.rid}/artist-songs?name=zzz&sort=latest", key = host.key).status)
     }
+
+    @Test
+    fun `I-31 바로 담은 DB 곡이 표지 확인 전이면 room-song 큐에 COVER, 확인한 곡은 보내지 않음`() {
+        val host = newRoom()
+        val unchecked = track("표지 확인 전")
+        val checked = track("표지 확인 후")
+        jdbc.sql("UPDATE track SET cover_checked_at = now() WHERE id = :id").param("id", checked).update()
+        assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to unchecked), host.key).status)
+        assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to checked), host.key).status)
+        val covers = sqs().use { c ->
+            val url = c.getQueueUrl { it.queueName(SONG_QUEUE) }.queueUrl()
+            val found = mutableListOf<Long>()
+            repeat(20) {
+                val got = c.receiveMessage { it.queueUrl(url).maxNumberOfMessages(10).waitTimeSeconds(1) }.messages()
+                got.forEach { m -> c.deleteMessage { d -> d.queueUrl(url).receiptHandle(m.receiptHandle()) } }
+                got.map { json.readTree(it.body()) }.filter { it.path("type").asString("") == "COVER" }.forEach { n -> found += n["trackIds"].toList().map { it.asLong() } }
+                if (got.isEmpty()) return@repeat
+            }
+            found
+        }
+        assertTrue(unchecked in covers, covers.toString())
+        assertTrue(checked !in covers)
+    }
 }

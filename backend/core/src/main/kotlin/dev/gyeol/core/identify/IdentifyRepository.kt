@@ -180,6 +180,10 @@ class IdentifyRepository(private val jdbc: JdbcClient, private val search: Track
             .query { rs, _ -> CoverTarget(rs.getLong(1), rs.getObject(2, UUID::class.java), rs.getObject(3, UUID::class.java), rs.getString(4), rs.getTimestamp(5)?.toInstant(), rs.getString(6), rs.getString(7)) }
             .optional().orElse(null)
 
+    /** 표지를 한 번도 확인하지 않은 곡 (I-31: 방에 바로 담는 경로·예전 데이터가 cover 큐를 거치지 않음) */
+    fun uncheckedCoverTrackIds(limit: Int): List<Long> =
+        jdbc.sql("SELECT id FROM track WHERE cover_checked_at IS NULL ORDER BY id LIMIT :l").param("l", limit).query { rs, _ -> rs.getLong(1) }.list()
+
     /** S3에 저장한 표지 이미지의 키 */
     fun saveCoverKey(trackId: Long, key: String) {
         jdbc.sql("UPDATE track SET cover_key = :k WHERE id = :id").param("k", key).param("id", trackId).update()
