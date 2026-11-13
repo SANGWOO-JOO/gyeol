@@ -12,8 +12,10 @@ import g from './galaxy.module.css'
  * 확대·이동 중에는 React를 다시 그리지 않고 그룹 변환만 바꾸고, 멈춘 뒤(0.15초) 그 배율에 맞춰
  * 행성·글자를 화면에서 읽을 수 있는 크기로 다시 그린다. 이름은 겹치지 않는 것만 보인다.
  */
-export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH }: {
+export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH, selectedId = null }: {
   map: RoomMap; meId: number; roomId: string; onSelectArtist?: (artistId: number) => void; fresh?: Fresh
+  /** PC: 오른쪽 판에 자세히 열린 행성 */
+  selectedId?: number | null
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const layerRef = useRef<SVGGElement>(null)
@@ -211,10 +213,11 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH 
               const born = fresh.planets.has(p.artistId)
               const ping = !born && level === 'far' && p.songs.some(x => fresh.tracks.has(songKey(p.artistId, x.trackId)) || fresh.gold.has(songKey(p.artistId, x.trackId)))
               return (
-                <g key={p.artistId} className={`${g.planetNode} ${p.preparing ? g.preparingNode : ''}`} data-artist={p.artistId}
+                <g key={p.artistId} className={`${g.planetNode} ${p.preparing ? g.preparingNode : ''} ${selectedId === p.artistId ? g.selectedNode : ''}`} data-artist={p.artistId} aria-current={selectedId === p.artistId ? 'true' : undefined}
                   transform={`translate(${p.wx} ${p.wy})`} role="button" tabIndex={0} onKeyDown={onKey(p.artistId)}
                   aria-label={`${p.name}, 노래 ${p.songs.length}곡${who ? `, ${who}` : ''}${p.people.shared ? `, 같이 담은 노래 ${p.people.shared}곡` : ''}${p.preparing ? ', 우주에 올리는 중' : ''}`}>
                   <circle className={g.planetHit} r={Math.max(ro, r + 10 * u)} />
+                  {selectedId === p.artistId && <circle className={g.selectRing} r={r + 4 * u} strokeWidth={2 * u} />}
                   {(born || ping) && <Ripples r={born ? ro : r} u={u} first={born && fresh.first} />}
                   {p.preparing && <circle className={g.prepRing} r={r + 5 * u} strokeWidth={1.2 * u} strokeDasharray={`${2 * u} ${5 * u}`} />}
                   <g className={born ? (fresh.first ? g.firstPlanet : g.bornPlanet) : undefined}>

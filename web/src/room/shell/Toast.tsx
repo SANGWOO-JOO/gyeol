@@ -10,8 +10,8 @@ export interface ToastData {
   action?: { label: string; run: () => void }
 }
 
-/** 탭 바 바로 위 알림 (4-e 담김·4-h 겹침·오류). 6초 뒤 사라진다 */
-export function Toast({ toast, onClose }: { toast: ToastData | null; onClose: () => void }) {
+/** 탭 바 바로 위 알림 (4-e 담김·4-h 겹침·오류). PC(wide)는 지도 아래 가운데. 6초 뒤 사라진다 */
+export function Toast({ toast, onClose, wide = false }: { toast: ToastData | null; onClose: () => void; wide?: boolean }) {
   useEffect(() => {
     if (!toast) return
     const t = setTimeout(onClose, 6000)
@@ -21,7 +21,7 @@ export function Toast({ toast, onClose }: { toast: ToastData | null; onClose: ()
   if (!toast) return null
   const cls = toast.tone === 'gold' ? sh.toastGold : toast.tone === 'error' ? sh.toastError : ''
   return (
-    <div key={toast.id} className={`${sh.toast} ${cls}`} role={toast.tone === 'error' ? 'alert' : 'status'}>
+    <div key={toast.id} className={`${sh.toast} ${wide ? sh.toastWide : ''} ${cls}`} role={toast.tone === 'error' ? 'alert' : 'status'}>
       {toast.cover !== undefined && (toast.cover ? <img src={toast.cover} alt="" className={sh.toastCover} /> : <span className={sh.toastCover} aria-hidden="true" />)}
       <span className={sh.toastText}>
         <strong>{toast.title}</strong>

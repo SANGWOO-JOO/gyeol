@@ -18,24 +18,29 @@ export interface GalaxyViewProps {
   onAddFirst?: () => void
   /** 지도를 마지막으로 본 뒤 새로 생긴 것 (연출용, useFreshMarks) */
   fresh?: Fresh
+  /** PC 배치: 부모 칸을 꽉 채우고, 보기 전환은 지도 위에, 아래에 색 안내 */
+  fill?: boolean
+  /** PC: 오른쪽 판에 자세히 열린 행성 */
+  selectedId?: number | null
 }
 
-export function GalaxyView({ map, roomId, meId, onSelectArtist, onAddFirst, fresh }: GalaxyViewProps) {
+export function GalaxyView({ map, roomId, meId, onSelectArtist, onAddFirst, fresh, fill = false, selectedId = null }: GalaxyViewProps) {
   const [asList, setAsList] = useState(false)
-  if (map.planets.length === 0) return <EmptyGalaxy onAddFirst={onAddFirst} />
+  if (map.planets.length === 0) return <div className={fill ? g.fillCenter : undefined}><EmptyGalaxy onAddFirst={onAddFirst} /></div>
   const toggle = <button type="button" className={g.viewToggle} onClick={() => setAsList(v => !v)}>{asList ? '지도로 보기' : '목록으로 보기'}</button>
   if (!asList) {
     return (
-      <section aria-label="우리 음악 은하" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <section aria-label="우리 음악 은하" className={fill ? g.fillMap : undefined} style={fill ? undefined : { display: 'flex', flexDirection: 'column', gap: 8 }}>
         {toggle}
-        <GalaxyMap map={map} meId={meId} roomId={roomId} onSelectArtist={onSelectArtist} fresh={fresh} />
+        <GalaxyMap map={map} meId={meId} roomId={roomId} onSelectArtist={onSelectArtist} fresh={fresh} selectedId={selectedId} />
+        {fill && <Legend members={map.members} hasGhosts={map.ghosts.length > 0} />}
       </section>
     )
   }
 
   const members = new Map(map.members.map(m => [m.id, m]))
   return (
-    <section className={g.board} aria-label="우리 우주의 가수 목록 (임시 지도)">
+    <section className={`${g.board} ${fill ? g.fillList : ''}`} aria-label="우리 우주의 가수 목록">
       {toggle}
       {groupByGalaxy(map).map(group => (
         <div key={group.id ?? 'none'} className={g.group}>
@@ -75,6 +80,17 @@ function PlanetRow({ planet, members, meId, onSelect }: {
         </span>
       </button>
     </li>
+  )
+}
+
+/** PC 지도 아래 색 안내 (캔버스 4-PC): 사람 색 · 같이 담은 노래 · 근처 추천 가수 */
+function Legend({ members, hasGhosts }: { members: MemberView[]; hasGhosts: boolean }) {
+  return (
+    <div className={g.legend} aria-hidden="true">
+      {members.map(m => <span key={m.id}><i style={{ background: memberColor(m.colorIdx).bg }} />{m.nickname}</span>)}
+      <span><i className={g.legendGold} />같이 담은 노래</span>
+      {hasGhosts && <span><i className={g.legendGhost} />비슷한 아티스트</span>}
+    </div>
   )
 }
 

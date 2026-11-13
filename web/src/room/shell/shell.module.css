@@ -264,3 +264,52 @@
 .sharedRow { font-size: 15px; padding: 10px 12px; border-radius: 12px; background: var(--r-bg); }
 @keyframes bar-fill { from { width: 0; } }
 @media (prefers-reduced-motion: reduce) { .barTrack span { animation: none; } }
+
+/* PC 배치 (⑰, 캔버스 4-PC·4-PC′·4-PC″): 머리 한 줄 · 지도 왼쪽 · 오른쪽 판 400px */
+.wideShell { position: relative; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; background: var(--r-bg); color: var(--r-text); font-family: var(--r-font); }
+.wideHeader { flex: none; display: flex; align-items: center; gap: 18px; height: 68px; padding: 0 28px; box-sizing: border-box; border-bottom: 1px solid #2a2648; }
+.wideRoomName { margin: 0; min-width: 0; font-family: var(--r-font-title); font-size: 20px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wideHeader .counts { font-size: 13px; color: var(--r-text-2); }
+.ghostPill, .accentPill { flex: none; height: 40px; padding: 0 16px; border-radius: 999px; font: inherit; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; }
+.ghostPill { border: 1px solid #3a3466; background: none; color: #e6dcff; }
+.ghostPill:hover { background: var(--r-field); }
+.accentPill { padding: 0 18px; border: 0; background: var(--r-accent); color: var(--r-on-accent); font-weight: 700; }
+.accentPill:hover { filter: brightness(1.06); }
+.moreButton { flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: #b7afd1; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.moreButton:hover { background: var(--r-field); }
+.ghostPill:focus-visible, .accentPill:focus-visible, .moreButton:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+
+.wideBody { flex: 1; min-height: 0; display: flex; }
+.mapArea { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.mapNotices { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); width: 440px; max-width: calc(100% - 32px); z-index: 3; display: flex; flex-direction: column; gap: 10px; }
+.mapNotices .pending { box-shadow: 0 8px 28px rgba(0, 0, 0, .35); }
+
+/* 오른쪽 판: 줄 바탕은 밤 보라(캔버스처럼 판보다 한 단계 어둡게) */
+.panel {
+  --r-surface: var(--r-bg);
+  flex: 0 0 400px; box-sizing: border-box; padding: 18px 22px 22px; border-left: 1px solid #2a2648; background: #1e1b36;
+  display: flex; flex-direction: column; gap: 16px; overflow-y: auto;
+}
+.segTabs { flex: none; display: flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--r-bg); position: sticky; top: 0; z-index: 2; box-shadow: 0 -18px 0 #1e1b36; }
+.segTab {
+  position: relative; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 38px; border: 0; border-radius: 10px;
+  background: none; color: #b7afd1; font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer;
+}
+.segTab:hover { color: var(--r-text); }
+.segTab[aria-current='page'] { background: var(--r-chip); color: var(--r-text); font-weight: 700; }
+.segTab:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: -2px; }
+.segCount { font-size: 13px; }
+.segBadge { min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--r-peach); color: #3b2a10; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.panelBody { display: flex; flex-direction: column; gap: 14px; }
+.panelSheet { display: flex; flex-direction: column; gap: 14px; outline: none; }
+.panelSheet .sheetBody { overflow: visible; }
+
+/* 방 위 가운데 대화상자 (설정·관리·선물) */
+.dialogLayer { align-items: center; }
+.dialogBox { max-width: 440px; max-height: min(840px, calc(100dvh - 48px)); padding: 22px 24px 24px; border-radius: 24px; border: 1px solid var(--r-border-soft); box-shadow: 0 24px 60px rgba(0, 0, 0, .45); animation: fade .2s ease-out; }
+.dialogLayer .backdrop { background: rgba(11, 9, 24, .72); }
+
+/* 알림: 지도 아래 가운데 */
+.toastWide { position: absolute; left: 50%; right: auto; bottom: 84px; width: 440px; max-width: calc(100% - 32px); margin: 0; transform: translateX(-50%); }
+@keyframes toast-in-wide { from { transform: translate(-50%, 12px); opacity: 0; } }
+.toastWide { animation-name: toast-in-wide; }
