@@ -1,4 +1,4 @@
-# 단일 서버 Terraform 설계 (2026-11-14, 초안)
+# 단일 서버 Terraform 설계 (2026-11-14, 결정됨)
 
 상태: 설계만. 코드·`plan`·`apply` 없음. 이 문서를 승인받은 뒤 `infra/terraform/single`을 만든다.
 
@@ -286,7 +286,7 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 - 2~4와 6~8은 서로 기다리지 않는다. 1이 먼저다.
 - 비용이 생기는 단계는 2(거의 0)·7(월 약 17.5달러부터)이다. 7 직전에 한 번 더 확인받는다.
 
-## 10. 결정이 필요한 것 (추천 먼저)
+## 10. 결정 (2026-11-14 사용자: S1~S12 모두 추천안, S7 한도 월 15달러)
 
 | # | 결정 | 추천 | 다른 선택 |
 |---|---|---|---|
@@ -296,7 +296,7 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 | S4 | Cloudflare 프록시 | **끔** + Traefik Let's Encrypt | 켬 + Origin 인증서(IP 숨김, 관리자 허용·IP 제한 재설계) |
 | S5 | 비밀 전달 | **배포 스크립트가 Parameter Store → Secret** | External Secrets Operator(메모리·설정 증가) |
 | S6 | 배포 역할 신뢰 조건 | **GitHub Environment `production`**(태그 배포·롤백 둘 다, 보호 규칙 가능) | `refs/tags/v*`만(롤백도 태그 push로) |
-| S7 | Bedrock 비용 상한 | **Bedrock만 거른 월 예산 + 자동 조치**: 실제 비용이 한도(예: 15달러)를 넘으면 서버 역할에 Bedrock 거부 정책을 붙임. 앱의 하루 10장·업로드 제한이 1차, 이건 사고 대비 2차 | 알림만(지금 base 예산) |
+| S7 | Bedrock 비용 상한 | **Bedrock만 거른 월 예산 + 자동 조치**: 실제 비용이 한도(**월 15달러로 결정**)를 넘으면 서버 역할에 Bedrock 거부 정책을 붙임. 앱의 하루 10장·업로드 제한이 1차, 이건 사고 대비 2차 | 알림만(지금 base 예산) |
 | S8 | EBS 보존 | **루트 하나, 종료 시 삭제 안 함**(11-10 결정 그대로) + 내릴 때 손으로 정리 절차 | 데이터 볼륨 분리(루트는 삭제, DB만 보존) |
 | S9 | 서버가 차트를 받는 곳 | **GitHub 태그 압축본**(공개, 토큰 불필요) | 릴리스에 차트 묶음(.tgz)을 첨부 |
 | S10 | 관리자 IP | 집 IP /32 하나, tfvars(git 제외) | 여러 개, 또는 관리자 경로를 평소 닫아 두고 필요할 때만 열기 |
