@@ -2,7 +2,9 @@
 # 서버 한 대에 DB까지 올리고, SQS·S3·Bedrock은 AWS 서비스를 쓴다. 권한은 서버의 IAM 역할(인스턴스 프로필)
 # 버킷 이름은 전역에서 겹치면 안 되므로 Terraform 출력으로 덮어쓴다 (--set aws.uploadBucket=... 등)
 image:
-  registry: gyeol            # 맥북(ARM)에서 빌드해 서버 k3s에 직접 넣는다 (ECR 비용 없음)
+  # v* 태그 push 때 release.yml이 올린 공개 이미지(linux/arm64, ECR 비용 없음). 태그는 배포 때 --set image.tag=v0.3.0
+  registry: ghcr.io/sangwoo-joo
+  prefix: gyeol-
   pullPolicy: IfNotPresent
 
 postgres:

@@ -16,7 +16,7 @@ spec:
       securityContext: { runAsNonRoot: true, runAsUser: 1000 }
       containers:
         - name: embed
-          image: "{{ .Values.image.registry }}/embed:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.registry }}/{{ .Values.image.prefix }}embed:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports: [{ name: http, containerPort: {{ .Values.embed.port }} }]
           env:

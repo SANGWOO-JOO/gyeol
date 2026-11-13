@@ -1,0 +1,132 @@
+# v* 태그를 push하면 검사(checks.yml 전체) → 이미지 5개(linux/arm64) → GitHub Release (docs/todo/cicd.md 2절).
+# 배포(deploy·rollback, AWS OIDC)는 아직 없다 (4절 3번, 단일 서버 Terraform 뒤).
+# 비밀값은 GITHUB_TOKEN만 쓴다 (ghcr.io 올리기 = packages: write, 릴리스 = contents: write)
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  images:
+    name: 이미지 5개 (linux/arm64)
+    needs: checks
+    # 서버(t4g)가 ARM이라 공개 저장소용 ARM 러너에서 그대로 빌드한다 (QEMU 에뮬레이션 없음)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      # Dockerfile은 밖에서 만든 jar와 web/dist만 담는다 (.dockerignore가 나머지를 막는다)
+      - name: jar 만들기
+        run: ./gradlew :backend:api:bootJar :backend:worker:bootJar :backend:external-fetcher:bootJar
+      - name: 웹 빌드
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: 빌드하고 올리기
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          SOURCE="${{ github.server_url }}/${{ github.repository }}"
+          # 하이픈이 든 태그(v1.0.0-rc.1 등)는 시험판: latest를 붙이지 않는다
+          case "$TAG" in *-*) LATEST=0 ;; *) LATEST=1 ;; esac
+          build() { # 이름 Dockerfile [build-arg]
+            local name=$1 file=$2 arg=${3:-} image="ghcr.io/$OWNER/gyeol-$1"
+            local tags=(-t "$image:$TAG")
+            [ "$LATEST" = 1 ] && tags+=(-t "$image:latest")
+            docker buildx build --platform linux/arm64 --push -f "$file" ${arg:+--build-arg "$arg"} "${tags[@]}" \
+              --label "org.opencontainers.image.source=$SOURCE" \
+              --label "org.opencontainers.image.revision=${{ github.sha }}" \
+              --label "org.opencontainers.image.version=$TAG" \
+              --label "org.opencontainers.image.description=gyeol $name" \
+              .
+            echo "- \`$image:$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          }
+          echo "### 이미지 ($TAG)" >> "$GITHUB_STEP_SUMMARY"
+          for m in api worker external-fetcher; do build "$m" deploy/docker/backend.Dockerfile "MODULE=$m"; done
+          build web deploy/docker/web.Dockerfile
+          build embed deploy/docker/embed.Dockerfile
+
+  release:
+    name: GitHub Release
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: 릴리스 노트 초안
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          PREV=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
+          RANGE=${PREV:+$PREV..}$TAG
+          BASE=${PREV:-$(git rev-list --max-parents=0 HEAD)}
+          {
+            echo "## 핵심 변경"
+            echo "_(사용자 입장에서 바뀐 것을 직접 적는다)_"
+            echo
+            echo "## 변경 커밋${PREV:+ ($PREV 이후)}"
+            git log --no-merges --format='%s' "$RANGE" | sed 's/^/- /'
+            echo
+            echo "## DB 마이그레이션"
+            # Flyway는 앞으로만 간다. 배포 전에 백업(cicd.md 2절 deploy ①)
+            MIG=$(git diff --name-only --diff-filter=AM "$BASE" "$TAG" -- backend/core/src/main/resources/db/migration | xargs -r -n1 basename)
+            if [ -n "$MIG" ]; then
+              echo "**이 릴리스에는 마이그레이션이 있다. 배포 전에 DB 백업 확인.**"
+              echo "$MIG" | sed 's/^/- `/; s/$/`/'
+            else
+              echo "- 없음"
+            fi
+            echo
+            echo "## 이미지 (linux/arm64)"
+            for n in api worker external-fetcher web embed; do echo "- \`ghcr.io/$OWNER/gyeol-$n:$TAG\`"; done
+            echo
+            echo "## 배포 후 확인"
+            echo "- [ ] api 로그에 마이그레이션 적용"
+            echo "- [ ] /api/health UP"
+            echo "- [ ] 방 만들기·참가·노래 담기·지도"
+          } > notes.md
+          cat notes.md
+      - name: Release 만들기
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          case "$TAG" in *-*) PRE=--prerelease ;; *) PRE= ;; esac
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file notes.md $PRE

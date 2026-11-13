@@ -70,7 +70,7 @@ spec:
       {{- end }}
       containers:
         - name: {{ $name }}
-          image: "{{ $root.Values.image.registry }}/{{ $s.image | default $name }}:{{ $root.Values.image.tag }}"
+          image: "{{ $root.Values.image.registry }}/{{ $root.Values.image.prefix }}{{ $s.image | default $name }}:{{ $root.Values.image.tag }}"
           imagePullPolicy: {{ $root.Values.image.pullPolicy }}
           ports: [{ name: http, containerPort: {{ $s.cfg.port }} }]
           env:

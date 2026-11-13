@@ -1,6 +1,8 @@
 # 기본값. 환경별 값은 values-local.yaml(k3d), 나중에 values-eks.yaml(EKS)로 덮어쓴다.
 image:
-  registry: gyeol          # k3d: 로컬 이미지 이름, EKS: ECR 주소
+  registry: gyeol          # k3d: 로컬 이미지 이름, 단일 서버: ghcr.io/sangwoo-joo, EKS: ECR 주소
+  # 이미지 이름 앞에 붙는 말. 최종 이름 = registry/prefix+이름:tag (k3d gyeol/api:dev, ghcr ghcr.io/sangwoo-joo/gyeol-api:v0.3.0)
+  prefix: ""
   tag: dev
   pullPolicy: IfNotPresent
 

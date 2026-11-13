@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: "{{ .Values.image.registry }}/web:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.registry }}/{{ .Values.image.prefix }}web:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports: [{ name: http, containerPort: 80 }]
           resources: {{- toYaml .Values.web.resources | nindent 12 }}
