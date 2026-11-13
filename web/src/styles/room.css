@@ -1,0 +1,41 @@
+/*
+ * 음악 방 테마 (docs/design/ci/README.md). <html data-theme="room">일 때만 켜진다.
+ * 첫 화면·방·관리자 화면이 쓰고, 청취 분석·곡 고르기(/upload·/pick·/r/:token)는 tokens.css의 초록 테마 그대로.
+ */
+:root[data-theme='room'] {
+  --r-bg: #141225;          /* 밤 보라 */
+  --r-surface: #1e1b36;
+  --r-field: #221e3f;
+  --r-border: #37315f;
+  --r-border-soft: #2f2a52;
+  --r-chip: #2e2a55;
+  --r-text: #f5f0ff;
+  --r-text-2: #b7afd1;
+  --r-text-3: #9c94b8;
+  --r-silver: #d8d0f0;       /* 은빛 (워드마크) */
+  --r-accent: #b9a2ff;       /* 라벤더 */
+  --r-accent-strong: #cdbbff;
+  --r-on-accent: #16132b;
+  --r-rose: #e3a6b8;         /* 더스티 로즈 */
+  --r-peach: #ffe3b8;        /* 달빛 피치 */
+  --r-error: #ffc6da;
+  --r-radius: 16px;
+  --r-font: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+  --r-font-title: 'Gowun Batang', 'Noto Serif KR', serif;
+  --r-font-mark: 'Quicksand', 'Noto Sans KR', sans-serif;
+
+  /* 공통 토큰도 덮어써서 body 바탕·글자색이 테마를 따르게 한다 */
+  --bg: var(--r-bg);
+  --text: var(--r-text);
+  --font: var(--r-font);
+  color-scheme: dark;
+}
+
+:root[data-theme='room'] body {
+  background: var(--r-bg);
+  color: var(--r-text);
+  font-family: var(--r-font);
+}
+
+/* :where로 우선순위를 0으로 둬서 버튼처럼 생긴 링크(.primary 등)의 글자색을 덮지 않게 한다 */
+:where(:root[data-theme='room']) a { color: var(--r-accent-strong); }

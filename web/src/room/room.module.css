@@ -1,0 +1,116 @@
+/* 음악 방 화면 공통 부품 (색은 styles/room.css의 --r-* 토큰) */
+
+.page {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  background: var(--r-bg);
+  color: var(--r-text);
+  font-family: var(--r-font);
+}
+.column {
+  width: 100%;
+  max-width: 440px;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: 12px 20px calc(28px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+/* PC: 입력 화면은 가운데 카드 (캔버스 -PC 보드) */
+@media (min-width: 768px) {
+  .page { align-items: center; padding: 32px 0; }
+  .column { min-height: auto; border: 1px solid var(--r-border-soft); border-radius: 28px; padding: 24px 32px 32px; background: #171430; }
+}
+
+.top { display: flex; align-items: center; justify-content: space-between; min-height: 44px; gap: 8px; }
+.topLeft { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.back {
+  display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-left: -12px;
+  color: var(--r-text); background: none; border: 0; border-radius: 50%; cursor: pointer; text-decoration: none;
+}
+.back:hover { background: var(--r-field); }
+.step { font-size: 13px; color: var(--r-text-2); }
+
+.title { margin: 0; font-family: var(--r-font-title); font-size: 26px; line-height: 1.42; font-weight: 700; letter-spacing: -0.3px; word-break: keep-all; }
+.lead { margin: 0; font-size: 14px; line-height: 1.65; color: var(--r-text-2); word-break: keep-all; }
+.hint { font-size: 12px; line-height: 1.5; color: var(--r-text-3); }
+.section { display: flex; flex-direction: column; gap: 10px; }
+
+.form { display: flex; flex-direction: column; gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.label { font-size: 14px; font-weight: 500; }
+.optional { font-weight: 400; color: var(--r-text-3); }
+.input {
+  height: 52px; box-sizing: border-box; width: 100%; padding: 0 16px;
+  border: 1.5px solid var(--r-border); border-radius: var(--r-radius); background: var(--r-field);
+  color: var(--r-text); font: inherit; font-size: 16px;
+}
+.input::placeholder { color: #7e77a0; }
+.input:focus { outline: none; border-color: var(--r-accent); }
+.input[aria-invalid='true'] { border-color: var(--r-error); }
+
+.consent {
+  display: flex; gap: 10px; align-items: flex-start; background: var(--r-field); border-radius: var(--r-radius);
+  padding: 14px; font-size: 13px; line-height: 1.6; color: #d9d2ee; cursor: pointer;
+}
+.consent input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--r-accent); flex: none; }
+
+.card { display: flex; flex-direction: column; gap: 16px; background: var(--r-surface); border: 1px solid var(--r-border-soft); border-radius: 22px; padding: 18px; }
+.card .input { background: var(--r-bg); }
+
+.primary, .secondary, .ghost {
+  display: flex; align-items: center; justify-content: center; gap: 8px; box-sizing: border-box; width: 100%;
+  border-radius: 999px; font: inherit; text-decoration: none; cursor: pointer;
+}
+.primary { height: 56px; border: 0; background: var(--r-accent); color: var(--r-on-accent); font-size: 17px; font-weight: 700; }
+.primary:hover { filter: brightness(1.06); }
+.primary:disabled { opacity: .5; cursor: default; filter: none; }
+.secondary { height: 50px; border: 1.5px solid var(--r-border); background: none; color: #e6dcff; font-size: 15px; }
+.secondary:hover { background: var(--r-field); }
+.ghost { width: auto; align-self: center; min-height: 44px; padding: 0 8px; border: 0; background: none; color: var(--r-text-2); font-size: 14px; }
+.ghost:hover { color: var(--r-text); }
+.ghost:disabled { color: #7e77a0; cursor: default; }
+.primary:focus-visible, .secondary:focus-visible, .ghost:focus-visible, .back:focus-visible, .chip:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+
+.bottom { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+.center { text-align: center; }
+
+.error { margin: 0; font-size: 13px; line-height: 1.55; color: var(--r-error); }
+.note { background: var(--r-field); border-radius: var(--r-radius); padding: 14px 16px; font-size: 13px; line-height: 1.6; color: #d9d2ee; display: flex; flex-direction: column; gap: 6px; }
+.note strong { color: var(--r-text); font-weight: 500; }
+.linkButton { border: 0; background: none; padding: 0; font: inherit; color: var(--r-accent-strong); text-decoration: underline; cursor: pointer; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px 0 6px; border-radius: 999px;
+  border: 0; font: inherit; font-size: 14px; cursor: pointer; background: var(--r-chip); color: #e6dcff;
+}
+.chip:hover { filter: brightness(1.12); }
+.tag {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 34px; box-sizing: border-box; padding: 0 14px;
+  border-radius: 999px; background: var(--r-chip); color: #e6dcff; font-size: 14px; font-weight: 500;
+}
+.tag span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.avatar { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 700; flex: none; }
+
+/* 숫자 칸 (암호 4자리·코드 6자리): 진짜 입력란 하나를 칸 위에 투명하게 겹친다 */
+.code { position: relative; }
+.codeInput {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; margin: 0;
+  font-size: 16px; color: transparent; caret-color: transparent; background: transparent; cursor: text;
+}
+.codeBoxes { display: grid; gap: 8px; pointer-events: none; }
+.codeBox {
+  height: 56px; display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+  border: 1.5px solid var(--r-border); border-radius: 14px; background: var(--r-field);
+  font-size: 22px; font-weight: 700; color: var(--r-text);
+}
+.card .codeBox { background: var(--r-bg); }
+.code:focus-within .codeBoxActive { border-color: var(--r-accent); box-shadow: 0 0 0 1px var(--r-accent); }
+.codeInvalid .codeBox { border-color: var(--r-error); }
+
+.spin { animation: room-spin 1s linear infinite; }
+@keyframes room-spin { to { transform: rotate(360deg); } }
