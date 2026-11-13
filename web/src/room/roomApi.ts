@@ -42,6 +42,16 @@ export interface ArtistView {
   songs: MapSong[]; nearby: { artistId: number; name: string; inRoom: boolean }[]; preparing: boolean
 }
 
+export interface CodeMatchPerson { memberId: number; nickname: string; colorIdx: number; avatarCharacterId: number | null; songCount: number }
+/** status: REASONING(이유 쓰는 중)·DONE·NO_REASON · confidence: LOW(5~9)·MEDIUM(10~19)·HIGH(20~) · stale: 그 뒤 곡·지도가 바뀜 */
+export interface CodeMatchView {
+  id: number; a: CodeMatchPerson; b: CodeMatchPerson; score: number
+  parts: { genre: number; distance: number; artist: number; song: number }
+  sharedArtists: string[]; sharedGalaxies: string[]; sharedSongs: number; sharedArtistCount: number; sharedGalaxyCount: number
+  reason: string | null; evidence: Evidence[]; status: 'REASONING' | 'DONE' | 'NO_REASON'
+  confidence: 'LOW' | 'MEDIUM' | 'HIGH'; minSongs: number; stale: boolean; createdAt: string
+}
+
 export type GiftStatus = 'WAITING' | 'READY' | 'GENERATING' | 'OPENED' | 'FAILED'
 export interface GiftBoxView { id: number; milestone: number; status: GiftStatus; earnedAt: string; readyOn: string | null; openedAt: string | null; characterId: number | null }
 export interface CharacterView { id: number; giftBoxId: number | null; isFallback: boolean; createdAt: string }
@@ -155,6 +165,9 @@ export const roomApi = {
   giftBox: (roomId: string, boxId: number, signal?: AbortSignal) => call<GiftBoxDetail>(`/rooms/${rid(roomId)}/me/gifts/${boxId}`, { roomId, signal }),
   openGift: (roomId: string, boxId: number) => call<GiftBoxDetail>(`/rooms/${rid(roomId)}/me/gifts/${boxId}/open`, { method: 'POST', roomId, body: {} }),
   setAvatar: (roomId: string, characterId: number | null) => call<MemberView>(`/rooms/${rid(roomId)}/me/avatar`, { method: 'PUT', roomId, body: { characterId } }),
+  // ── 7단계: 놀이터 코드 맞추기 (room-api-db.md 11절). 저장 결과 200, 새 계산 202 ──
+  codeMatch: (roomId: string, a: number, b: number) => call<CodeMatchView>(`/rooms/${rid(roomId)}/code-match`, { method: 'POST', roomId, body: { a, b } }),
+  codeMatchLatest: (roomId: string, a: number, b: number, signal?: AbortSignal) => call<CodeMatchView>(`/rooms/${rid(roomId)}/code-match?a=${a}&b=${b}`, { roomId, signal }),
   /** 되돌리기로 다시 담을 때 (trackId만) */
   addTrack: (roomId: string, trackId: number) => call<AddSongResponse>(`/rooms/${rid(roomId)}/songs`, { method: 'POST', roomId, body: { trackId } }),
 }

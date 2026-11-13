@@ -13,6 +13,7 @@ import { PeopleSheet } from './PeopleSheet'
 import { ArtistSheet } from './ArtistSheet'
 import { MemberSheet, MeSheet, SettingsSheet } from './AccountSheets'
 import { GiftSheet } from './GiftSheet'
+import { PlayTab } from './PlayTab'
 import { Toast, type ToastData } from './Toast'
 import s from '../room.module.css'
 import sh from './shell.module.css'
@@ -245,7 +246,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
             pending={new Set(pending.map(p => p.key))} busy={busy} onAdd={add} />
         )}
 
-        {tab === 'play' && <Soon title="놀이터가 곧 열려요" text="친구와 코드가 얼마나 맞는지 알아보는 '코드 맞추기'를 준비하고 있어요." />}
+        {tab === 'play' && <PlayTab roomId={roomId} meId={me?.member.id ?? -1} version={version} onError={handle} show={show} />}
         {tab === 'mine' && <MineTab roomId={roomId} me={me} map={map} version={version} onChanged={changed} onError={handle} show={show} onOpenGift={boxId => setSheet({ kind: 'gift', boxId })} />}
       </main>
 
@@ -289,15 +290,5 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       </nav>
     </div>
     </AvatarRoom.Provider>
-  )
-}
-
-/** 4단계(내 노래·참가자)·7단계(놀이터)에서 채울 탭 */
-function Soon({ title, text }: { title: string; text: string }) {
-  return (
-    <section className={sh.empty}>
-      <h2>{title}</h2>
-      {text && <p>{text}</p>}
-    </section>
   )
 }

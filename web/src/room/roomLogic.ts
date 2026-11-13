@@ -124,6 +124,41 @@ export function giftLine(g: GiftSummaryLike): GiftLineState {
   return { text: `${g.nextMilestone}곡 선물까지 ${g.remaining}곡`, gold: soon, badge: soon ? String(g.remaining) : null, canOpen: false }
 }
 
+/**
+ * 코드 맞추기 결과 표시 (room-web.md 8-b, 11-13 결정 "라"). 곡이 적으면 점수가 낮게 치우쳐서(측정: 5곡은 약 35점 낮음)
+ * 둘 중 적은 쪽이 10곡 미만(LOW)이면 % 대신 겹친 것만, 10곡부터 %. 보통(MEDIUM)은 % + "20곡이면 더 정확" 안내.
+ */
+export interface CodeMatchLike { score: number; confidence: string; minSongs: number; sharedArtistCount: number; sharedGalaxyCount: number; sharedSongs: number }
+export interface CodeMatchDisplay { showPercent: boolean; headline: string; note: string | null; shared: string[] }
+
+export function codeMatchDisplay(m: CodeMatchLike): CodeMatchDisplay {
+  const shared = [
+    `같은 아티스트 ${m.sharedArtistCount}명`,
+    `같은 구역 ${m.sharedGalaxyCount}곳`,
+    `같이 담은 노래 ${m.sharedSongs}곡`,
+  ]
+  if (m.confidence === 'LOW') {
+    const found = m.sharedArtistCount + m.sharedGalaxyCount + m.sharedSongs > 0
+    return {
+      showPercent: false,
+      headline: found ? '벌써 겹치는 게 있어요' : '아직 겹치는 게 없어요',
+      note: '각자 10곡을 넘기면 코드 점수가 나와요',
+      shared,
+    }
+  }
+  return {
+    showPercent: true,
+    headline: `코드가 ${m.score}% 맞아요`,
+    note: m.confidence === 'MEDIUM' ? '각자 20곡을 넘기면 더 정확해져요' : null,
+    shared,
+  }
+}
+
+/** 놀이터 고르기: 5곡 미만이면 "N곡 더 담으면 열려요" */
+export function unlockText(songCount: number, min = 5): string | null {
+  return songCount >= min ? null : `${min - songCount}곡 더 담으면 열려요`
+}
+
 /** 행성에 노래를 담은 사람들 (위성 색), 같이 담은 노래 수 (금빛) */
 export function planetPeople(p: Planet): { memberIds: number[]; shared: number } {
   const ids = new Set<number>()

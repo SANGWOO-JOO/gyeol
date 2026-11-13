@@ -1,6 +1,25 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, failText, galaxyOfTrack, giftLine, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, codeMatchDisplay, failText, galaxyOfTrack, giftLine, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+
+describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
+  const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
+  it('5~9곡이면 % 없이 겹친 것과 10곡 안내', () => {
+    expect(codeMatchDisplay(m)).toEqual({
+      showPercent: false, headline: '벌써 겹치는 게 있어요', note: '각자 10곡을 넘기면 코드 점수가 나와요',
+      shared: ['같은 아티스트 2명', '같은 구역 1곳', '같이 담은 노래 0곡'],
+    })
+    expect(codeMatchDisplay({ ...m, sharedArtistCount: 0, sharedGalaxyCount: 0 }).headline).toBe('아직 겹치는 게 없어요')
+  })
+  it('10곡부터 %, 보통이면 20곡 안내, 높으면 안내 없음', () => {
+    expect(codeMatchDisplay({ ...m, confidence: 'MEDIUM', score: 79 })).toMatchObject({ showPercent: true, headline: '코드가 79% 맞아요', note: '각자 20곡을 넘기면 더 정확해져요' })
+    expect(codeMatchDisplay({ ...m, confidence: 'HIGH', score: 87 }).note).toBeNull()
+  })
+  it('5곡 미만은 열리지 않음', () => {
+    expect(unlockText(2)).toBe('3곡 더 담으면 열려요')
+    expect(unlockText(5)).toBeNull()
+  })
+})
 
 describe('선물 표시 (4-l)', () => {
   const base = { songCount: 47, nextMilestone: 50, remaining: 3, receivedToday: false, waiting: 0, readyBoxId: null }
