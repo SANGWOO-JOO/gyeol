@@ -253,13 +253,16 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
     </section>
   )
   const galaxy = map
-    ? <GalaxyView map={map} roomId={roomId} fresh={fresh} meId={me?.member.id ?? -1} fill={wide} selectedId={wide && sheet?.kind === 'artist' ? sheet.id : null} onAddFirst={goSearch} onSelectArtist={id => setSheet({ kind: 'artist', id })} />
+    ? <GalaxyView map={map} roomId={roomId} fresh={fresh} meId={me?.member.id ?? -1} fill={wide} selectedId={wide && sheet?.kind === 'artist' ? sheet.id : null} onAddFirst={goSearch} onSelectArtist={id => setSheet({ kind: 'artist', id })}
+      onSelectGhost={(id, name) => { setArtistPage({ artistId: id, name, fromMap: true, songCountInRoom: 0 }); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }} />
     : <p className={sh.center} role="status">우주를 불러오는 중…</p>
   const pendingKeys = new Set(pending.map(p => p.key))
   /** 가수 화면에서 뒤로: 행성 판에서 왔으면 그 판으로(휴대폰은 지도 탭), 아니면 검색 결과로 */
   const backFromArtist = () => {
     const from = artistPage?.fromPlanet
+    const fromMap = artistPage?.fromMap
     setArtistPage(null)
+    if (fromMap) { if (!wide) setTab('map'); return }
     if (from == null) return
     if (!wide) setTab('map')
     setSheet({ kind: 'artist', id: from })
@@ -267,7 +270,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const searchPanel = artistPage ? (
     <ArtistPage key={`${artistPage.artistId ?? ''}|${artistPage.name}`} roomId={roomId} artist={artistPage} added={added}
       roomCount={artistPage.artistId != null && map ? (map.planets.find(p => p.artistId === artistPage.artistId)?.songs.length ?? 0) : undefined} pending={pendingKeys} busy={busy} onAdd={add}
-      onError={handle} backLabel={artistPage.fromPlanet != null ? `${artistPage.name} 가수 판으로` : '검색 결과로'} onBack={backFromArtist} />
+      onError={handle} backLabel={artistPage.fromPlanet != null ? `${artistPage.name} 가수 판으로` : artistPage.fromMap ? '지도로' : '검색 결과로'} onBack={backFromArtist} />
   ) : (
     <SearchPanel roomId={roomId} query={query} setQuery={setQuery} added={added}
       pending={pendingKeys} busy={busy} onAdd={add} onOpenArtist={a => setArtistPage({ artistId: a.artistId, name: a.name, songCountInRoom: a.songCountInRoom, onMap: a.onMap })} />

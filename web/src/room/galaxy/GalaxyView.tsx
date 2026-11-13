@@ -15,6 +15,8 @@ export interface GalaxyViewProps {
   roomId: string
   meId: number
   onSelectArtist?: (artistId: number) => void
+  /** 근처 가수(유령 행성) → 가수 화면 (I-40) */
+  onSelectGhost?: (artistId: number, name: string) => void
   onAddFirst?: () => void
   /** 지도를 마지막으로 본 뒤 새로 생긴 것 (연출용, useFreshMarks) */
   fresh?: Fresh
@@ -24,7 +26,7 @@ export interface GalaxyViewProps {
   selectedId?: number | null
 }
 
-export function GalaxyView({ map, roomId, meId, onSelectArtist, onAddFirst, fresh, fill = false, selectedId = null }: GalaxyViewProps) {
+export function GalaxyView({ map, roomId, meId, onSelectArtist, onSelectGhost, onAddFirst, fresh, fill = false, selectedId = null }: GalaxyViewProps) {
   const [asList, setAsList] = useState(false)
   if (map.planets.length === 0) return <div className={fill ? g.fillCenter : undefined}><EmptyGalaxy onAddFirst={onAddFirst} /></div>
   const toggle = <button type="button" className={g.viewToggle} onClick={() => setAsList(v => !v)}>{asList ? '지도로 보기' : '목록으로 보기'}</button>
@@ -32,7 +34,7 @@ export function GalaxyView({ map, roomId, meId, onSelectArtist, onAddFirst, fres
     return (
       <section aria-label="우리 음악 은하" className={fill ? g.fillMap : undefined} style={fill ? undefined : { display: 'flex', flexDirection: 'column', gap: 8 }}>
         {toggle}
-        <GalaxyMap map={map} meId={meId} roomId={roomId} onSelectArtist={onSelectArtist} fresh={fresh} selectedId={selectedId} />
+        <GalaxyMap map={map} meId={meId} roomId={roomId} onSelectArtist={onSelectArtist} onSelectGhost={onSelectGhost} fresh={fresh} selectedId={selectedId} />
         {fill && <Legend members={map.members} hasGhosts={map.ghosts.length > 0} />}
       </section>
     )

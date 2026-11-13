@@ -12,8 +12,10 @@ import g from './galaxy.module.css'
  * 확대·이동 중에는 React를 다시 그리지 않고 그룹 변환만 바꾸고, 멈춘 뒤(0.15초) 그 배율에 맞춰
  * 행성·글자를 화면에서 읽을 수 있는 크기로 다시 그린다. 이름은 겹치지 않는 것만 보인다.
  */
-export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH, selectedId = null }: {
+export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fresh = NO_FRESH, selectedId = null }: {
   map: RoomMap; meId: number; roomId: string; onSelectArtist?: (artistId: number) => void; fresh?: Fresh
+  /** 근처 가수(유령 행성)를 눌렀을 때 → 가수 화면 (I-40). 없으면 onSelectArtist */
+  onSelectGhost?: (artistId: number, name: string) => void
   /** PC: 오른쪽 판에 자세히 열린 행성 */
   selectedId?: number | null
 }) {
@@ -46,6 +48,8 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
   }, [])
   useEffect(() => () => clearTimeout(settleTimer.current), [])
 
+  // 근처 가수 안내 말풍선 (I-40): 처음 한 번 + 마우스 올림·포커스
+  const [hint, setHint] = useState<{ id: number; auto: boolean } | null>(null)
   // 처음 맞춘 배율: 확대 체감(I-37)의 기준
   const [fitScale, setFitScale] = useState(0)
   const fit = useCallback(() => {
@@ -103,6 +107,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
     pointers.current.set(e.pointerId, local(e))
     if (pointers.current.size === 1) gesture.current = { moved: 0, downTarget: e.target, pinch: null }
     holdSpin()
+    setHint(null)
     if (pointers.current.size === 2) {
       const [a, b] = [...pointers.current.values()]
       gesture.current.pinch = Math.hypot(a.x - b.x, a.y - b.y)
@@ -136,7 +141,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
     if (wasSingle && gesture.current.moved < 8) {
       const hit = (gesture.current.downTarget as Element | null)?.closest?.('[data-artist]')
       const id = hit ? Number(hit.getAttribute('data-artist')) : NaN
-      if (!Number.isNaN(id)) onSelectArtist?.(id)
+      if (!Number.isNaN(id)) select(id)
     }
   }
 
@@ -147,6 +152,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
       e.preventDefault()
       touched.current = true
       holdSpin(400)
+      setHint(null)
       const p = local(e)
       apply(zoomAt(viewRef.current, p.x, p.y, Math.exp(-e.deltaY * 0.0015)))
     }
@@ -155,7 +161,13 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
   }, [apply, holdSpin])
 
   const zoomBy = (f: number) => { touched.current = true; apply(zoomAt(viewRef.current, size.width / 2, size.height / 2, f), true) }
-  const onKey = (id: number) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectArtist?.(id) } }
+  /** 행성은 자세히 판, 유령(근처 가수)은 가수 화면 */
+  function select(id: number) {
+    const ghost = onSelectGhost ? ghosts.find(x => x.artistId === id) : undefined
+    if (ghost) onSelectGhost!(ghost.artistId, ghost.name)
+    else onSelectArtist?.(id)
+  }
+  const onKey = (id: number) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(id) } }
 
   // ── 멈춘 배율 기준 크기·이름 ──
   const s = settled.scale
@@ -163,6 +175,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
   const grow = zoomGrow(s, fitScale) // 확대 체감: 처음 맞춤보다 확대하면 1 → GROW_MAX
   const galaxyGrow = Math.min(1.3, grow) // 구역 이름은 덜 커지게
   const nameGrow = Math.min(1.4, grow) // 행성 이름도 행성보다 덜
+  const ghostR = screenPlanetRadius(1, s) * grow // 근처 가수: 노래 1곡 행성 크기
   const spacing = useMemo(() => screenSpacing(planets.map(p => ({ x: p.wx, y: p.wy })), settled, size), [planets, settled, size])
   const level = zoomLevel(s, spacing)
   const radius = useMemo(() => new Map(planets.map(p => [p.artistId, screenPlanetRadius(p.songs.length, s) * grow])), [planets, s, grow])
@@ -190,9 +203,11 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
     const taken = [...bodies, ...nameItems.filter(it => labels.has(it.id)).map(it => labelBox(it, nameH))]
     let ghostLabels = new Set<number>()
     if (level !== 'far') {
-      const gItems = ghosts.map(x => ({ id: x.artistId, sx: x.wx * s + settled.tx, sy: x.wy * s + settled.ty, r: 8, w: Math.min(120, Array.from(x.name).length * 8 + 8), weight: 0 }))
-      ghostLabels = visibleLabels(gItems, 13, taken)
-      taken.push(...gItems.map(it => ({ x0: it.sx - 9, x1: it.sx + 9, y0: it.sy - 9, y1: it.sy + 9 })), ...gItems.filter(it => ghostLabels.has(it.id)).map(it => labelBox(it, 13)))
+      // 유령 몸체를 먼저 장애물로 (개수가 늘어도 이름끼리·행성과 겹치면 숨긴다)
+      const gItems = ghosts.map(x => ({ id: x.artistId, sx: x.wx * s + settled.tx, sy: x.wy * s + settled.ty, r: ghostR, w: Math.min(130 * nameGrow, (Array.from(x.name).length * 9 + 8) * nameGrow), weight: 0 }))
+      const gBodies = gItems.map(it => ({ x0: it.sx - it.r - 2, x1: it.sx + it.r + 2, y0: it.sy - it.r - 2, y1: it.sy + it.r + 2 }))
+      ghostLabels = visibleLabels(gItems, nameH, [...taken, ...gBodies])
+      taken.push(...gBodies, ...gItems.filter(it => ghostLabels.has(it.id)).map(it => labelBox(it, nameH)))
     }
     const count = new Map<number, number>()
     planets.forEach(p => { if (p.galaxyId != null) count.set(p.galaxyId, (count.get(p.galaxyId) ?? 0) + p.songs.length) })
@@ -202,7 +217,29 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
       w: (Array.from(x.name ?? '').length * 13 + 8) * galaxyGrow, weight: count.get(x.id) ?? 0,
     })).filter(it => it.sx - it.w / 2 >= 4 && it.sx + it.w / 2 <= size.width - 4 && it.sy >= 0 && it.sy + 20 * galaxyGrow <= size.height), 18 * galaxyGrow, level === 'far' ? [] : taken) // 멀리서는 구역 이름이 행성 위에 (테두리로 읽히게)
     return { labels, ghostLabels, galaxyLabels }
-  }, [nameItems, ghosts, galaxies, planets, s, settled.tx, settled.ty, level, size, nameGrow, galaxyGrow])
+  }, [nameItems, ghosts, galaxies, planets, s, settled.tx, settled.ty, level, size, nameGrow, galaxyGrow, ghostR])
+
+  // 처음 근처 가수가 화면에 보이면 방마다 한 번 안내를 띄운다 (이름이 겹쳐 숨었어도). 4.5초 뒤 저절로 닫힘
+  const firstGhost = useMemo(() => {
+    if (!ready || level === 'far') return null
+    const pad = ghostR + 24
+    return ghosts.find(x => {
+      const sx = x.wx * s + settled.tx, sy = x.wy * s + settled.ty
+      return sx > pad && sx < size.width - pad && sy > pad + 40 && sy < size.height - pad
+    }) ?? null
+  }, [ready, level, ghosts, s, settled.tx, settled.ty, size, ghostR])
+  useEffect(() => {
+    if (!firstGhost) return
+    const k = `gyeol.ghostHint.${roomId}`
+    try { if (localStorage.getItem(k)) return; localStorage.setItem(k, '1') } catch { return }
+    setHint({ id: firstGhost.artistId, auto: true })
+  }, [firstGhost, roomId])
+  useEffect(() => {
+    if (!hint?.auto) return
+    const t = setTimeout(() => setHint(h => (h?.auto ? null : h)), 4500)
+    return () => clearTimeout(t)
+  }, [hint])
+  const hintGhost = hint ? ghosts.find(x => x.artistId === hint.id) : undefined
 
   const v = viewRef.current
   return (
@@ -219,13 +256,17 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
             <g aria-hidden="true">
               {starField.map((st, i) => <circle key={i} cx={st.x} cy={st.y} r={st.r * u} fill="#2A2650" opacity={st.o} />)}
             </g>
-            {/* ⑧ 근처 추천 가수: 흐린 점선 유령 행성 */}
+            {/* ⑧·I-40 근처 가수(아직 우리 우주에 없음): 흐린 원 + "+" — 준비 중(점선 고리)·실제 행성과 구분 */}
             {level !== 'far' && ghosts.map(x => (
               <g key={`gh${x.artistId}`} className={g.ghost} data-artist={x.artistId} transform={`translate(${x.wx} ${x.wy})`}
-                role="button" tabIndex={0} aria-label={`근처 행성 ${x.name} (아직 우리 우주에 없음)`} onKeyDown={onKey(x.artistId)}>
-                <circle className={g.ghostHit} r={20 * u} />
-                <circle r={8 * u} strokeWidth={1.2 * u} strokeDasharray={`${3 * u} ${4 * u}`} />
-                {ghostLabels.has(x.artistId) && <text y={(8 + 12) * u} fontSize={NAME_PX * u} textAnchor="middle">{x.name}</text>}
+                role="button" tabIndex={0} aria-label={`${x.name}: 아직 우리 우주에 없는 비슷한 가수. 누르면 노래 찾기`} onKeyDown={onKey(x.artistId)}
+                onPointerEnter={e => { if (e.pointerType === 'mouse') setHint({ id: x.artistId, auto: false }) }}
+                onPointerLeave={() => setHint(h => (h?.id === x.artistId ? null : h))}
+                onFocus={() => setHint({ id: x.artistId, auto: false })} onBlur={() => setHint(null)}>
+                <circle className={g.ghostHit} r={Math.max(20, ghostR + 8) * u} />
+                <circle className={g.ghostBody} r={ghostR * u} strokeWidth={1.2 * u} />
+                <path className={g.ghostPlus} d={`M${-ghostR * 0.45 * u} 0H${ghostR * 0.45 * u}M0 ${-ghostR * 0.45 * u}V${ghostR * 0.45 * u}`} strokeWidth={1.6 * u} />
+                {ghostLabels.has(x.artistId) && <text y={(ghostR + 13 * nameGrow) * u} fontSize={NAME_PX * nameGrow * u} textAnchor="middle">{x.name}</text>}
               </g>
             ))}
             {planets.filter(p => onScreen.has(p.artistId)).map(p => {
@@ -270,6 +311,11 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, fresh = NO_FRESH,
             </g>
           </g>
         </svg>
+        {hintGhost && level !== 'far' && (
+          <div className={g.ghostTip} role="tooltip" style={{ left: hintGhost.wx * s + settled.tx, top: hintGhost.wy * s + settled.ty - ghostR - 8 }}>
+            <strong>{hintGhost.name}</strong><span>아직 우리 우주에 없는 비슷한 가수</span><span>누르면 노래 찾기</span>
+          </div>
+        )}
       </div>
       <div className={g.controls}>
         <button type="button" className={g.ctrl} aria-label="확대" onClick={() => zoomBy(1.4)}>+</button>

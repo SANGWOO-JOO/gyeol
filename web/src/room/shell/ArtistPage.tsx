@@ -7,7 +7,13 @@ import s from '../room.module.css'
 import sh from './shell.module.css'
 
 /** 가수 화면을 연 곳: 검색의 가수 카드, 또는 지도 행성의 가수 판(back = 그 행성) */
-export interface ArtistRef { artistId: number | null; name: string; fromPlanet?: number; songCountInRoom?: number | null; onMap?: boolean | null }
+export interface ArtistRef {
+  artistId: number | null; name: string; songCountInRoom?: number | null; onMap?: boolean | null
+  /** 지도 행성의 가수 판에서 왔으면 그 행성 (뒤로 = 그 판) */
+  fromPlanet?: number
+  /** 지도의 근처 가수(유령)에서 왔으면 true (뒤로 = 지도) */
+  fromMap?: boolean
+}
 
 interface Loaded { items: ArtistSongItem[]; page: number; hasMore: boolean; scan: ArtistSongsScan }
 type ArtistSongsScan = 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED' | null
