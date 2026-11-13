@@ -643,4 +643,57 @@ class RoomApiIntegrationTest {
         assertTrue(after.none { d -> listOf("ip", "nickname", "oldNickname", "newNickname").any { d["detail"].has(it) } })
         assertTrue(after.any { it["detail"]["roomName"].asString() == "정리된 이름" })
     }
+
+    @Test
+    fun `방장 암호 재설정 - 등록 메일로 코드, 주소는 안 보임, 틀림·잠금·만료·다른 방, 새 암호로 들어오고 열쇠 발급`() {
+        val email = "reset${UUID.randomUUID().toString().take(6)}@example.com"
+        val host = newRoom(email = email, pin = "1234")
+        val other = newRoom()
+        val sendPath = "/api/rooms/${host.rid}/host-reset"
+        val verifyPath = "$sendPath/verify"
+        fun backdateSend() = jdbc.sql("UPDATE email_code SET last_sent_at = now() - interval '2 minutes' WHERE purpose = 'HOST_RESET'").update()
+
+        assertEquals(404, call("POST", "/api/rooms/zzzzzzzzzz/host-reset").status)
+        val sent = call("POST", sendPath)
+        assertEquals(202, sent.status)
+        assertTrue(sent.body!!.propertyNames().asSequence().toSet() == setOf("codeExpiresAt", "resendAfter"), "이메일 주소는 응답에 없다: ${sent.body}")
+        val left = java.time.Duration.between(java.time.Instant.now(), java.time.Instant.parse(sent.body["codeExpiresAt"].asString())).toMinutes()
+        assertTrue(left in 9..10)
+        assertEquals("RESEND_TOO_SOON", call("POST", sendPath).body!!["code"].asString())
+        val code = mail.outbox[email]!!
+        val wrong = if (code == "000000") "111111" else "000000"
+
+        assertEquals(400, call("POST", verifyPath, mapOf("code" to code, "newPin" to "12a4")).status, "새 암호 형식")
+        assertEquals("CODE_EXPIRED", call("POST", "/api/rooms/${other.rid}/host-reset/verify", mapOf("code" to code, "newPin" to "9876")).body!!["code"].asString(), "다른 방에는 이 코드가 없다")
+        val mismatch = call("POST", verifyPath, mapOf("code" to wrong, "newPin" to "9876"))
+        assertEquals("CODE_MISMATCH", mismatch.body!!["code"].asString())
+        assertEquals(4, mismatch.body["detail"]["attemptsLeft"].asInt())
+
+        val ok = call("POST", verifyPath, mapOf("code" to code, "newPin" to "9876"))
+        assertEquals(200, ok.status)
+        assertEquals(host.memberId, ok.body!!["member"]["id"].asLong())
+        assertTrue(ok.headers["set-cookie"]!!.single().contains("Path=/api/rooms/${host.rid}"))
+        assertEquals(200, call("GET", "/api/rooms/${host.rid}/me", key = ok.body["key"].asString()).status, "새 열쇠")
+        assertEquals(200, call("GET", "/api/rooms/${host.rid}/me", key = host.key).status, "다른 기기 열쇠는 유지")
+        assertEquals("PIN_MISMATCH", call("POST", "/api/rooms/${host.rid}/session", mapOf("memberId" to host.memberId, "pin" to "1234")).body!!["code"].asString())
+        assertEquals(200, call("POST", "/api/rooms/${host.rid}/session", mapOf("memberId" to host.memberId, "pin" to "9876")).status)
+        assertEquals("CODE_EXPIRED", call("POST", verifyPath, mapOf("code" to code, "newPin" to "5555")).body!!["code"].asString(), "쓴 코드는 다시 못 쓴다")
+        val actions = jdbc.sql("SELECT action FROM audit_log WHERE detail ->> 'roomPublicId' = :p").param("p", host.rid).query(String::class.java).list()
+        assertTrue("HOST_RESET_SENT" in actions && "HOST_PIN_RESET" in actions, actions.toString())
+
+        // 5번 틀리면 맞는 코드도 잠김
+        backdateSend()
+        assertEquals(202, call("POST", sendPath).status)
+        val code2 = mail.outbox[email]!!
+        val wrong2 = if (code2 == "000000") "111111" else "000000"
+        repeat(5) { call("POST", verifyPath, mapOf("code" to wrong2, "newPin" to "1111")) }
+        assertEquals("CODE_LOCKED", call("POST", verifyPath, mapOf("code" to code2, "newPin" to "1111")).body!!["code"].asString())
+
+        // 만료
+        backdateSend()
+        assertEquals(202, call("POST", sendPath).status)
+        val code3 = mail.outbox[email]!!
+        jdbc.sql("UPDATE email_code SET expires_at = now() - interval '1 second' WHERE purpose = 'HOST_RESET' AND used_at IS NULL").update()
+        assertEquals("CODE_EXPIRED", call("POST", verifyPath, mapOf("code" to code3, "newPin" to "1111")).body!!["code"].asString())
+    }
 }
