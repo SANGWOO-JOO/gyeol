@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { MemberView, RoomMap } from '../roomApi'
 import { memberColor } from '../roomApi'
 import { planetPeople } from '../roomLogic'
-import { fitView, GALAXY_PX, orbitSpin, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type View } from './galaxyMath'
+import { fitView, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type View } from './galaxyMath'
 import { NO_FRESH, songKey, type Fresh } from './fresh'
 import { orbitLayout, ringRadius, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
@@ -202,6 +202,14 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
     const r = radius.get(p.artistId)!
     return [p.artistId, level === 'far' || p.rings.length === 0 ? r : ringRadius(r, p.rings.length - 1, grow) + 2 * grow]
   })), [planets, radius, level, grow])
+  // 근처 가수를 그릴 자리: 방 행성의 바깥 궤도(+위성) 밖으로 밀어낸다 (I-40 2차). 화면 px로 계산해 세계 좌표로 되돌린다
+  const placedGhosts = useMemo(() => {
+    const obs = planets.map(p => ({ x: p.wx * s + settled.tx, y: p.wy * s + settled.ty, r: outer.get(p.artistId)! + 5 * grow })) // 바깥 궤도 + 위성 반지름
+    return ghosts.map(x => {
+      const q = pushOut({ x: x.wx * s + settled.tx, y: x.wy * s + settled.ty }, ghostR, obs, 8 * grow)
+      return { ...x, wx: (q.x - settled.tx) / s, wy: (q.y - settled.ty) / s }
+    })
+  }, [ghosts, planets, outer, s, settled.tx, settled.ty, ghostR, grow])
   const nameItems = useMemo(() => planets.map(p => ({
     id: p.artistId, sx: p.wx * s + settled.tx, sy: p.wy * s + settled.ty, r: outer.get(p.artistId)!,
     w: Math.min(130 * nameGrow, (Array.from(p.name).length * 9 + 8) * nameGrow), weight: p.songs.length + (p.people.memberIds.includes(meId) ? 0.5 : 0),
@@ -222,7 +230,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
     let ghostLabels = new Set<number>()
     if (level !== 'far') {
       // 유령 몸체를 먼저 장애물로 (개수가 늘어도 이름끼리·행성과 겹치면 숨긴다)
-      const gItems = ghosts.map(x => ({ id: x.artistId, sx: x.wx * s + settled.tx, sy: x.wy * s + settled.ty, r: ghostR, w: Math.min(130 * nameGrow, (Array.from(x.name).length * 9 + 8) * nameGrow), weight: 0 }))
+      const gItems = placedGhosts.map(x => ({ id: x.artistId, sx: x.wx * s + settled.tx, sy: x.wy * s + settled.ty, r: ghostR, w: Math.min(130 * nameGrow, (Array.from(x.name).length * 9 + 8) * nameGrow), weight: 0 }))
       const gBodies = gItems.map(it => ({ x0: it.sx - it.r - 2, x1: it.sx + it.r + 2, y0: it.sy - it.r - 2, y1: it.sy + it.r + 2 }))
       ghostLabels = visibleLabels(gItems, nameH, [...taken, ...gBodies])
       taken.push(...gBodies, ...gItems.filter(it => ghostLabels.has(it.id)).map(it => labelBox(it, nameH)))
@@ -235,17 +243,17 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
       w: (Array.from(x.name ?? '').length * 13 + 8) * galaxyGrow, weight: count.get(x.id) ?? 0,
     })).filter(it => it.sx - it.w / 2 >= 4 && it.sx + it.w / 2 <= size.width - 4 && it.sy >= 0 && it.sy + 20 * galaxyGrow <= size.height), 18 * galaxyGrow, level === 'far' ? [] : taken) // 멀리서는 구역 이름이 행성 위에 (테두리로 읽히게)
     return { labels, ghostLabels, galaxyLabels }
-  }, [nameItems, ghosts, galaxies, planets, s, settled.tx, settled.ty, level, size, nameGrow, galaxyGrow, ghostR])
+  }, [nameItems, placedGhosts, galaxies, planets, s, settled.tx, settled.ty, level, size, nameGrow, galaxyGrow, ghostR])
 
   // 처음 근처 가수가 화면에 보이면 방마다 한 번 안내를 띄운다 (이름이 겹쳐 숨었어도). 4.5초 뒤 저절로 닫힘
   const firstGhost = useMemo(() => {
     if (!ready || level === 'far') return null
     const pad = ghostR + 24
-    return ghosts.find(x => {
+    return placedGhosts.find(x => {
       const sx = x.wx * s + settled.tx, sy = x.wy * s + settled.ty
       return sx > pad && sx < size.width - pad && sy > pad + 40 && sy < size.height - pad
     }) ?? null
-  }, [ready, level, ghosts, s, settled.tx, settled.ty, size, ghostR])
+  }, [ready, level, placedGhosts, s, settled.tx, settled.ty, size, ghostR])
   useEffect(() => {
     if (!firstGhost) return
     const k = `gyeol.ghostHint.${roomId}`
@@ -257,7 +265,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
     const t = setTimeout(() => setHint(h => (h?.auto ? null : h)), 4500)
     return () => clearTimeout(t)
   }, [hint])
-  const hintGhost = hint ? ghosts.find(x => x.artistId === hint.id) : undefined
+  const hintGhost = hint ? placedGhosts.find(x => x.artistId === hint.id) : undefined
 
   const v = viewRef.current
   return (
@@ -274,16 +282,20 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
             <g aria-hidden="true">
               {starField.map((st, i) => <circle key={i} cx={st.x} cy={st.y} r={st.r * u} fill="#2A2650" opacity={st.o} />)}
             </g>
-            {/* ⑧·I-40 근처 가수(아직 우리 우주에 없음): 흐린 원 + "+" — 준비 중(점선 고리)·실제 행성과 구분 */}
-            {level !== 'far' && ghosts.map(x => (
+            {/* ⑧·I-40 근처 가수(아직 우리 우주에 없음): 흐린 가수 행성 + 보라 점선(회전 없음). "+"는 마우스를 올렸을 때만 */}
+            {level !== 'far' && placedGhosts.map(x => (
               <g key={`gh${x.artistId}`} className={g.ghost} data-artist={x.artistId} transform={`translate(${x.wx} ${x.wy})`}
                 role="button" tabIndex={0} aria-label={`${x.name}: 아직 우리 우주에 없는 비슷한 가수. 누르면 노래 찾기`} onKeyDown={onKey(x.artistId)}
                 onPointerEnter={e => { if (e.pointerType === 'mouse') setHint({ id: x.artistId, auto: false }) }}
                 onPointerLeave={() => setHint(h => (h?.id === x.artistId ? null : h))}
                 onFocus={() => setHint({ id: x.artistId, auto: false })} onBlur={() => setHint(null)}>
                 <circle className={g.ghostHit} r={Math.max(20, ghostR + 8) * u} />
-                <circle className={g.ghostBody} r={ghostR * u} strokeWidth={1.2 * u} />
-                <path className={g.ghostPlus} d={`M${-ghostR * 0.45 * u} 0H${ghostR * 0.45 * u}M0 ${-ghostR * 0.45 * u}V${ghostR * 0.45 * u}`} strokeWidth={1.6 * u} />
+                <circle className={g.ghostBody} r={ghostR * u} fill="url(#gl-planet)" strokeWidth={1.2 * u} strokeDasharray={`${3 * u} ${3 * u}`} />
+                <text className={g.ghostInitial} y={ghostR * 0.33 * u} fontSize={ghostR * 0.9 * u} textAnchor="middle">{Array.from(x.name)[0]}</text>
+                <g className={g.ghostPlus} transform={`translate(${ghostR * 0.78 * u} ${-ghostR * 0.78 * u})`}>
+                  <circle r={6.5 * u} />
+                  <path d={`M${-3 * u} 0H${3 * u}M0 ${-3 * u}V${3 * u}`} strokeWidth={1.5 * u} />
+                </g>
                 {ghostLabels.has(x.artistId) && <text y={(ghostR + 13 * nameGrow) * u} fontSize={NAME_PX * nameGrow * u} textAnchor="middle">{x.name}</text>}
               </g>
             ))}

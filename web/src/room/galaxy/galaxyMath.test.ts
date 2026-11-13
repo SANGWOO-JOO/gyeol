@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GROW_MAX, orbitSpin, zoomAnchor, zoomGrow, clampScale, screenSpacing, fitView, MAX_SCALE, MIN_SCALE, pan, planetRadius, screenPlanetRadius, stars, visibleLabels, zoomAt, zoomLevel } from './galaxyMath'
+import { GROW_MAX, orbitSpin, pushOut, zoomAnchor, zoomGrow, clampScale, screenSpacing, fitView, MAX_SCALE, MIN_SCALE, pan, planetRadius, screenPlanetRadius, stars, visibleLabels, zoomAt, zoomLevel } from './galaxyMath'
 
 const size = { width: 390, height: 600 }
 
@@ -137,5 +137,19 @@ describe('I-43 +/− 기준점', () => {
     expect(zoomAnchor([{ x: -50, y: 150 }, { x: 380, y: 10 }], size)).toEqual({ x: 380, y: 10 })
     expect(zoomAnchor([{ x: -50, y: 150 }, { x: 900, y: 10 }], size)).toEqual({ x: 200, y: 150 })
     expect(zoomAnchor([], size)).toEqual({ x: 200, y: 150 })
+  })
+})
+
+describe('I-40 근처 가수 자리 밀어내기', () => {
+  it('행성 바깥 궤도 안이면 그 밖(반지름+간격)으로, 밖이면 그대로', () => {
+    const p = pushOut({ x: 110, y: 100 }, 8, [{ x: 100, y: 100, r: 30 }], 6)
+    expect(p.x).toBeCloseTo(144); expect(p.y).toBeCloseTo(100)
+    expect(pushOut({ x: 200, y: 100 }, 8, [{ x: 100, y: 100, r: 30 }], 6)).toEqual({ x: 200, y: 100 })
+  })
+  it('같은 자리면 위로, 여러 행성 사이에서도 모두 피한다', () => {
+    expect(pushOut({ x: 50, y: 50 }, 5, [{ x: 50, y: 50, r: 10 }], 5)).toEqual({ x: 50, y: 30 })
+    const obs = [{ x: 0, y: 0, r: 20 }, { x: 50, y: 0, r: 20 }]
+    const q = pushOut({ x: 25, y: 1 }, 5, obs, 4)
+    for (const o of obs) expect(Math.hypot(q.x - o.x, q.y - o.y)).toBeGreaterThanOrEqual(o.r + 5 + 4 - 1e-6)
   })
 })

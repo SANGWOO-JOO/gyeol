@@ -40,6 +40,27 @@ export function fitView(points: (Pt & { r?: number })[], size: Size, padFrac = 0
   return { scale, tx: size.width / 2 - cx * scale, ty: size.height / 2 - cy * scale }
 }
 
+/**
+ * 근처 가수(유령) 표시 자리 (I-40 2차): 방 행성의 가장 바깥 궤도(+위성) 안에 들어오면 그 밖으로 밀어낸다.
+ * 화면 px 기준이라 확대 체감으로 궤도가 커져도 겹치지 않는다. 지도 좌표 데이터는 그대로 두고 그릴 자리만 바꾼다.
+ */
+export function pushOut(p: Pt, r: number, obstacles: (Pt & { r: number })[], gap = 6, passes = 24): Pt {
+  let { x, y } = p
+  for (let k = 0; k < passes; k++) {
+    let moved = false
+    for (const o of obstacles) {
+      const dx = x - o.x, dy = y - o.y
+      const d = Math.hypot(dx, dy), need = o.r + r + gap
+      if (d >= need) continue
+      const ux = d > 1e-3 ? dx / d : 0, uy = d > 1e-3 ? dy / d : -1
+      x = o.x + ux * need; y = o.y + uy * need
+      moved = true
+    }
+    if (!moved) break
+  }
+  return { x, y }
+}
+
 /** +/− 버튼의 고정점: 화면 안 행성 중 가운데에 가장 가까운 것, 화면 안에 없으면 화면 가운데 (I-43 ②) */
 export function zoomAnchor(screenPts: Pt[], size: Size): Pt {
   const c = { x: size.width / 2, y: size.height / 2 }

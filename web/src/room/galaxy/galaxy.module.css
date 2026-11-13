@@ -45,14 +45,19 @@
 .planetName { fill: var(--r-silver); pointer-events: none; }
 .preparingNode .planetBody { stroke: var(--r-peach) !important; stroke-dasharray: 3 4; animation: pulse 2.4s ease-in-out infinite; }
 .preparingNode .planetInitial, .preparingNode .planetName { fill: var(--r-peach); }
-/* I-40 근처 가수: 흐린 원 + "+" (점선 아님: 준비 중 고리와 구분). 이름은 밝게 */
+/* I-40 2차 근처 가수: 흐린 가수 행성(같은 모양) + 보라 점선 테두리, 회전 없음 → 준비 중(복숭아 점선 회전)과 구분. "+"는 마우스를 올렸을 때만 */
 .ghost { cursor: pointer; outline: none; }
 .ghost .ghostHit { fill: transparent; stroke: none; }
-.ghostBody { fill: rgba(255, 227, 184, .07); stroke: rgba(255, 227, 184, .45); transition: fill .15s, stroke .15s; }
-.ghostPlus { fill: none; stroke: rgba(255, 227, 184, .75); stroke-linecap: round; pointer-events: none; }
-.ghost text { fill: #f3e2c4; pointer-events: none; paint-order: stroke; stroke: var(--r-bg); stroke-width: 3px; stroke-linejoin: round; }
-.ghost:hover .ghostBody, .ghost:focus-visible .ghostBody { fill: rgba(255, 227, 184, .16); stroke: var(--r-peach); }
-.ghost:focus-visible .ghostBody { stroke-width: 2px; }
+.ghostBody { opacity: .42; stroke: #9c94d0; transition: opacity .15s; }
+.ghostInitial { fill: var(--r-text); opacity: .5; font-weight: 700; pointer-events: none; }
+.ghostPlus { opacity: 0; transition: opacity .15s; pointer-events: none; }
+.ghostPlus circle { fill: var(--r-peach); stroke: var(--r-bg); stroke-width: 1px; }
+.ghostPlus path { fill: none; stroke: #3b2a10; stroke-linecap: round; }
+.ghost text:not(.ghostInitial) { fill: #cfc6ee; pointer-events: none; paint-order: stroke; stroke: var(--r-bg); stroke-width: 3px; stroke-linejoin: round; }
+.ghost:hover .ghostBody, .ghost:focus-visible .ghostBody { opacity: .7; }
+.ghost:hover .ghostInitial, .ghost:focus-visible .ghostInitial { opacity: .8; }
+.ghost:hover .ghostPlus, .ghost:focus-visible .ghostPlus { opacity: 1; }
+.ghost:focus-visible .ghostBody { stroke: var(--r-accent-strong); }
 .ghostTip {
   position: absolute; z-index: 3; transform: translate(-50%, -100%); max-width: 230px; padding: 8px 12px; border-radius: 12px;
   background: #2a2540; box-shadow: 0 6px 20px rgba(0, 0, 0, .4), inset 0 0 0 1px #5e5332; color: var(--r-silver); font-size: 12px; line-height: 1.5;
@@ -114,10 +119,7 @@
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .legend i.legendGold { width: 11px; height: 11px; background: #FFE3B8; }
-.legend i.legendGhost { position: relative; width: 12px; height: 12px; box-sizing: border-box; border: 1px solid rgba(255, 227, 184, .55); background: rgba(255, 227, 184, .08); }
-.legend i.legendGhost::before, .legend i.legendGhost::after { content: ''; position: absolute; left: 50%; top: 50%; background: var(--r-peach); transform: translate(-50%, -50%); }
-.legend i.legendGhost::before { width: 6px; height: 1px; }
-.legend i.legendGhost::after { width: 1px; height: 6px; }
+.legend i.legendGhost { width: 12px; height: 12px; box-sizing: border-box; border: 1px dashed #9c94d0; background: rgba(78, 70, 140, .45); }
 .selectRing { fill: none; stroke: var(--r-accent-strong); pointer-events: none; }
 .selectedNode .planetName { fill: var(--r-text); font-weight: 700; }
 
