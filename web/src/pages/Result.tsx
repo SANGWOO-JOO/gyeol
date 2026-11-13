@@ -301,7 +301,7 @@ function Recommend({ token }: { token: string }) {
         if (stop) return
         setRec(r)
         // 후보를 모으는 중이면 최대 20분, 추천이 아직 시작되지 않았으면(NONE, L3 이전 세션 등) 1분까지만 기다린다
-        if (r.status !== 'READY' && tries++ < (r.status === 'NONE' ? 12 : 240)) timer = setTimeout(tick, 5000)
+        if (r.status !== 'READY' && r.status !== 'EMPTY' && tries++ < (r.status === 'NONE' ? 12 : 240)) timer = setTimeout(tick, 5000)
       } catch { /* 추천은 덤: 실패해도 나머지 화면은 그대로 */ }
     }
     tick()
@@ -323,6 +323,9 @@ function Recommend({ token }: { token: string }) {
   }
 
   if (!rec || rec.status === 'NONE') return null
+  if (rec.status === 'EMPTY') {
+    return <Alert>고른 곡을 하나도 찾지 못해 결이 맞는 곡을 만들 수 없어요. 영어 제목이나 원래 제목으로 다시 골라 보세요.</Alert>
+  }
   if (rec.status !== 'READY') {
     return (
       <span className={ui.small}>
@@ -338,6 +341,7 @@ function Recommend({ token }: { token: string }) {
         <span className={ui.small}>평가 {rated}/{rec.items.length}</span>
       </div>
       {rec.summary && <p className={ui.small} style={{ margin: 0 }}>{rec.summary}</p>}
+      {rec.unidentified > 0 && <p className={ui.small} style={{ margin: 0 }}>고른 곡 중 {rec.unidentified}곡은 찾지 못해 빼고 골랐어요.</p>}
       <p className={ui.small} style={{ margin: 0 }}>마음에 드는지 눌러 주세요. 이유에 사실과 다른 내용이 있으면 "이유가 틀렸어요"도 함께 눌러 주세요.</p>
       {saveError && <Alert>평가를 저장하지 못했어요. 잠시 뒤 다시 눌러 주세요.</Alert>}
       <ol className={`${ui.list} ${ui.card}`} style={{ padding: '4px 16px' }}>

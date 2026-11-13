@@ -22,8 +22,11 @@ data class RecView(
     val rating: String?, val reasonWrong: Boolean,
 )
 data class FeedbackRequest(val rating: String?, val reasonWrong: Boolean?)
-/** status: NONE(시작 전) · CANDIDATES(후보 보강 중) · READY */
-data class Recommendations(val status: String, val candidatesDone: Int, val candidatesTotal: Int, val summary: String?, val model: String?, val items: List<RecView>)
+/**
+ * status: NONE(시작 전) · CANDIDATES(후보 보강 중) · READY · EMPTY(고른 곡을 하나도 찾지 못해 추천을 만들 수 없음).
+ * unidentified: 식별이 끝났는데 찾지 못해 추천에서 빠진 고른 곡 수
+ */
+data class Recommendations(val status: String, val candidatesDone: Int, val candidatesTotal: Int, val summary: String?, val model: String?, val items: List<RecView>, val unidentified: Int = 0)
 
 /** L3-4 추천 결과 (docs/l3-design.md 11장) */
 @RestController
@@ -34,7 +37,15 @@ class RecommendController(private val sessions: SessionService, private val repo
         val sid = sessions.find(token).id
         val rows = repo.recommendations(sid)
         val (done, total) = repo.candidateProgress(sid)
-        if (rows.isEmpty()) return Recommendations(if (total == 0) "NONE" else "CANDIDATES", done, total, null, null, emptyList())
+        val seeds = repo.seedStatus(sid)
+        if (rows.isEmpty()) {
+            val status = when {
+                seeds.empty -> "EMPTY"
+                total == 0 -> "NONE"
+                else -> "CANDIDATES"
+            }
+            return Recommendations(status, done, total, null, null, emptyList(), seeds.unidentified)
+        }
         val ids = (rows.map { it.trackId } + rows.flatMap { it.basedOn }).distinct()
         val tracks = names(ids)
         val chunks = rows.flatMap { it.evidence }.distinct().takeIf { it.isNotEmpty() }?.let { ev ->
@@ -48,7 +59,7 @@ class RecommendController(private val sessions: SessionService, private val repo
                 r.evidence.mapNotNull { chunks[it] }, r.basedOn.mapNotNull { b -> tracks[b]?.let { BasedOn(b, it.title, it.artist) } },
                 feedback[r.trackId]?.rating, feedback[r.trackId]?.reasonWrong ?: false)
         }
-        return Recommendations("READY", done, total, repo.summary(sid), rows.first().model, items)
+        return Recommendations("READY", done, total, repo.summary(sid), rows.first().model, items, seeds.unidentified)
     }
 
     /** L3-5 추천 곡 평가. 다시 보내면 바뀐다 */

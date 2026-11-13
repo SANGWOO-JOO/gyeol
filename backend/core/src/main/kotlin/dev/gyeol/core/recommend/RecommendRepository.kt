@@ -26,6 +26,14 @@ data class RecRow(
 )
 
 /** L3-5 추천 평가 */
+/** 고른 곡 식별 상태. pending = 아직 식별 중인 곡이 있음 */
+data class SeedStatus(val total: Int, val identified: Int, val pending: Boolean) {
+    /** 식별이 끝났는데 찾지 못한 곡 수 (식별 중이면 0) */
+    val unidentified get() = if (pending) 0 else total - identified
+    /** 고른 곡이 있는데 하나도 찾지 못해 추천을 만들 수 없음 */
+    val empty get() = total > 0 && identified == 0 && !pending
+}
+
 data class Feedback(val trackId: Long, val rating: String, val reasonWrong: Boolean)
 
 /** L3-4 추천 저장소 (docs/l3-design.md 11장) */
@@ -55,6 +63,15 @@ class RecommendRepository(private val jdbc: JdbcClient) {
             GROUP BY w.track_id ORDER BY max(w.weight) DESC, w.track_id
             """.trimIndent(),
         ).param("sid", sessionId).query { rs, _ -> Seed(rs.getLong(1), rs.getDouble(2), rs.getString(3), rs.getString(4), parseVector(rs.getString(5))) }.list()
+
+    fun seedStatus(sessionId: Long): SeedStatus =
+        jdbc.sql(
+            """
+            SELECT count(*), count(track_id),
+                   EXISTS (SELECT 1 FROM identify_target WHERE session_id = :sid AND status = 'PENDING')
+            FROM seed_track WHERE session_id = :sid
+            """.trimIndent(),
+        ).param("sid", sessionId).query { rs, _ -> SeedStatus(rs.getInt(1), rs.getInt(2), rs.getBoolean(3)) }.single()
 
     /** 이미 들은 곡의 정규화 키 후보: 청취 기록 제목·채널, 고른 곡, 식별된 곡의 이름들 (key 함수는 부르는 쪽이 준다) */
     fun heardNames(sessionId: Long): List<Pair<String, String>> =

@@ -50,9 +50,11 @@ export interface Stats {
 
 export type Rating = 'LIKE' | 'DISLIKE'
 
-/** L3-4 추천. status: NONE(시작 전) · CANDIDATES(후보 곡 정보 모으는 중) · READY */
+/** L3-4 추천. status: NONE(시작 전) · CANDIDATES(후보 곡 정보 모으는 중) · READY · EMPTY(고른 곡을 하나도 찾지 못함) */
 export interface Recommendations {
-  status: 'NONE' | 'CANDIDATES' | 'READY'
+  status: 'NONE' | 'CANDIDATES' | 'READY' | 'EMPTY'
+  /** 식별이 끝났는데 찾지 못해 추천에서 빠진 고른 곡 수 */
+  unidentified: number
   candidatesDone: number
   candidatesTotal: number
   summary: string | null

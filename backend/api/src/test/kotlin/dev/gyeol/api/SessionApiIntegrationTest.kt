@@ -356,6 +356,36 @@ class SessionApiIntegrationTest {
         assertEquals(Triple(true, "DISLIKE", "NORAG"), left)
     }
 
+    @Test
+    fun `추천 상태 - 고른 곡을 하나도 찾지 못하면 EMPTY, 일부만 찾으면 빠진 곡 수를 알린다`() {
+        val token = call("POST", "/api/sessions", mapOf("entry" to "SEEDS")).second!!["token"].asString()
+        val tracks = (1..3).map { mapOf("title" to "못 찾을 곡 $it", "artist" to "없는 가수") }
+        assertEquals(200, call("POST", "/api/sessions/$token/seeds", mapOf("tracks" to tracks)).first)
+        val sid = sessions.findActiveByTokenHash(Tokens.hash(token))!!.id
+        val path = "/api/sessions/$token/recommendations"
+
+        // 식별 중에는 아직 판단하지 않는다
+        var rec = call("GET", path).second!!
+        assertEquals("NONE", rec["status"].asString())
+        assertEquals(0, rec["unidentified"].asInt())
+
+        // worker 흉내: 식별이 끝났는데 하나도 못 찾음 → 준비 중에서 멈추지 않고 EMPTY
+        jdbc.sql("UPDATE identify_target SET status = 'DONE' WHERE session_id = :sid").param("sid", sid).update()
+        rec = call("GET", path).second!!
+        assertEquals("EMPTY", rec["status"].asString())
+        assertEquals(3, rec["unidentified"].asInt())
+
+        // 하나라도 찾았으면 추천을 진행하고, 결과에 빠진 곡 수를 함께 준다
+        val found = identify.upsertTrack(track("못 찾을 곡 1", "없는 가수", "음반", "2020-01-01"))
+        jdbc.sql("UPDATE seed_track SET track_id = :t WHERE session_id = :sid AND position = 1").param("t", found).param("sid", sid).update()
+        assertEquals("NONE", call("GET", path).second!!["status"].asString())
+        jdbc.sql("INSERT INTO recommendation (session_id, rank, track_id, score, reason, model, reason_variant, score_rank, source) VALUES (:s, 1, :t, 0.5, '이유', 'm', 'RAG', 1, 'LASTFM')")
+            .param("s", sid).param("t", found).update()
+        rec = call("GET", path).second!!
+        assertEquals("READY", rec["status"].asString())
+        assertEquals(2, rec["unidentified"].asInt())
+    }
+
     private fun track(title: String, artist: String, release: String, date: String) = TrackInfo(
         recordingMbid = UUID.randomUUID(), title = title,
         artist = ArtistInfo(UUID.randomUUID(), artist, artist, emptyList()),
