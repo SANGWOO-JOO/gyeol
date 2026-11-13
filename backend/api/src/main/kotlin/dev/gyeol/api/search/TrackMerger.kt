@@ -22,7 +22,7 @@ class TrackMerger(private val db: TrackSearchRepository) {
         private val HANGUL = Regex("""[가-힣ㄱ-ㅎ]""")
         private val LATIN = Regex("""[A-Za-z]""")
         /** 괄호 안이 판 표시면 다른 녹음이다: 양쪽 표기로 나누지 않는다 ("밤편지 (Inst.)"는 "밤편지"와 다른 곡) */
-        val VERSION = Regex("""(?i)\b(inst|instrumental|mr|live|remix|mix|ver|version|edit|remaster(ed)?|acoustic|demo|feat|ft|prod|sped|slowed|cover|karaoke)\b|라이브|리믹스|버전|반주|어쿠스틱""")
+        val VERSION = dev.gyeol.core.identify.TitleVersion.REGEX
 
         /** 같은 곡 판정용 제목 표기들: 전체, 괄호 앞·안, 한글·로마자로 나뉜 두 쪽 (모두 정규화) */
         fun titleForms(title: String): Set<String> {

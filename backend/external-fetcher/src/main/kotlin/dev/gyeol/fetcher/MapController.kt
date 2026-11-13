@@ -57,4 +57,25 @@ class MapController(private val lastFm: LastFmClient, private val musicBrainz: M
             "aliases" to aliases,
         )
     }
+
+    /**
+     * I-30 ③ 가수의 녹음 목록 (MusicBrainz browse, 100개씩). 녹음마다 처음 나온 날(first-release-date, 없으면 null).
+     * 응답: total(전체 녹음 수), offset, items[{mbid, title, firstReleaseDate, video}]. 초당 1회 제한은 다른 MusicBrainz 호출과 함께 쓴다
+     */
+    @GetMapping("/internal/musicbrainz/artist-recordings")
+    fun artistRecordings(@RequestParam mbid: String, @RequestParam(defaultValue = "0") offset: Int): Map<String, Any?> {
+        require(Regex("^[0-9a-f-]{36}$").matches(mbid)) { "mbid 형식이 올바르지 않습니다" }
+        require(offset in 0..20_000) { "offset은 0~20000이어야 합니다" }
+        val body = musicBrainz.fetch("/recording", mapOf("artist" to mbid, "limit" to 100, "offset" to offset))
+        val items = body.path("recordings").toList().mapNotNull { r ->
+            val title = r.path("title").asString("").trim().ifEmpty { return@mapNotNull null }
+            mapOf(
+                "mbid" to r.path("id").asString(),
+                "title" to title,
+                "firstReleaseDate" to r.path("first-release-date").asString("").ifEmpty { null },
+                "video" to r.path("video").asBoolean(false),
+            )
+        }
+        return mapOf("total" to body.path("recording-count").asInt(0), "offset" to offset, "items" to items)
+    }
 }

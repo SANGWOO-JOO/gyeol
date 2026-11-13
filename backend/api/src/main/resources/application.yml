@@ -48,6 +48,9 @@ gyeol:
     from: ${MAIL_FROM:}
     from-name: 내 음악 결
     configuration-set: ${MAIL_CONFIG_SET:}
+  # I-30 가수 화면: 최신순 발매일을 다시 모으는 간격
+  artist:
+    scan-refresh: ${ARTIST_SCAN_REFRESH:7d}
   # ⑥ 관리자: TOTP 비밀값 암호화 키(base64 32바이트). 비어 있으면 관리자 로그인 503
   admin:
     totp-key: ${ADMIN_TOTP_KEY:}

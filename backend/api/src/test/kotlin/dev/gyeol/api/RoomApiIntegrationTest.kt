@@ -153,6 +153,7 @@ class RoomApiIntegrationTest {
     @Autowired lateinit var maps: MapRepository
     @Autowired lateinit var gifts: dev.gyeol.core.room.GiftRepository
     @Autowired lateinit var roomRepo: dev.gyeol.core.room.RoomRepository
+    @Autowired lateinit var releases: dev.gyeol.core.identify.ArtistReleaseRepository
 
     private val http = HttpClient.newHttpClient()
 
@@ -872,5 +873,66 @@ class RoomApiIntegrationTest {
         assertEquals(aid, call("GET", "/api/rooms/${host.rid}/artist-songs?name=" + java.net.URLEncoder.encode("태연", "UTF-8") + "&page=1", key = host.key).body!!["artist"]["artistId"].asLong())
         assertEquals(400, call("GET", "/api/rooms/${host.rid}/artists/$aid/songs?sort=xyz", key = host.key).status)
         assertEquals(404, call("GET", "/api/rooms/${host.rid}/artists/99999999/songs", key = host.key).status)
+    }
+
+    @Test
+    fun `I-30 최신순 - 처음 열면 모으기 요청 1번, 모으는 중엔 저장된 것만, 날짜순·날짜 없는 곡 맨 뒤·판 표시 숨김, 7일 뒤 다시`() {
+        val host = newRoom()
+        val iu = ArtistInfo(UUID.randomUUID(), "IU", "IU", listOf("아이유"))
+        val recMbid = UUID.randomUUID()
+        val trackId = identify.upsertTrack(TrackInfo(recMbid, "밤편지", iu, UUID.randomUUID(), UUID.randomUUID(), "음반", "2017-03-24", "Single"))
+        val aid = songs.trackArtist(trackId)!!
+        val path = "/api/rooms/${host.rid}/artists/$aid/songs?sort=latest"
+
+        val first = call("GET", "$path&page=1", key = host.key).body!!
+        assertEquals("RUNNING", first["scan"].asString())
+        assertEquals(0, first["items"].size())
+        // 같은 큐에 다른 시험의 메시지가 쌓여 있어 찾을 때까지 받는다 (받은 메시지는 지운다)
+        val msgs = sqs().use { c ->
+            val url = c.getQueueUrl { it.queueName(SONG_QUEUE) }.queueUrl()
+            val found = mutableListOf<tools.jackson.databind.JsonNode>()
+            repeat(20) {
+                val got = c.receiveMessage { it.queueUrl(url).maxNumberOfMessages(10).waitTimeSeconds(1) }.messages()
+                got.forEach { m -> c.deleteMessage { d -> d.queueUrl(url).receiptHandle(m.receiptHandle()) } }
+                found += got.map { json.readTree(it.body()) }.filter { it.path("type").asString("") == "SCAN_ARTIST_RELEASES" && it["artistId"].asLong() == aid }
+                if (got.isEmpty()) return@repeat
+            }
+            found
+        }
+        assertEquals(1, msgs.size)
+        call("GET", "$path&page=1", key = host.key) // 다시 열어도 다시 요청하지 않음
+        assertEquals("QUEUED", releases.scan(aid)!!.status)
+
+        // worker 흉내: 모으는 중 일부 저장 → 저장된 것만 보임
+        releases.startScan(aid)
+        releases.upsert(aid, recMbid, "밤편지", "밤편지", "2017-03-24", false)
+        releases.upsert(aid, UUID.randomUUID(), "날짜 없는 곡", "날짜없는곡", null, false)
+        val running = call("GET", "$path&page=1", key = host.key).body!!
+        assertEquals("RUNNING", running["scan"].asString())
+        assertEquals(listOf("밤편지", "날짜 없는 곡"), running["items"].toList().map { it["item"]["title"].asString() })
+        assertEquals(trackId, running["items"][0]["item"]["trackId"].asLong(), "우리 곡이면 trackId")
+        assertEquals("2017-03-24", running["items"][0]["releaseDate"].asString())
+        assertTrue(running["items"][1]["releaseDate"].isNull)
+
+        (1..25).forEach { releases.upsert(aid, UUID.randomUUID(), "곡 $it", "곡$it", "2020-01-${"%02d".format(it)}", false) }
+        releases.upsert(aid, UUID.randomUUID(), "밤편지 (Live)", "밤편지live", "2024-01-01", true)
+        releases.finishScan(aid, true, 30, 28)
+        val p1 = call("GET", "$path&page=1", key = host.key).body!!
+        assertEquals("DONE", p1["scan"].asString())
+        assertEquals(20, p1["items"].size())
+        assertTrue(p1["hasMore"].asBoolean())
+        assertEquals("곡 25", p1["items"][0]["item"]["title"].asString(), "가장 최근(2020-01-25)이 먼저")
+        assertTrue(p1["items"].toList().none { it["item"]["title"].asString().contains("Live") }, "판 표시 숨김")
+        val p2 = call("GET", "$path&page=2", key = host.key).body!!
+        assertEquals(7, p2["items"].size())
+        assertTrue(!p2["hasMore"].asBoolean())
+        assertEquals("날짜 없는 곡", p2["items"].toList().last()["item"]["title"].asString())
+
+        // 7일 지나면 다시 요청
+        jdbc.sql("UPDATE artist_release_scan SET finished_at = now() - interval '8 days' WHERE artist_id = :a").param("a", aid).update()
+        assertEquals("RUNNING", call("GET", "$path&page=1", key = host.key).body!!["scan"].asString())
+        assertEquals("QUEUED", releases.scan(aid)!!.status)
+        // DB에 없는 가수(이름만)는 최신순 400
+        assertEquals(400, call("GET", "/api/rooms/${host.rid}/artist-songs?name=zzz&sort=latest", key = host.key).status)
     }
 }

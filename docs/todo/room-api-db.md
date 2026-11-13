@@ -261,3 +261,22 @@
 ### ④ 지도 행성 → 가수 화면
 - 백엔드 변경 없음: 행성 자세히(`GET /api/rooms/{rid}/artists/{artistId}`)와 가수 화면이 같은 `artistId`를 쓴다. 웹에서 연결만 하면 된다.
 
+### ③ 가수 화면 최신순 (V27)
+- `V27__artist_releases.sql`(전역): `artist_release_scan`(QUEUED·RUNNING·DONE·FAILED, 녹음 수·저장 수), `artist_recording`(가수 × 정규화 제목 하나 = 가장 이른 `first_release_date`, `is_version`).
+- 흐름:
+  1. `GET …/artists/{artistId}/songs?sort=latest`가 처음이거나, 끝난 지 7일(`gyeol.artist.scan-refresh`, `ARTIST_SCAN_REFRESH`, A8)이 지났거나, 실패했으면 QUEUED로 바꾸고 room-song 큐에 `SCAN_ARTIST_RELEASES`를 보낸다(A5). QUEUED·RUNNING이면 다시 보내지 않는다.
+  2. worker `artist/ArtistReleaseScanner`가 fetcher `/internal/musicbrainz/artist-recordings`(MusicBrainz browse, 100개씩, 초당 1회 제한 공유)로 훑는다.
+     - 영상 녹음은 뺀다.
+     - 같은 제목은 날짜가 이른 쪽만 남긴다.
+     - 판 표시(공용 `TitleVersion`)는 `is_version`으로 표시한다.
+     - 쪽마다 바로 저장하므로 RUNNING 중에도 저장된 것이 보인다.
+     - 한 가수 최대 3,000녹음.
+- 응답: 인기순과 같은 모양 + `scan`(RUNNING·DONE·FAILED), `items[].releaseDate`(YYYY·YYYY-MM·YYYY-MM-DD, 없으면 null → "발매일 모름"). 날짜 내림차순, 날짜 없는 곡 맨 뒤, 판 표시 곡 숨김(A7). 같은 녹음이 우리 DB에 있으면 `trackId`·표지. 우리 DB에 없는 가수(이름만)는 400.
+- 테스트:
+  - worker `RoomSongIntegrationTest` I-30 1개: 가짜 250녹음 3쪽 → 248곡, 같은 제목 가장 이른 날, 영상 빼기, 판 표시, 요청 없으면 무시, 다시 모아도 같음, 실패 FAILED·다시 요청 가능
+  - api I-30 ③ 1개: 요청 메시지 1번, 모으는 중 저장분만, 20+7 두 쪽, 순서·날짜 없음 맨 뒤·판 숨김, 7일 뒤 다시, 이름만 400
+- 로컬 실제 MusicBrainz:
+  - DAVICHI: 녹음 191개 → 곡 171개(판 표시 39), 1.9초. 날짜 있음 171/171(일 단위 170)
+  - 성시경: 녹음 217개 → 192곡, 2.3초. 날짜 192/192
+  - 설계 1-3의 검색 기반 55%보다 가수 녹음 목록 쪽이 훨씬 잘 채워져 있다(표본 2명).
+

@@ -17,7 +17,11 @@ data class GyeolProperties(
     val coverBucket: String = "gyeol-local-covers",
     val room: Room = Room(),
     val admin: Admin = Admin(),
+    val artist: Artist = Artist(),
 ) {
+    /** I-30 가수 화면. scanRefresh: 최신순 발매일을 다시 모으는 간격 (11-14 결정 A8: 7일, 환경 변수 ARTIST_SCAN_REFRESH) */
+    data class Artist(val scanRefresh: Duration = Duration.ofDays(7))
+
     /**
      * ⑥ 관리자 (room-plan.md 10절, 11-13 결정). totpKey가 비어 있으면 관리자 로그인을 막는다(503).
      * 운영 키는 환경 변수 ADMIN_TOTP_KEY(base64 32바이트), 로컬은 application-local.yml의 가짜 키

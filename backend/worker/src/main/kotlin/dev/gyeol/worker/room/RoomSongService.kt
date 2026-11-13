@@ -26,7 +26,7 @@ import java.time.ZoneId
 
 /**
  * IDENTIFY: 곡 요청 하나 식별 → 방에 담기. ENRICH: 담은 곡의 근거·곡 설명·벡터 (뒤에서, 지도 표시와 무관).
- * PREPARE_ARTIST: 지도에 없는 가수를 올린다 (4-g 준비 중)
+ * PREPARE_ARTIST: 지도에 없는 가수를 올린다 (4-g 준비 중). SCAN_ARTIST_RELEASES: 가수 화면 최신순용 녹음 발매일 모으기 (I-30 ③)
  */
 data class RoomSongMessage(val type: String, val requestId: Long? = null, val trackIds: List<Long> = emptyList(), val artistId: Long? = null)
 
@@ -48,6 +48,7 @@ class RoomSongService(
     private val map: MapService,
     private val maps: MapRepository,
     private val gifts: GiftRepository,
+    private val releaseScanner: dev.gyeol.worker.artist.ArtistReleaseScanner,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val kst = ZoneId.of("Asia/Seoul")
@@ -57,6 +58,8 @@ class RoomSongService(
             "IDENTIFY" -> identifyRequest(m.requestId ?: return)
             "ENRICH" -> if (m.trackIds.isNotEmpty()) enrich.enrichTracks(m.trackIds)
             "PREPARE_ARTIST" -> m.artistId?.let(map::prepare)
+            // I-30 ③ 가수 화면 최신순: 녹음 발매일 모으기
+            "SCAN_ARTIST_RELEASES" -> m.artistId?.let(releaseScanner::scan)
         }
     }
 

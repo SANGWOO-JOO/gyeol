@@ -5,6 +5,7 @@ import dev.gyeol.core.identify.ArtistInfo
 import dev.gyeol.core.identify.IdentifyRepository
 import dev.gyeol.core.identify.TrackInfo
 import dev.gyeol.core.room.GiftRepository
+import dev.gyeol.core.identify.ArtistReleaseRepository
 import dev.gyeol.core.room.Role
 import dev.gyeol.core.room.RoomRepository
 import dev.gyeol.core.room.RoomSongRepository
@@ -62,6 +63,28 @@ class RoomSongIntegrationTest {
         val localstack = LocalStackContainer(DockerImageName.parse("localstack/localstack:4")).withServices("s3", "sqs")
 
         private val fetcher = HttpServer.create(InetSocketAddress(0), 0).apply {
+            // I-30 ③: 가수 녹음 목록 250개(3쪽). 실패용 mbid(…fail)는 500
+            createContext("/internal/musicbrainz/artist-recordings") { ex ->
+                val q = ex.requestURI.query.orEmpty()
+                if (q.contains("ffffffff")) { ex.sendResponseHeaders(500, -1); ex.close(); return@createContext }
+                val offset = Regex("offset=(\\d+)").find(q)?.groupValues?.get(1)?.toInt() ?: 0
+                fun r(i: Int, title: String, date: String?, video: Boolean = false) =
+                    """{"mbid":"00000000-0000-0000-0000-${"%012d".format(i)}","title":"$title","firstReleaseDate":${date?.let { "\"$it\"" } ?: "null"},"video":$video}"""
+                val all = (0 until 250).map { i ->
+                    when (i) {
+                        0 -> r(i, "밤편지", "2017-03-24")
+                        1 -> r(i, "밤편지", "2019-01-01")            // 같은 제목, 더 늦은 날짜 → 버림
+                        2 -> r(i, "밤편지 (Live)", "2018-05-05")     // 판 표시
+                        3 -> r(i, "날짜 없는 곡", null)
+                        4 -> r(i, "뮤직비디오", "2020-01-01", true)  // 영상 녹음은 뺌
+                        5 -> r(i, "Palette", "2017")
+                        else -> r(i, "곡 $i", "2010-01-${"%02d".format(i % 28 + 1)}")
+                    }
+                }
+                val body = """{"total":250,"offset":$offset,"items":[${all.drop(offset).take(100).joinToString(",")}]}""".toByteArray()
+                ex.responseHeaders.add("Content-Type", "application/json")
+                ex.sendResponseHeaders(200, body.size.toLong()); ex.responseBody.use { it.write(body) }
+            }
             createContext("/internal/musicbrainz/identify") { ex ->
                 val body = ex.requestBody.readAllBytes().decodeToString()
                 val res = if (body.contains("가수A") && body.contains("곡1")) """
@@ -108,6 +131,7 @@ class RoomSongIntegrationTest {
     @Autowired lateinit var json: JsonMapper
     @Autowired lateinit var identifyRepo: IdentifyRepository
     @Autowired lateinit var gifts: GiftRepository
+    @Autowired lateinit var releases: ArtistReleaseRepository
 
     private val today get() = LocalDate.now(ZoneId.of("Asia/Seoul"))
 
@@ -214,5 +238,44 @@ class RoomSongIntegrationTest {
         assertEquals(50, box.milestone)
         assertEquals("READY", box.status.name)
         assertEquals(today, box.readyOn)
+    }
+
+    @Test
+    fun `I-30 발매일 모으기 - 3쪽 훑기, 같은 제목은 가장 이른 날, 영상 빼기, 판 표시 표시, 요청 없으면 안 돎, 실패는 FAILED`() {
+        val artistId = jdbc.sql("INSERT INTO artist (mbid, name, sort_name, aliases) VALUES (:m, '아이유', 'IU', '{}') RETURNING id")
+            .param("m", UUID.randomUUID()).query(Long::class.java).single()
+        service.handle(RoomSongMessage("SCAN_ARTIST_RELEASES", artistId = artistId))
+        assertNull(releases.scan(artistId), "요청(QUEUED) 없이 온 메시지는 무시")
+
+        assertTrue(releases.requestScan(artistId, java.time.Instant.now().minusSeconds(60)))
+        assertTrue(!releases.requestScan(artistId, java.time.Instant.now().minusSeconds(60)), "이미 요청됨")
+        service.handle(RoomSongMessage("SCAN_ARTIST_RELEASES", artistId = artistId))
+
+        val scan = releases.scan(artistId)!!
+        assertEquals("DONE", scan.status)
+        assertEquals(250, scan.recordings)
+        // 250 - 같은 제목 1 - 영상 1 = 248
+        assertEquals(248, scan.stored)
+        val all = releases.latest(artistId, withVersions = true, limit = 300, offset = 0)
+        assertEquals("2017-03-24", all.single { it.title == "밤편지" }.firstReleaseDate)
+        assertTrue(all.none { it.title == "뮤직비디오" })
+        val shown = releases.latest(artistId, withVersions = false, limit = 300, offset = 0)
+        assertTrue(shown.none { it.title == "밤편지 (Live)" }, "판 표시는 숨김")
+        assertEquals("날짜 없는 곡", shown.last().title, "날짜 없는 곡은 맨 뒤")
+        assertEquals(listOf("밤편지", "Palette"), shown.take(2).map { it.title }, "2017-03-24 > 2017")
+
+        // 다시 모아도 결과가 같다 (끝난 지 오래된 것으로 바꾸고 다시)
+        jdbc.sql("UPDATE artist_release_scan SET finished_at = now() - interval '8 days' WHERE artist_id = :a").param("a", artistId).update()
+        assertTrue(releases.requestScan(artistId, java.time.Instant.now().minus(java.time.Duration.ofDays(7))))
+        service.handle(RoomSongMessage("SCAN_ARTIST_RELEASES", artistId = artistId))
+        assertEquals(248, releases.count(artistId))
+
+        // 실패
+        val bad = jdbc.sql("INSERT INTO artist (mbid, name, sort_name, aliases) VALUES ('ffffffff-0000-0000-0000-000000000000', '실패', null, '{}') RETURNING id")
+            .query(Long::class.java).single()
+        releases.requestScan(bad, java.time.Instant.now())
+        service.handle(RoomSongMessage("SCAN_ARTIST_RELEASES", artistId = bad))
+        assertEquals("FAILED", releases.scan(bad)!!.status)
+        assertTrue(releases.requestScan(bad, java.time.Instant.now().minusSeconds(60)), "실패한 가수는 다시 요청 가능")
     }
 }

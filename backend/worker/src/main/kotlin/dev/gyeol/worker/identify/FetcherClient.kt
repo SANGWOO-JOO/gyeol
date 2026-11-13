@@ -87,6 +87,11 @@ class FetcherClient(props: WorkerProperties) {
         http.get().uri { b -> b.path("/internal/musicbrainz/artist").apply { if (mbid != null) queryParam("mbid", mbid) else queryParam("name", name) }.build() }
             .retrieve().body(JsonNode::class.java) ?: error("fetcher 응답이 비어 있습니다")
 
+    /** I-30 ③ 가수의 녹음 목록 100개씩 (total·items[mbid,title,firstReleaseDate,video]) */
+    fun artistRecordings(mbid: String, offset: Int): JsonNode =
+        http.get().uri { b -> b.path("/internal/musicbrainz/artist-recordings").queryParam("mbid", mbid).queryParam("offset", offset).build() }
+            .retrieve().body(JsonNode::class.java) ?: error("fetcher 응답이 비어 있습니다")
+
     /** 찾으면 곡 정보, 못 찾으면 null */
     fun identify(artist: String, title: String): TrackInfo? {
         val r = http.post().uri("/internal/musicbrainz/identify")
