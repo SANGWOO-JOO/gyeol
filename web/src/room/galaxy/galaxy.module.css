@@ -1,0 +1,30 @@
+/* 임시 지도 판 (9단계에서 SVG 지도로 교체) */
+.board { display: flex; flex-direction: column; gap: 18px; }
+.note { margin: 0; font-size: 12px; color: var(--r-text-3); }
+.group { display: flex; flex-direction: column; gap: 8px; }
+.galaxy { margin: 0; font-family: var(--r-font-title); font-size: 15px; font-weight: 700; color: #8d84c4; }
+.planets { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.planet {
+  width: 100%; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px 8px 8px; box-sizing: border-box;
+  border: 1px solid var(--r-border-soft); border-radius: 16px; background: var(--r-surface); color: var(--r-text); font: inherit; text-align: left; cursor: pointer;
+}
+.planet:hover { border-color: var(--r-border); }
+.planet:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+.mine { border-color: #5e5794; }
+.orb { width: 40px; height: 40px; flex: none; border-radius: 50%; background: var(--r-chip); border: 1.5px solid #e6dcff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; }
+.preparing { border: 1.5px dashed var(--r-peach); color: var(--r-peach); background: none; animation: pulse 2.4s ease-in-out infinite; }
+.text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.name { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub { font-size: 12px; color: var(--r-text-2); }
+.dots { display: flex; align-items: center; gap: 4px; flex: none; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.gold { min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--r-peach); color: #3b2a10; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+
+.empty { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 36px 12px; }
+.empty h2 { margin: 0; font-family: var(--r-font-title); font-size: 22px; }
+.empty p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--r-text-2); }
+.cta { height: 50px; padding: 0 24px; border: 0; border-radius: 999px; background: var(--r-accent); color: var(--r-on-accent); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+.cta:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+
+@keyframes pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .preparing { animation: none; } }

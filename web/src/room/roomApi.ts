@@ -9,6 +9,29 @@ export interface RoomSummary { roomId: string; name: string; status: RoomStatus;
 export interface DraftResponse { draftToken: string; email: string; expiresAt: string; resendAfter: string }
 export interface JoinedResponse { roomId: string; key: string; member: MemberView }
 
+/** ④ 선물 요약 (6단계에서 씀) */
+export interface GiftSummary { songCount: number; bestCount: number; nextMilestone: number; remaining: number; receivedToday: boolean; waiting: number; readyBoxId: number | null }
+export interface MeView {
+  roomId: string; roomName: string; roomStatus: RoomStatus; member: MemberView
+  songCount: number; todayAdded: number; dailyLimit: number; pendingRequests: number; gift: GiftSummary | null
+}
+
+export interface TrackItem { title: string; artist: string; mbid: string | null; listeners: number | null; releaseYear: number | null; trackId: number | null; coverUrl: string | null }
+/** mine: 내가 이미 담음 · sameSong: 이 노래를 담은 사람 · sameArtist: 같은 가수의 다른 노래를 담은 사람 */
+export interface RoomSearchItem { item: TrackItem; mine: boolean; sameSong: string[]; sameArtist: string[] }
+export interface SongView { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; sharedCount: number }
+export interface GiftNotice { boxId: number; milestone: number; status: string }
+/** 201 ADDED(바로 담김) · 202 IDENTIFYING(식별 맡김, requestId로 확인) */
+export interface AddSongResponse { status: 'ADDED' | 'IDENTIFYING'; song: SongView | null; requestId: number | null; todayAdded: number; dailyLimit: number; gift: GiftNotice | null }
+/** failReason: NOT_FOUND · REJECTED · ERROR · MEMBER_REMOVED, DONE인데 ALREADY_ADDED면 이미 담은 노래 */
+export interface RequestView { id: number; status: 'IDENTIFYING' | 'DONE' | 'FAILED'; song: SongView | null; failReason: string | null }
+
+export interface MapSong { trackId: number; title: string; coverUrl: string | null; memberIds: number[] }
+export interface Planet { artistId: number; name: string; x: number; y: number; songs: MapSong[]; galaxyId: number | null; preparing: boolean }
+export interface Galaxy { id: number; name: string | null; x: number; y: number }
+export interface Ghost { artistId: number; name: string; x: number; y: number; near: number }
+export interface RoomMap { rev: number; placeholder: boolean; members: MemberView[]; planets: Planet[]; galaxies: Galaxy[]; ghosts: Ghost[] }
+
 /** 서버 오류: code는 화면 분기용, detail에 남은 시도 횟수·잠금 남은 초 등 */
 export class RoomApiError extends Error {
   constructor(
@@ -69,6 +92,37 @@ export const roomApi = {
   rejoin: (roomId: string, memberId: number, pin: string) =>
     call<JoinedResponse>(`/rooms/${rid(roomId)}/session`, { method: 'POST', body: { memberId, pin } }),
   leave: (roomId: string) => call<void>(`/rooms/${rid(roomId)}/session`, { method: 'DELETE', roomId }),
+
+  me: (roomId: string, signal?: AbortSignal) => call<MeView>(`/rooms/${rid(roomId)}/me`, { roomId, signal }),
+  search: (roomId: string, q: string, signal?: AbortSignal) =>
+    call<{ items: RoomSearchItem[]; source: string }>(`/rooms/${rid(roomId)}/search?q=${encodeURIComponent(q)}`, { roomId, signal }),
+  addSong: (roomId: string, t: TrackItem) =>
+    call<AddSongResponse>(`/rooms/${rid(roomId)}/songs`, {
+      method: 'POST', roomId,
+      body: t.trackId != null ? { trackId: t.trackId } : { title: t.title, artist: t.artist, mbid: t.mbid },
+    }),
+  songRequest: (roomId: string, id: number, signal?: AbortSignal) => call<RequestView>(`/rooms/${rid(roomId)}/song-requests/${id}`, { roomId, signal }),
+  removeSong: (roomId: string, songId: number) => call<void>(`/rooms/${rid(roomId)}/songs/${songId}`, { method: 'DELETE', roomId }),
+  map: (roomId: string, etag: string | null, signal?: AbortSignal) => fetchMap(roomId, etag, signal),
+}
+
+/** 지도는 ETag(map_rev)로 바뀌었을 때만 받는다. 바뀌지 않았으면 null */
+async function fetchMap(roomId: string, etag: string | null, signal?: AbortSignal): Promise<{ map: RoomMap; etag: string | null } | null> {
+  const headers: Record<string, string> = {}
+  const key = keyStore.get(roomId)?.key
+  if (key) headers['X-Room-Key'] = key
+  if (etag) headers['If-None-Match'] = etag
+  let res: Response
+  try {
+    res = await fetch(`/api/rooms/${rid(roomId)}/map`, { headers, signal, credentials: 'same-origin' })
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw e
+    throw new RoomApiError(0, 'NETWORK', '서버에 연결하지 못했어요.')
+  }
+  if (res.status === 304) return null
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw new RoomApiError(res.status, body?.code ?? 'UNKNOWN', body?.message ?? '지도를 불러오지 못했어요.', body?.detail ?? null)
+  return { map: body as RoomMap, etag: res.headers.get('ETag') }
 }
 
 /** 참가·다시 들어오기·방 만들기 성공 → 이 기기에 열쇠 저장 */

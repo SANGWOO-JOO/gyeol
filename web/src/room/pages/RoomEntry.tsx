@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { keyStore } from '../keyStore'
+import { RoomShell } from '../shell/RoomShell'
 import { rememberJoin, roomApi, RoomApiError, type MemberView, type RoomSummary } from '../roomApi'
 import { BackButton, NoteIcon, RoomPage, Spinner } from '../components/RoomPage'
 import { Avatar } from '../components/Avatar'
@@ -55,7 +56,7 @@ export function RoomEntry() {
     )
   }
   if (summary.roomId !== rid) return null
-  if (hasKey) return <RoomPlaceholder summary={summary} onLeft={() => changed(false)} />
+  if (hasKey) return <RoomShell roomId={summary.roomId} onLostKey={() => changed(false)} />
   return <Entry key={version} summary={summary} onJoined={() => changed(true)} />
 }
 
@@ -308,36 +309,6 @@ function Blocked({ reason, summary, onPick }: { reason: 'full' | 'closed' | 'gon
           <Link to="/rooms/new" className={s.primary} style={{ height: 54, fontSize: 16 }}>새 우주 만들기</Link>
         </div>
       </section>
-    </RoomPage>
-  )
-}
-
-/** 열쇠가 있는 기기: 방 화면은 3단계에서 만든다. 지금은 들어온 것만 확인 */
-function RoomPlaceholder({ summary, onLeft }: { summary: RoomSummary; onLeft: () => void }) {
-  const me = keyStore.get(summary.roomId)
-  const [busy, setBusy] = useState(false)
-  async function leave() {
-    setBusy(true)
-    try { await roomApi.leave(summary.roomId) } catch { /* 열쇠가 이미 무효여도 이 기기에서는 지운다 */ }
-    keyStore.remove(summary.roomId)
-    setBusy(false)
-    onLeft()
-  }
-  return (
-    <RoomPage label={summary.name}>
-      <header className={s.top}><Link to="/" aria-label="첫 화면"><Wordmark size={22} /></Link><RoomTag name={summary.name} /></header>
-      <section className={s.section} style={{ margin: 'auto 0', alignItems: 'center', textAlign: 'center' }}>
-        <h1 className={s.title} style={{ fontSize: 24 }}>{me?.nickname}님, 우주에 들어왔어요</h1>
-        <p className={s.lead}>방 화면(지도·검색·내 노래)은 다음 단계에서 열려요.</p>
-        <div className={s.chips} style={{ justifyContent: 'center' }}>
-          {summary.members.map(m => (
-            <span key={m.id} className={s.chip} style={{ cursor: 'default' }}><Avatar nickname={m.nickname} colorIdx={m.colorIdx} />{m.nickname}{m.role === 'HOST' ? ' · 방장' : ''}</span>
-          ))}
-        </div>
-      </section>
-      <div className={s.bottom}>
-        <button type="button" className={s.ghost} onClick={leave} disabled={busy}>이 기기에서 나가기</button>
-      </div>
     </RoomPage>
   )
 }
