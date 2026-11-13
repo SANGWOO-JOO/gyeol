@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, appendSongs, artistCardSub, asSearchItem, canLoadMore, groupByRelease, releaseText, scanNotice, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, appendSongs, artistCardSub, asSearchItem, canLoadMore, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -193,6 +193,19 @@ describe('I-30 가수 화면', () => {
     expect(searchBadge(r)).toEqual({ kind: 'sameSong', text: '민지님이 담은 노래' })
     expect(trackKey(t('A', 7))).toBe('t7')
     expect(trackKey(t('My Man'))).toBe('qmy man|다비치')
+  })
+  it('가수 머리: 응답에 없는 곡 수는 카드 것을 남긴다', () => {
+    const card = { artistId: 2, name: 'DAVICHI', songCountInRoom: 3, onMap: true }
+    expect(mergeArtist(card, { artistId: 2, name: 'DAVICHI', aliases: ['다비치'] })).toEqual({ ...card, aliases: ['다비치'] })
+    expect(mergeArtist(card, { artistId: 2, name: '다비치', songCountInRoom: 5 }).songCountInRoom).toBe(5)
+    expect(mergeArtist(card, null)).toBe(card)
+  })
+  it('가수 화면 오류 문구', () => {
+    expect(artistSongsErrorText(503, 'ARTIST_SONGS_UNAVAILABLE', 'x')).toContain('잠시 뒤 다시 시도')
+    expect(artistSongsErrorText(404, 'ARTIST_NOT_FOUND', 'x')).toBe('이 가수를 찾지 못했어요')
+    expect(artistSongsErrorText(501, 'LATEST_NOT_READY', 'x')).toContain('최신순은 준비 중')
+    expect(artistSongsErrorText(0, 'NETWORK', '서버에 연결하지 못했어요')).toBe('서버에 연결하지 못했어요')
+    expect(artistSongsErrorText(500, 'UNKNOWN', '서버 오류')).toBe('노래를 불러오지 못했어요')
   })
   it('내가 담은 곡을 친구도 담았으면 같이 담음', () => {
     expect(sharedWithText(['민지'])).toBe('민지님과 같이 담음')

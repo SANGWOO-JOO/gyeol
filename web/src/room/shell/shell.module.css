@@ -354,3 +354,7 @@
 .yearHead { margin: 4px 0 0; display: flex; align-items: baseline; gap: 8px; font-family: 'Gowun Batang', serif; font-size: 16px; font-weight: 700; color: #e6dcff; }
 .yearHead small { font-family: 'Noto Sans KR', sans-serif; font-size: 12px; font-weight: 400; color: var(--r-text-3); }
 .moreRow { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; font-size: 12px; color: var(--r-text-3); }
+.skel { display: block; border-radius: 6px; background: #2a2650; animation: skel 1.4s ease-in-out infinite; }
+.cover.skel { border-radius: 10px; }
+@keyframes skel { 0%, 100% { opacity: .45; } 50% { opacity: .9; } }
+@media (prefers-reduced-motion: reduce) { .skel { animation: none; } }

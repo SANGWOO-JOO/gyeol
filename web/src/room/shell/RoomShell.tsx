@@ -130,8 +130,9 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const openSearch = useCallback((q: string) => { setQuery(q); setArtistPage(null); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }, [setParams, setSheet])
   /** 4′2 지도 행성 → 가수 화면 (검색 탭 자리, PC는 오른쪽 판 검색) */
   const openArtistSongs = useCallback((artistId: number, name: string) => {
-    setArtistPage({ artistId, name, fromPlanet: artistId }); setSheet(null); setParams({ tab: 'search' }, { replace: true })
-  }, [setParams, setSheet])
+    const planet = map?.planets.find(p => p.artistId === artistId)
+    setArtistPage({ artistId, name, fromPlanet: artistId, songCountInRoom: planet?.songs.length, onMap: true }); setSheet(null); setParams({ tab: 'search' }, { replace: true })
+  }, [map, setParams, setSheet])
 
   // 지도 5초 새로고침 (탭이 보일 때만)
   useEffect(() => {
@@ -268,7 +269,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       onError={handle} backLabel={artistPage.fromPlanet != null ? `${artistPage.name} 가수 판으로` : '검색 결과로'} onBack={backFromArtist} />
   ) : (
     <SearchPanel roomId={roomId} query={query} setQuery={setQuery} added={added}
-      pending={pendingKeys} busy={busy} onAdd={add} onOpenArtist={a => setArtistPage({ artistId: a.artistId, name: a.name })} />
+      pending={pendingKeys} busy={busy} onAdd={add} onOpenArtist={a => setArtistPage({ artistId: a.artistId, name: a.name, songCountInRoom: a.songCountInRoom, onMap: a.onMap })} />
   )
   const playTab = <PlayTab roomId={roomId} meId={me?.member.id ?? -1} version={version} onError={handle} show={show} />
   const mineTab = <MineTab roomId={roomId} me={me} map={map} version={version} onChanged={changed} onError={handle} show={show} onOpenGift={boxId => setSheet({ kind: 'gift', boxId })} />

@@ -216,6 +216,23 @@ export function artistCardSub(a: SearchArtist): string {
   return a.onMap ? '우리 지도에 있는 가수예요' : ''
 }
 
+/** 가수 화면 머리: 카드(곡 수·지도 여부)에 서버 응답(이름·별칭)을 덮되, 응답에 없는 값은 카드 것을 남긴다 */
+export function mergeArtist(base: SearchArtist, next: SearchArtist | null | undefined): SearchArtist {
+  if (!next) return base
+  const out: SearchArtist = { ...base }
+  for (const [k, v] of Object.entries(next) as [keyof SearchArtist, never][]) if (v != null) out[k] = v
+  return out
+}
+
+/** 가수 화면 오류 문구 (② 503 Last.fm 첫 쪽 실패, 404 없는 가수, 501 최신순 준비 중) */
+export function artistSongsErrorText(status: number, code: string, fallback: string): string {
+  if (status === 503 || code === 'ARTIST_SONGS_UNAVAILABLE') return '지금은 이 가수의 노래 목록을 가져오지 못했어요. 잠시 뒤 다시 시도해 주세요'
+  if (status === 404 || code === 'ARTIST_NOT_FOUND') return '이 가수를 찾지 못했어요'
+  if (status === 501 || code === 'LATEST_NOT_READY') return '최신순은 준비 중이에요. 인기순에서 찾아보세요'
+  if (status === 0) return fallback
+  return '노래를 불러오지 못했어요'
+}
+
 /** 인기순은 100곡(20곡 × 5페이지)까지 (결정 A6) */
 export const ARTIST_MAX_PAGES = 5
 export function canLoadMore(p: { hasMore: boolean; page: number }): boolean {

@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { roomApi, RoomApiError, type ArtistSongItem, type ArtistSort, type RoomSearchItem, type SearchArtist } from '../roomApi'
-import { appendSongs, artistCardSub, asSearchItem, canLoadMore, groupByRelease, releaseText, scanNotice, trackKey } from '../roomLogic'
+import { appendSongs, artistCardSub, artistSongsErrorText, asSearchItem, canLoadMore, groupByRelease, mergeArtist, releaseText, scanNotice, trackKey } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { SearchRow } from './SearchPanel'
+import s from '../room.module.css'
 import sh from './shell.module.css'
 
 /** 가수 화면을 연 곳: 검색의 가수 카드, 또는 지도 행성의 가수 판(back = 그 행성) */
-export interface ArtistRef { artistId: number | null; name: string; fromPlanet?: number }
+export interface ArtistRef { artistId: number | null; name: string; fromPlanet?: number; songCountInRoom?: number | null; onMap?: boolean | null }
 
 interface Loaded { items: ArtistSongItem[]; page: number; hasMore: boolean; scan: ArtistSongsScan }
 type ArtistSongsScan = 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED' | null
 const SCAN_POLL_MS = 4000
 /** ③ 최신순(V27·worker)은 백엔드 마지막 단계: 준비되면 켠다 */
 const LATEST_READY = false
+
+const errText = (err: unknown) => err instanceof RoomApiError ? artistSongsErrorText(err.status, err.code, err.message) : '노래를 불러오지 못했어요'
 
 /**
  * I-30 가수 화면 (캔버스 4-m·4-m2): [인기순][최신순] 20곡씩 이어 불러오기.
@@ -35,6 +38,8 @@ export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack
   const [info, setInfo] = useState<SearchArtist | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [moreError, setMoreError] = useState<string | null>(null)
+  const [retry, setRetry] = useState(0)
   const [scanTick, setScanTick] = useState(0)
   // 가수가 바뀌면 부모가 key로 새로 만든다 (상태를 처음부터)
   const canLatest = LATEST_READY && artist.artistId != null
@@ -52,12 +57,12 @@ export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack
       })
       .catch(err => {
         if (ac.signal.aborted || onError(err)) return
-        setError(err instanceof RoomApiError ? err.message : '노래를 불러오지 못했어요')
+        setError(errText(err))
       })
     return () => ac.abort()
-    // data는 일부러 빼 둔다: 이미 받은 탭은 다시 받지 않는다(수집 중 다시 읽기는 scanTick이 한다)
+    // data는 일부러 빼 둔다: 이미 받은 탭은 다시 받지 않는다(수집 중 다시 읽기는 scanTick, 다시 시도는 retry가 한다)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, artist, sort, scanTick, onError])
+  }, [roomId, artist, sort, scanTick, retry, onError])
 
   // 최신순 수집 중: 몇 초 뒤 첫 페이지를 다시 읽는다
   const scanBusy = sort === 'latest' && !!scanNotice(cur?.scan)?.busy
@@ -70,6 +75,7 @@ export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack
   const more = useCallback(async () => {
     if (!cur || !canLoadMore(cur) || loadingMore || scanBusy) return
     setLoadingMore(true)
+    setMoreError(null)
     try {
       const p = await roomApi.artistSongs(roomId, artist, sort, cur.page + 1)
       setData(prev => {
@@ -78,7 +84,7 @@ export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack
         return { ...prev, [sort]: { items: appendSongs(old.items, p.items), page: p.page ?? old.page + 1, hasMore: p.hasMore, scan: p.scan ?? old.scan } }
       })
     } catch (err) {
-      if (!onError(err)) setError(err instanceof RoomApiError ? err.message : '더 불러오지 못했어요')
+      if (!onError(err)) setMoreError(errText(err))
     } finally {
       setLoadingMore(false)
     }
@@ -94,7 +100,7 @@ export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack
     return () => io.disconnect()
   }, [more])
 
-  const shown: SearchArtist = info ?? { artistId: artist.artistId, name: artist.name }
+  const shown = mergeArtist({ artistId: artist.artistId, name: artist.name, songCountInRoom: artist.songCountInRoom, onMap: artist.onMap }, info)
   const sub = artistCardSub(shown)
   const notice = sort === 'latest' ? scanNotice(cur?.scan) : null
 
@@ -138,8 +144,25 @@ export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack
         </div>
       )}
 
-      {error && <p className={sh.center} role="alert" style={{ color: 'var(--r-error)' }}>{error}</p>}
-      {!cur && !error && <p className={sh.center} role="status"><Spinner size={14} /> 노래를 불러오는 중…</p>}
+      {error && (
+        <div className={sh.empty} style={{ padding: '24px 12px' }} role="alert">
+          <p style={{ margin: 0 }}>{error}</p>
+          <button type="button" className={sh.sortChip} onClick={() => setRetry(n => n + 1)}>다시 시도</button>
+        </div>
+      )}
+      {!cur && !error && (
+        <>
+          <span className={s.srOnly} role="status">노래를 불러오는 중이에요</span>
+          <ul className={sh.list} aria-hidden="true">
+            {[0, 1, 2, 3, 4].map(i => (
+              <li key={i} className={sh.row}>
+                <span className={`${sh.cover} ${sh.skel}`} />
+                <span className={sh.rowText}><span className={sh.skel} style={{ width: '62%', height: 13 }} /><span className={sh.skel} style={{ width: '30%', height: 10 }} /></span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       {cur && cur.items.length === 0 && !notice?.busy && (
         <p className={sh.center}>{sort === 'latest' ? '발매일이 있는 노래를 아직 찾지 못했어요. 인기순에서 찾아보세요' : '이 가수의 노래를 찾지 못했어요'}</p>
       )}
@@ -154,8 +177,8 @@ export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack
         )))}
 
       {cur && canLoadMore(cur) && !scanBusy && (
-        <div ref={sentinel} className={sh.moreRow}>
-          {loadingMore
+        <div ref={moreError ? undefined : sentinel} className={sh.moreRow}>
+          {moreError ? <><span role="alert">{moreError}</span><button type="button" className={sh.sortChip} onClick={more}>다시 시도</button></> : loadingMore
             ? <span role="status"><Spinner size={14} /> 이어서 불러오는 중…</span>
             : <button type="button" className={sh.sortChip} onClick={more}>더 보기</button>}
         </div>
