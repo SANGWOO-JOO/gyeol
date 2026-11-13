@@ -1,0 +1,121 @@
+# CI(ci.yml)와 나중의 릴리스(release.yml, cicd.md 2절)가 같이 쓰는 검사. 한쪽만 고쳐 생기는 차이를 막는다.
+# 입력으로 영역을 켜고 끈다 (기본은 전부)
+name: Checks
+
+on:
+  workflow_call:
+    inputs:
+      backend: { type: boolean, default: true }
+      web: { type: boolean, default: true }
+      embed: { type: boolean, default: true }
+      infra: { type: boolean, default: true }
+      scripts: { type: boolean, default: true }
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: 백엔드 테스트
+    if: inputs.backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      # 통합 테스트는 Testcontainers(PostgreSQL+pgvector, LocalStack)를 러너의 Docker로 띄운다
+      - run: ./gradlew test --continue
+      - name: 실패하면 테스트 보고서 남기기
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-reports
+          path: backend/*/build/reports/tests/test
+          retention-days: 7
+
+  web:
+    name: 웹 타입 검사·테스트·빌드
+    if: inputs.web
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx tsc -b --noEmit
+      - run: npx vitest run
+      - run: npx vite build
+
+  embed:
+    name: 임베딩 서비스 테스트
+    if: inputs.embed
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: embed
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: embed/uv.lock
+      # e5 ONNX 모델(Hugging Face). 모델 id·파일이 바뀌면 새로 받는다
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ runner.os }}-${{ hashFiles('embed/app.py') }}
+      - run: uv sync --python 3.13
+      - run: uv run pytest -q tests
+
+  infra:
+    name: Terraform·Helm 검사
+    if: inputs.infra
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.17.1'
+      - name: terraform fmt
+        run: terraform fmt -check -recursive infra/terraform
+      # 백엔드(S3 상태) 없이 초기화: AWS 자격 증명을 쓰지 않는다
+      - name: terraform validate
+        run: |
+          for d in infra/terraform/base infra/terraform/bootstrap; do
+            terraform -chdir="$d" init -backend=false -input=false
+            terraform -chdir="$d" validate
+          done
+      - uses: azure/setup-helm@v4
+        with:
+          version: v4.3.1
+      - name: helm lint·template (기본·local·single)
+        run: |
+          helm lint deploy/helm/gyeol
+          helm template gyeol deploy/helm/gyeol > /dev/null
+          helm template gyeol deploy/helm/gyeol -f deploy/helm/gyeol/values-local.yaml > /dev/null
+          helm template gyeol deploy/helm/gyeol -f deploy/helm/gyeol/values-single.yaml > /dev/null
+
+  scripts:
+    name: 셸 스크립트 문법
+    if: inputs.scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          for f in local/localstack/init-aws.sh scripts/*.sh; do
+            echo "bash -n $f"; bash -n "$f"
+          done

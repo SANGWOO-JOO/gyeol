@@ -1,0 +1,74 @@
+# PR과 main push마다 검사만 돌린다 (docs/todo/cicd.md 1절). 이미지·배포는 아직 없음(2절).
+# PR은 바뀐 영역만, main push는 전체. 비밀값·AWS 호출 없음 (LLM은 fake, 외부 API 키 없이 도는 테스트만)
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 같은 브랜치(또는 PR)의 이전 실행은 취소
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: 바뀐 영역 찾기
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ github.event_name == 'push' || steps.filter.outputs.backend == 'true' }}
+      web: ${{ github.event_name == 'push' || steps.filter.outputs.web == 'true' }}
+      embed: ${{ github.event_name == 'push' || steps.filter.outputs.embed == 'true' }}
+      infra: ${{ github.event_name == 'push' || steps.filter.outputs.infra == 'true' }}
+      scripts: ${{ github.event_name == 'push' || steps.filter.outputs.scripts == 'true' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          # 워크플로 자체가 바뀌면 모든 검사를 돌린다
+          filters: |
+            ci: &ci
+              - '.github/workflows/**'
+            backend:
+              - *ci
+              - 'backend/**'
+              - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - 'gradle/**'
+              - 'gradlew'
+            web:
+              - *ci
+              - 'web/**'
+              - 'tools/fixtures/**'   # Takeout 거르기 테스트 자료
+            embed:
+              - *ci
+              - 'embed/**'
+            infra:
+              - *ci
+              - 'infra/**'
+              - 'deploy/**'
+            scripts:
+              - *ci
+              - 'local/**'
+              - 'scripts/**'
+
+  checks:
+    needs: changes
+    uses: ./.github/workflows/checks.yml
+    with:
+      backend: ${{ needs.changes.outputs.backend == 'true' }}
+      web: ${{ needs.changes.outputs.web == 'true' }}
+      embed: ${{ needs.changes.outputs.embed == 'true' }}
+      infra: ${{ needs.changes.outputs.infra == 'true' }}
+      scripts: ${{ needs.changes.outputs.scripts == 'true' }}
