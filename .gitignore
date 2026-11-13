@@ -55,6 +55,8 @@ search-history*.json
 시청 기록*.json
 검색 기록*.json
 Takeout*/
+# 소스 폴더 web/src/takeout은 예외 (macOS는 대소문자를 구분하지 않아 위 규칙에 걸림)
+!web/src/takeout/
 data/private/
 # 가상 테스트 파일은 예외 (tools/fake-takeout으로 만든 것만 둔다)
 !tools/fixtures/*.json
