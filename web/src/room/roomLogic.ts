@@ -154,6 +154,12 @@ export function codeMatchDisplay(m: CodeMatchLike): CodeMatchDisplay {
   }
 }
 
+/** 4-k 새 캐릭터 문구: "장르 융합 보컬 13곡 · 청량 팝 걸그룹 11곡 …" (비면 null → 일반 문구) */
+export function genreMixText(mix: { galaxy: string; songs: number }[] | undefined): string | null {
+  const parts = (mix ?? []).filter(x => x.galaxy && x.songs > 0).slice(0, 4).map(x => `${x.galaxy} ${x.songs}곡`)
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
 /** 놀이터 고르기: 5곡 미만이면 "N곡 더 담으면 열려요" */
 export function unlockText(songCount: number, min = 5): string | null {
   return songCount >= min ? null : `${min - songCount}곡 더 담으면 열려요`

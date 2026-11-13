@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { roomApi, RoomApiError, type CharacterView, type GiftBoxView, type MeView } from '../roomApi'
 import { Avatar, useCharacterImage } from '../components/Avatar'
+import { genreMixText } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { Sheet } from './Sheet'
 import type { ToastData } from './Toast'
@@ -17,6 +18,7 @@ export function GiftSheet({ roomId, boxId, me, onClose, onAvatarChanged, onError
 }) {
   const [box, setBox] = useState<GiftBoxView | null>(null)
   const [character, setCharacter] = useState<CharacterView | null>(null)
+  const [mix, setMix] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -28,7 +30,7 @@ export function GiftSheet({ roomId, boxId, me, onClose, onAvatarChanged, onError
       try {
         const d = await roomApi.giftBox(roomId, boxId)
         if (!alive) return
-        setBox(d.box); setCharacter(d.character)
+        setBox(d.box); setCharacter(d.character); setMix(genreMixText(d.genreMix))
         if (d.box.status === 'GENERATING') timer = setTimeout(load, 2000)
       } catch (err) {
         if (alive && !onError(err)) setError(err instanceof RoomApiError ? err.message : '상자를 불러오지 못했어요')
@@ -93,7 +95,7 @@ export function GiftSheet({ roomId, boxId, me, onClose, onAvatarChanged, onError
       )}
 
       {status === 'OPENED' && character && (
-        <Pick roomId={roomId} me={me} character={character} milestone={milestone} busy={busy} onUse={useCharacter} onKeep={onClose} />
+        <Pick roomId={roomId} me={me} character={character} milestone={milestone} mix={mix} busy={busy} onUse={useCharacter} onKeep={onClose} />
       )}
 
       {status === 'FAILED' && (
@@ -114,8 +116,8 @@ export function GiftSheet({ roomId, boxId, me, onClose, onAvatarChanged, onError
 }
 
 /** 4-k 새 캐릭터 받기 · 바꿀까요 */
-function Pick({ roomId, me, character, milestone, busy, onUse, onKeep }: {
-  roomId: string; me: MeView; character: CharacterView; milestone: number; busy: boolean; onUse: () => void; onKeep: () => void
+function Pick({ roomId, me, character, milestone, mix, busy, onUse, onKeep }: {
+  roomId: string; me: MeView; character: CharacterView; milestone: number; mix: string | null; busy: boolean; onUse: () => void; onKeep: () => void
 }) {
   const img = useCharacterImage(roomId, character.id)
   const using = me.member.avatarCharacterId === character.id
@@ -129,7 +131,7 @@ function Pick({ roomId, me, character, milestone, busy, onUse, onKeep }: {
       <p className={sh.giftText}>
         {character.isFallback
           ? '오늘은 새 그림을 만들 수 없어서 미리 준비한 캐릭터를 드려요.'
-          : `담은 노래 ${milestone}곡의 장르와 분위기로 만들었어요.`}
+          : mix ? `${mix}을 담은 ${me.member.nickname}님 취향으로 만들었어요` : `담은 노래 ${milestone}곡의 장르와 분위기로 만들었어요.`}
       </p>
       <div className={sh.compare} aria-hidden="true">
         <span><Avatar nickname={me.member.nickname} colorIdx={me.member.colorIdx} characterId={me.member.avatarCharacterId} size={28} />지금</span>

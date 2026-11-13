@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, codeMatchDisplay, failText, galaxyOfTrack, giftLine, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -14,6 +14,11 @@ describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   it('10곡부터 %, 보통이면 20곡 안내, 높으면 안내 없음', () => {
     expect(codeMatchDisplay({ ...m, confidence: 'MEDIUM', score: 79 })).toMatchObject({ showPercent: true, headline: '코드가 79% 맞아요', note: '각자 20곡을 넘기면 더 정확해져요' })
     expect(codeMatchDisplay({ ...m, confidence: 'HIGH', score: 87 }).note).toBeNull()
+  })
+  it('선물 캐릭터 장르 문구 (4-k)', () => {
+    expect(genreMixText([{ galaxy: '시티팝', songs: 25 }, { galaxy: '댄스 팝', songs: 15 }])).toBe('시티팝 25곡 · 댄스 팝 15곡')
+    expect(genreMixText([])).toBeNull()
+    expect(genreMixText(undefined)).toBeNull()
   })
   it('5곡 미만은 열리지 않음', () => {
     expect(unlockText(2)).toBe('3곡 더 담으면 열려요')

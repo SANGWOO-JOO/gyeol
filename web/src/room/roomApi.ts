@@ -56,7 +56,8 @@ export type GiftStatus = 'WAITING' | 'READY' | 'GENERATING' | 'OPENED' | 'FAILED
 export interface GiftBoxView { id: number; milestone: number; status: GiftStatus; earnedAt: string; readyOn: string | null; openedAt: string | null; characterId: number | null }
 export interface CharacterView { id: number; giftBoxId: number | null; isFallback: boolean; createdAt: string }
 export interface GiftsResponse { summary: GiftSummary; boxes: GiftBoxView[]; characters: CharacterView[]; avatarCharacterId: number | null }
-export interface GiftBoxDetail { box: GiftBoxView; character: CharacterView | null }
+/** genreMix: OPENED 상자에만, 구역별 곡 수 상위 4개 (그 밖은 빈 배열) */
+export interface GiftBoxDetail { box: GiftBoxView; character: CharacterView | null; genreMix?: { galaxy: string; songs: number }[] }
 
 /** 캐릭터 그림은 같은 방 참가자만 볼 수 있어 열쇠 헤더를 붙여 받고, 화면에는 blob 주소로 넣는다 (쿠키가 안 남는 브라우저 대비) */
 const imageCache = new Map<string, Promise<string | null>>()
