@@ -2,6 +2,7 @@ package dev.gyeol.api.room
 
 import dev.gyeol.api.config.GyeolProperties
 import dev.gyeol.api.search.TrackItem
+import dev.gyeol.api.search.TitleNoise
 import dev.gyeol.api.search.TrackMerger
 import dev.gyeol.api.web.ApiException
 import dev.gyeol.core.identify.AliasKey
@@ -121,7 +122,8 @@ class ArtistSongsService(
         for (n in lastFmNames(h)) {
             for (pg in 1..2) {
                 val got = fetch(n, pg)
-                raw += got
+                // 직캠·커버·1시간 반복·방송 녹화처럼 원곡이 아닌 항목은 뺀다 (I-36). 쪽 넘김 판단은 거르기 전 개수로
+                raw += got.filterNot { TitleNoise.isNoise(it.title) }
                 if (got.size < 50) break
             }
         }

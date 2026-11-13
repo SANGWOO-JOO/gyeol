@@ -280,3 +280,11 @@
   - 성시경: 녹음 217개 → 192곡, 2.3초. 날짜 192/192
   - 설계 1-3의 검색 기반 55%보다 가수 녹음 목록 쪽이 훨씬 잘 채워져 있다(표본 2명).
 
+### I-36 인기순 잡음 곡 거르기 (11-14)
+- `api/search/TitleNoise`: 인기순에서 원곡이 아닌 Last.fm 항목을 뺀다. 대상은 직캠·팬캠·fullcam·4K, "cover by"·"(cover)"·커버, 1시간·1 hour, "/ 가사 Lyrics"·"(lyrics)"·lyrics video, Performance Video·Dance Practice·안무 영상·교차편집·리액션, M/V·official (music) video, "MBC 250129 방송"처럼 방송 녹화.
+- 보수적으로 잡는다. 리믹스·밴드 버전·Inst.·Live 같은 실제 음원 판과, 제목일 수 있는 단어("Cover Me", "Lyrics", "Reaction Time Song", "Performance")는 거르지 않는다.
+- 쪽 넘김 판단(50곡이면 2쪽 받기)은 거르기 전 개수로 한다.
+- 테스트: `TitleNoiseTest` 2개(실제 표본 16개 거름, 정상 19개 남김).
+- 로컬 실제 Last.fm: NewJeans 100곡·IVE 99곡에 잡음 0. 전에는 NewJeans에서 직캠·cover by·1시간 가사·Performance Video·방송 녹화가 보였다.
+- 인기순 줄의 연도는 우리 DB 곡(trackId 있음)만 나온다(그대로 둠).
+
