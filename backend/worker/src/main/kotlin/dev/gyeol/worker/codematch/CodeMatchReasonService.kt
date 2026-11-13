@@ -32,7 +32,8 @@ class FakeCodeMatchLlm : CodeMatchLlm {
     override fun reason(input: ReasonInput): Reason {
         val first = input.artists.firstOrNull() ?: return Reason(null, emptyList(), "fake", 0, 0, 0)
         val where = input.sharedGalaxies.firstOrNull()?.let { "$it 쪽에서 " } ?: ""
-        return Reason("${input.nameA}와 ${input.nameB}는 ${where}취향이 닿아요.", listOf(first.evidence.first()), "fake", 0, 0, 0)
+        // 닉네임 받침에 따라 조사가 바뀌지 않게 "님"을 붙인다 (가짜 모드 문장만)
+        return Reason("${input.nameA}님과 ${input.nameB}님은 ${where}취향이 닿아요.", listOf(first.evidence.first()), "fake", 0, 0, 0)
     }
 }
 

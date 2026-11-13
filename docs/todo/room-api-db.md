@@ -190,6 +190,7 @@
 - core `CodeMatch.kt`: `CodeMatchScore`(점수, LLM 없음) — 장르 = 구역별 곡 수 코사인, 지도 거리 = 각자 행성마다 상대의 가장 가까운 행성까지 거리 평균 → 1 − 거리/0.3, 겹친 가수·노래 = 겹친 수 ÷ 적은 쪽 수. 신뢰도 = 둘 중 적은 쪽 곡 수로 LOW(5~9)·MEDIUM(10~19)·HIGH(20~). `CodeMatchRepository`.
 - api `CodeMatchController`: `POST /api/rooms/{rid}/code-match {a,b}`(저장 결과 200, 새 계산 202), `GET …?a=&b=`(최근 결과). 응답: 점수·항목·겹친 가수(10)·구역(5)·겹친 노래 수·이유·근거(출처 링크)·상태·두 사람 곡 수·`confidence`·`stale`(그 뒤 곡이나 지도 판이 바뀜). 방 행을 잠가 하루 횟수를 센다. 나간 사람·다른 방 사람은 404.
 - worker `codematch/CodeMatchReasonService`·`CodeMatchListener`(큐 `code-match` + 실패 큐 → NO_REASON): 겹친 가수(없으면 각자 많이 담은 가수 2명)의 근거 있는 설명으로 Haiku 2~3문장, 준 번호 밖·근거 없는 이유는 버림. `llm_call`에 `CODE_MATCH`.
+- 응답의 `minSongs`는 코드 맞추기가 열리는 하한(설정값 `gyeol.room.code-match.min-songs`, 지금 5)이다. 두 사람 곡 수가 아니다(곡 수는 `a.songCount`·`b.songCount`).
 - 설정: api `gyeol.room.code-match-queue`·`gyeol.room.code-match.*`, worker `gyeol.worker.code-match.*`, 로컬 큐 `gyeol-local-code-match`(+dlq, 표시 제한 2분).
 - 함께 고침: 방 삭제 시 `hidden_at`을 DB `now()` 대신 앱 시각으로 넣음(앱·DB 시계가 몇 ms 어긋나 "숨긴 뒤 7일"이 6일로 계산돼 기존 테스트가 한 번 실패).
 - 테스트: api `CodeMatchScoreTest` 4개 + 측정 1개(로컬 DB 있을 때만), `RoomApiIntegrationTest` 코드 맞추기 1개, worker `CodeMatchReasonIntegrationTest` 2개. 전체 api 39·worker 72 통과.

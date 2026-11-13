@@ -91,6 +91,7 @@ class CodeMatchReasonIntegrationTest {
         val row = matches.get(id)!!
         assertEquals("DONE", row.status)
         assertNotNull(row.reason)
+        assertEquals("상우님과 민지님은 몽환 기타 인디 쪽에서 취향이 닿아요.", row.reason, "받침과 무관한 조사")
         assertEquals(listOf(77L), row.evidence)
         service.write(id)
         assertEquals(row.reason, matches.get(id)!!.reason)
