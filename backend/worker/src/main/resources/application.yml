@@ -33,6 +33,10 @@ gyeol:
       image-model: ${GIFT_IMAGE_MODEL:stability.stable-image-core-v1:1}
       image-region: ${GIFT_IMAGE_REGION:us-west-2}
       daily-image-limit: ${GIFT_DAILY_IMAGE_LIMIT:50}
+    # ⑤ 코드 맞추기 이유 (근거 번호 없는 이유는 버림)
+    code-match:
+      queue: ${CODE_MATCH_QUEUE:gyeol-local-code-match}
+      dlq: ${CODE_MATCH_DLQ:gyeol-local-code-match-dlq}
     # 음악 지도 데이터 만들기 내부 엔드포인트 (로컬에서만 true)
     map:
       admin-endpoint: ${MAP_ADMIN_ENDPOINT:false}

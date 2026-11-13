@@ -26,6 +26,15 @@ gyeol:
   room:
     song-queue: ${ROOM_SONG_QUEUE:gyeol-local-room-song}
     gift-queue: ${GIFT_QUEUE:gyeol-local-gift-image}
+    # ⑤ 코드 맞추기: 이유는 worker가 쓴다. 비중은 측정 뒤 조정 (docs/todo/room-api-db.md 11절)
+    code-match-queue: ${CODE_MATCH_QUEUE:gyeol-local-code-match}
+    code-match:
+      min-songs: 5
+      daily-limit: 30
+      weight-genre: 0.4
+      weight-distance: 0.3
+      weight-artist: 0.2
+      weight-song: 0.1
     secure-cookie: ${ROOM_SECURE_COOKIE:false}
   mail:
     # log(가짜 메일, 기본) | ses. ses는 MAIL_FROM이 SES에서 인증한 도메인 주소여야 한다 (infra/terraform/base/ses.tf)

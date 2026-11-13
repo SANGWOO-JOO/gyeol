@@ -74,6 +74,15 @@ GFQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
 awslocal sqs create-queue --queue-name "$GFQ" --region "$REGION" \
   --attributes "{\"VisibilityTimeout\":\"300\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$GFQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
 
+# ⑤ 코드 맞추기 이유 큐. LLM 한 번이라 2분, 3번 실패하면 실패 큐에서 이유 없이 끝냄
+CMQ=gyeol-local-code-match
+awslocal sqs create-queue --queue-name "$CMQ-dlq" --region "$REGION" >/dev/null
+CMQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
+  --queue-url "$(awslocal sqs get-queue-url --queue-name "$CMQ-dlq" --region "$REGION" --query QueueUrl --output text)" \
+  --attribute-names QueueArn --query Attributes.QueueArn --output text)
+awslocal sqs create-queue --queue-name "$CMQ" --region "$REGION" \
+  --attributes "{\"VisibilityTimeout\":\"120\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$CMQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
+
 # 방송·일반 채널 영상의 가수·곡 뽑기 큐. 실패해도 해당 재생이 가수 순위에서 빠질 뿐이라 실패 큐는 기록용
 GQ=gyeol-local-guess
 awslocal sqs create-queue --queue-name "$GQ-dlq" --region "$REGION" >/dev/null

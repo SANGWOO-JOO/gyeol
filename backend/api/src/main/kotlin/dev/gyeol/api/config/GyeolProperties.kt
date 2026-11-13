@@ -43,7 +43,25 @@ data class GyeolProperties(
         val joinPerMinute: Int = 20,
         /** 열쇠 쿠키에 Secure를 붙일지 (로컬 http는 false) */
         val secureCookie: Boolean = false,
+        /** ⑤ 코드 맞추기 이유 쓰기 → worker */
+        val codeMatchQueue: String = "gyeol-local-code-match",
+        val codeMatch: CodeMatch = CodeMatch(),
     )
+
+    /**
+     * ⑤ 코드 맞추기 (11-13 결정): 각자 5곡부터, 방당 하루 새 계산 30번(저장 결과 재사용은 안 셈),
+     * 점수 비중은 장르 40·지도 거리 30·겹친 가수 20·겹친 노래 10에서 시작해 측정 뒤 조정
+     */
+    data class CodeMatch(
+        val minSongs: Int = 5,
+        val dailyLimit: Int = 30,
+        val weightGenre: Double = 0.4,
+        val weightDistance: Double = 0.3,
+        val weightArtist: Double = 0.2,
+        val weightSong: Double = 0.1,
+    ) {
+        fun weights() = dev.gyeol.core.room.CodeMatchWeights(weightGenre, weightDistance, weightArtist, weightSong)
+    }
 
     data class Upload(
         val bucket: String = "gyeol-local-uploads",

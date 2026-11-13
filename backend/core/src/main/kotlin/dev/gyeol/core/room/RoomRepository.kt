@@ -64,10 +64,13 @@ class RoomRepository(private val jdbc: JdbcClient) {
     fun setStatus(id: Long, status: RoomStatus) =
         jdbc.sql("UPDATE room SET status = :s WHERE id = :id AND status <> 'HIDDEN'").param("id", id).param("s", status.name).update()
 
-    /** 숨김(삭제): 바로 못 들어오게 하고 [purgeAt]에 완전 삭제 */
-    fun hide(id: Long, purgeAt: Instant) =
-        jdbc.sql("UPDATE room SET status = 'HIDDEN', hidden_at = now(), purge_at = :p WHERE id = :id AND status <> 'HIDDEN'")
-            .param("id", id).param("p", Timestamp.from(purgeAt)).update()
+    /**
+     * 숨김(삭제): 바로 못 들어오게 하고 [purgeAt]에 완전 삭제.
+     * 숨긴 시각도 같은 앱 시계로 넣는다 (DB now()와 앱 시계가 몇 ms 어긋나면 "7일 뒤"가 6일 23시간으로 보였다, 11-13 테스트)
+     */
+    fun hide(id: Long, hiddenAt: Instant, purgeAt: Instant) =
+        jdbc.sql("UPDATE room SET status = 'HIDDEN', hidden_at = :h, purge_at = :p WHERE id = :id AND status <> 'HIDDEN'")
+            .param("id", id).param("h", Timestamp.from(hiddenAt)).param("p", Timestamp.from(purgeAt)).update()
 
     fun saveHostEmail(roomId: Long, email: String, consentAt: Instant) {
         jdbc.sql("INSERT INTO room_host_email (room_id, email, consent_at) VALUES (:r, :e, :c)")

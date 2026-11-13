@@ -23,6 +23,7 @@ data class WorkerProperties(
     val room: RoomProps = RoomProps(),
     val map: MapProps = MapProps(),
     val gift: GiftProps = GiftProps(),
+    val codeMatch: CodeMatchProps = CodeMatchProps(),
     /** 청취 기록 세션에서 식별 뒤 보강·추천까지 자동으로 이어 갈지 (기본은 분석까지만) */
     val autoRecommend: Boolean = false,
     /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
@@ -43,6 +44,9 @@ data class WorkerProperties(
         /** 서비스 전체 하루(한국 날짜) 이미지 생성 수. 넘으면 기본 캐릭터 (11-13 결정: 50장 ≈ $2) */
         val dailyImageLimit: Int = 50,
     )
+
+    /** ⑤ 코드 맞추기 이유 쓰기 (점수는 API가 계산) */
+    data class CodeMatchProps(val queue: String = "gyeol-local-code-match", val dlq: String = "gyeol-local-code-match-dlq")
 
     /** 음악 방 담기 식별 (docs/todo/room-api-db.md) */
     data class RoomProps(val songQueue: String = "gyeol-local-room-song", val songDlq: String = "gyeol-local-room-song-dlq")

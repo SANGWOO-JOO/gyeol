@@ -181,7 +181,8 @@ class RoomService(
     @Transactional
     fun delete(ctx: RoomContext) {
         ctx.requireHost()
-        rooms.hide(ctx.room.id, Instant.now().plus(p.purgeAfter))
+        val now = Instant.now()
+        rooms.hide(ctx.room.id, now, now.plus(p.purgeAfter))
         rooms.audit("HOST", ctx.member.id, ctx.room.id, "ROOM_DELETE")
     }
 }

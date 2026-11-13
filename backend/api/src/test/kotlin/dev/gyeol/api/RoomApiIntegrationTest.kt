@@ -46,6 +46,7 @@ class RoomApiIntegrationTest {
     companion object {
         private const val SONG_QUEUE = "gyeol-test-room-song"
         private const val GIFT_QUEUE = "gyeol-test-gift-image"
+        private const val CODE_QUEUE = "gyeol-test-code-match"
         private const val COVERS = "gyeol-test-room-covers"
 
         @Container
@@ -77,6 +78,8 @@ class RoomApiIntegrationTest {
             registry.add("spring.cloud.aws.credentials.secret-key") { localstack.secretKey }
             registry.add("gyeol.room.song-queue") { SONG_QUEUE }
             registry.add("gyeol.room.gift-queue") { GIFT_QUEUE }
+            registry.add("gyeol.room.code-match-queue") { CODE_QUEUE }
+            registry.add("gyeol.room.code-match.daily-limit") { "3" }
             registry.add("gyeol.cover-bucket") { COVERS }
             // 한 테스트에서 방을 여러 번 만들므로 IP 제한을 넉넉히
             registry.add("gyeol.room.draft-per-minute") { "1000" }
@@ -97,7 +100,7 @@ class RoomApiIntegrationTest {
         @BeforeAll
         @JvmStatic
         fun createQueue() {
-            sqs().use { it.createQueue { q -> q.queueName(SONG_QUEUE) }; it.createQueue { q -> q.queueName(GIFT_QUEUE) } }
+            sqs().use { it.createQueue { q -> q.queueName(SONG_QUEUE) }; it.createQueue { q -> q.queueName(GIFT_QUEUE) }; it.createQueue { q -> q.queueName(CODE_QUEUE) } }
             s3().use { it.createBucket { b -> b.bucket(COVERS) } }
         }
     }
@@ -453,5 +456,54 @@ class RoomApiIntegrationTest {
         val list = call("GET", "/api/rooms/${host.rid}/me/gifts", key = host.key).body!!
         assertEquals(2, list["characters"].size())
         assertEquals(1, list["boxes"].size())
+    }
+
+    @Test
+    fun `코드 맞추기 - 5곡부터, 점수는 바로 이유는 큐, 같은 입력은 재사용, 곡이 바뀌면 stale, 방당 하루 제한`() {
+        val host = newRoom()
+        val minji = join(host.rid, "민지").joined()
+        val other = newRoom()
+        val path = "/api/rooms/${host.rid}/code-match"
+        val shared = (1..2).map { track("함께 $it", "같이 듣는 가수") }
+        fun add(who: Joined, t: Long) = assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to t), who.key).status)
+        shared.forEach { add(host, it); add(minji, it) }
+        (1..2).forEach { add(host, track("상우 $it", "상우 가수 $it")); add(minji, track("민지 $it", "민지 가수 $it")) }
+
+        assertEquals("NOT_ENOUGH_SONGS", call("POST", path, mapOf("a" to host.memberId, "b" to minji.memberId), host.key).body!!["code"].asString())
+        add(host, track("상우 3", "상우 가수 3")); add(minji, track("민지 3", "민지 가수 3"))
+        assertEquals(400, call("POST", path, mapOf("a" to host.memberId, "b" to host.memberId), host.key).status)
+        assertEquals(404, call("POST", path, mapOf("a" to host.memberId, "b" to other.memberId), host.key).status, "다른 방 사람")
+
+        val first = call("POST", path, mapOf("a" to minji.memberId, "b" to host.memberId), minji.key)
+        assertEquals(202, first.status)
+        val v = first.body!!
+        assertEquals(minOf(host.memberId, minji.memberId), v["a"]["memberId"].asLong(), "항상 id 작은 쪽이 a")
+        assertEquals("REASONING", v["status"].asString())
+        assertEquals("LOW", v["confidence"].asString())
+        assertEquals(5, v["a"]["songCount"].asInt())
+        assertEquals(2, v["sharedSongs"].asInt())
+        assertEquals(setOf("같이 듣는 가수"), v["sharedArtists"].toList().map { it.asString() }.toSet())
+        assertTrue(v["score"].asInt() in 1..100)
+        val msgs = sqs().use { c ->
+            val url = c.getQueueUrl { it.queueName(CODE_QUEUE) }.queueUrl()
+            c.receiveMessage { it.queueUrl(url).maxNumberOfMessages(10).waitTimeSeconds(5) }.messages()
+        }.map { json.readTree(it.body())["matchId"].asLong() }
+        assertTrue(v["id"].asLong() in msgs)
+
+        // 같은 입력: 200, 같은 결과 (하루 횟수에 안 셈)
+        repeat(3) { assertEquals(200, call("POST", path, mapOf("a" to host.memberId, "b" to minji.memberId), host.key).status) }
+        val got = call("GET", "$path?a=${host.memberId}&b=${minji.memberId}", key = minji.key).body!!
+        assertEquals(v["id"].asLong(), got["id"].asLong())
+        assertTrue(!got["stale"].asBoolean())
+
+        // 곡이 바뀌면 stale → 다시 계산하면 새 결과, 방당 하루 3번(테스트 설정)을 넘으면 429
+        add(minji, track("민지 4", "민지 가수 4"))
+        assertTrue(call("GET", "$path?a=${host.memberId}&b=${minji.memberId}", key = host.key).body!!["stale"].asBoolean())
+        assertEquals(202, call("POST", path, mapOf("a" to host.memberId, "b" to minji.memberId), host.key).status)
+        add(minji, track("민지 5", "민지 가수 5"))
+        assertEquals(202, call("POST", path, mapOf("a" to host.memberId, "b" to minji.memberId), host.key).status)
+        add(minji, track("민지 6", "민지 가수 6"))
+        assertEquals("CODE_MATCH_LIMIT", call("POST", path, mapOf("a" to host.memberId, "b" to minji.memberId), host.key).body!!["code"].asString())
+        assertEquals(404, call("GET", "/api/rooms/${other.rid}/code-match?a=${host.memberId}&b=${minji.memberId}", key = other.key).status)
     }
 }
