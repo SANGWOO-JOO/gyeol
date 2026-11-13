@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { keyStore } from '../keyStore'
-import { roomApi, RoomApiError, type MeView, type RoomMap, type RoomSearchItem, type SongView } from '../roomApi'
+import { roomApi, RoomApiError, type MeView, type MemberRow, type RoomMap, type RoomSummary, type RoomSearchItem, type SongView } from '../roomApi'
 import { addedMessage, addErrorText, failText, mapCounts } from '../roomLogic'
 import { useRoomTheme } from '../components/RoomPage'
 import { Avatar } from '../components/Avatar'
@@ -11,6 +11,7 @@ import { itemKey, SearchPanel } from './SearchPanel'
 import { MineTab } from './MineTab'
 import { PeopleSheet } from './PeopleSheet'
 import { ArtistSheet } from './ArtistSheet'
+import { MemberSheet, MeSheet, SettingsSheet } from './AccountSheets'
 import { Toast, type ToastData } from './Toast'
 import s from '../room.module.css'
 import sh from './shell.module.css'
@@ -32,6 +33,7 @@ interface NotFound { title: string; text: string }
 
 export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: () => void }) {
   useRoomTheme()
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const tab: Tab = isTab(params.get('tab')) ? (params.get('tab') as Tab) : 'map'
   const setTab = (t: Tab) => setParams(t === 'map' ? {} : { tab: t }, { replace: true })
@@ -45,10 +47,12 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const [pending, setPending] = useState<Pending[]>([])
   const [notFound, setNotFound] = useState<NotFound | null>(null)
   const [pollTick, setPollTick] = useState(0)
-  const [sheet, setSheet] = useState<{ kind: 'people' } | { kind: 'artist'; id: number } | null>(null)
+  const [sheet, setSheet] = useState<
+    | { kind: 'people' } | { kind: 'artist'; id: number } | { kind: 'me' } | { kind: 'member'; member: MemberRow } | { kind: 'settings' } | null
+  >(null)
   // 담기·빼기가 일어날 때마다 올린다 → 내 노래·참가자·가수 판이 다시 받는다
   const [version, setVersion] = useState(0)
-  const [capacity, setCapacity] = useState(5)
+  const [summary, setSummary] = useState<RoomSummary | null>(null)
   const etag = useRef<string | null>(null)
   const toastId = useRef(0)
 
@@ -77,10 +81,11 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   }, [roomId, handle])
 
   useEffect(() => { refreshMe(); refreshMap(true) }, [refreshMe, refreshMap])
-  useEffect(() => { roomApi.summary(roomId).then(r => setCapacity(r.capacity)).catch(() => { /* 기본 5명 */ }) }, [roomId])
+  const refreshSummary = useCallback(() => { roomApi.summary(roomId).then(setSummary).catch(() => { /* 정원 기본 5명 */ }) }, [roomId])
+  useEffect(() => { refreshSummary() }, [refreshSummary])
 
   /** 내 노래가 바뀜: 지도·내 정보·판들을 다시 받는다 */
-  const changed = useCallback(() => { setVersion(v => v + 1); refreshMap(true); refreshMe() }, [refreshMap, refreshMe])
+  const changed = useCallback(() => { setVersion(v => v + 1); refreshMap(true); refreshMe(); refreshSummary() }, [refreshMap, refreshMe, refreshSummary])
   const openSearch = useCallback((q: string) => { setQuery(q); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }, [setParams])
 
   // 지도 5초 새로고침 (탭이 보일 때만)
@@ -175,6 +180,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   }
 
   const members = map?.members ?? []
+  const isHost = me?.member.role === 'HOST'
   const counts = mapCounts(map)
 
   return (
@@ -232,7 +238,22 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       </main>
 
       {sheet?.kind === 'people' && (
-        <PeopleSheet roomId={roomId} capacity={capacity} version={version} onClose={() => setSheet(null)} onInvite={invite} onError={handle} />
+        <PeopleSheet roomId={roomId} capacity={summary?.capacity ?? 5} version={version} isHost={isHost}
+          onClose={() => setSheet(null)} onInvite={invite} onError={handle}
+          onOpenMe={() => setSheet({ kind: 'me' })} onManage={m => setSheet({ kind: 'member', member: m })} onSettings={() => { refreshSummary(); setSheet({ kind: 'settings' }) }} />
+      )}
+      {sheet?.kind === 'me' && me && (
+        <MeSheet roomId={roomId} me={me} onClose={() => setSheet({ kind: 'people' })} onRenamed={changed} onError={handle} show={show}
+          onLeft={() => { keyStore.remove(roomId); onLostKey() }} />
+      )}
+      {sheet?.kind === 'member' && (
+        <MemberSheet roomId={roomId} member={sheet.member} onClose={() => setSheet({ kind: 'people' })} onError={handle} show={show}
+          onKicked={() => { changed(); setSheet({ kind: 'people' }) }} />
+      )}
+      {sheet?.kind === 'settings' && summary && (
+        <SettingsSheet roomId={roomId} summary={summary} memberCount={summary.members.length} songCount={counts.songs}
+          onClose={() => setSheet({ kind: 'people' })} onChanged={changed} onError={handle} show={show}
+          onDeleted={() => { keyStore.remove(roomId); navigate('/', { replace: true }) }} />
       )}
       {sheet?.kind === 'artist' && (
         <ArtistSheet roomId={roomId} artistId={sheet.id} map={map} meId={me?.member.id ?? -1} version={version}

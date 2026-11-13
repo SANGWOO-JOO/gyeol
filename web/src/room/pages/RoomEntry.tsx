@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { keyStore } from '../keyStore'
 import { RoomShell } from '../shell/RoomShell'
+import { HostReset } from './HostReset'
 import { rememberJoin, roomApi, RoomApiError, type MemberView, type RoomSummary } from '../roomApi'
 import { BackButton, NoteIcon, RoomPage, Spinner } from '../components/RoomPage'
 import { Avatar } from '../components/Avatar'
@@ -16,6 +17,7 @@ type View =
   | { kind: 'invite' }
   | { kind: 'rejoin'; member: MemberView }
   | { kind: 'forgot'; member: MemberView }
+  | { kind: 'hostReset' }
   | { kind: 'blocked'; reason: 'full' | 'closed' }
 
 export function RoomEntry() {
@@ -73,7 +75,9 @@ function Entry({ summary, onJoined }: { summary: RoomSummary; onJoined: () => vo
     case 'rejoin':
       return <Rejoin summary={summary} member={view.member} onJoined={onJoined} onBack={() => setView({ kind: 'invite' })} onForgot={() => setView({ kind: 'forgot', member: view.member })} />
     case 'forgot':
-      return <Forgot summary={summary} member={view.member} onBack={() => toRejoin(view.member)} />
+      return <Forgot summary={summary} member={view.member} onBack={() => toRejoin(view.member)} onHostReset={() => setView({ kind: 'hostReset' })} />
+    case 'hostReset':
+      return <HostReset summary={summary} onBack={() => setView({ kind: 'invite' })} onJoined={onJoined} />
     case 'blocked':
       return <Blocked reason={view.reason} summary={summary} onPick={toRejoin} />
   }
@@ -235,8 +239,8 @@ function Rejoin({ summary, member, onJoined, onBack, onForgot }: {
   )
 }
 
-/** 6-b 참가자 암호를 잊었을 때 (방장은 이메일 재설정 6-d, 5단계에서 연결) */
-function Forgot({ summary, member, onBack }: { summary: RoomSummary; member: MemberView; onBack: () => void }) {
+/** 6-b 참가자 암호를 잊었을 때 (방장이면 이메일 재설정 6-d로) */
+function Forgot({ summary, member, onBack, onHostReset }: { summary: RoomSummary; member: MemberView; onBack: () => void; onHostReset: () => void }) {
   const host = hostOf(summary)
   const isHost = member.role === 'HOST'
   return (
@@ -251,8 +255,7 @@ function Forgot({ summary, member, onBack }: { summary: RoomSummary; member: Mem
             <p className={s.lead}>우주를 만들 때 인증한 이메일로 6자리 코드를 보내 드려요.</p>
           </section>
           <div className={s.bottom}>
-            {/* 6-d 방장 암호 재설정 화면은 5단계에서 /rooms/:rid/host-reset 으로 연결 */}
-            <button type="button" className={s.primary} style={{ height: 54, fontSize: 16 }} disabled>재설정 코드 받기 · 곧 열려요</button>
+            <button type="button" className={s.primary} style={{ height: 54, fontSize: 16 }} onClick={onHostReset}>재설정 코드 받으러 가기</button>
           </div>
         </>
       ) : (

@@ -178,3 +178,29 @@
 .mineHead h2 { margin: 0; font-family: var(--r-font-title); font-size: 20px; font-weight: 700; }
 .mineHead strong { color: var(--r-accent-strong); }
 .orbBig { width: 52px; height: 52px; flex: none; border-radius: 50%; background: var(--r-chip); border: 1.5px solid #e6dcff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; }
+
+/* 5단계: 내 정보·방장 메뉴 */
+.panel { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 18px; background: var(--r-field); }
+.panel .input, .panel input { background: var(--r-bg); }
+.inline { display: flex; gap: 8px; }
+.inline > input { flex: 1; min-width: 0; }
+.smallPrimary, .smallSecondary { height: 48px; padding: 0 18px; flex: none; border: 0; border-radius: 14px; font: inherit; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.smallPrimary { background: var(--r-accent); color: var(--r-on-accent); font-weight: 700; }
+.smallSecondary { background: var(--r-chip); color: #e6dcff; }
+.smallPrimary:disabled, .smallSecondary:disabled { opacity: .5; cursor: default; }
+.rowButton { display: flex; align-items: center; justify-content: space-between; min-height: 44px; border: 0; background: none; color: var(--r-text); font: inherit; font-size: 15px; cursor: pointer; padding: 0; text-align: left; }
+.bigPin { font-size: 30px; font-weight: 700; letter-spacing: 10px; color: var(--r-peach); text-align: center; }
+.divider { border-top: 1px solid var(--r-border-soft); padding-top: 12px; display: flex; flex-direction: column; gap: 4px; }
+.dangerRow { width: 100%; min-height: 48px; border: 0; background: none; color: var(--r-error); font: inherit; font-size: 15px; text-align: left; cursor: pointer; padding: 0; }
+.dangerButton { height: 44px; border: 0; border-radius: 999px; background: var(--r-rose); color: #3a1424; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.dangerButton:disabled { opacity: .55; }
+.switchRow { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 16px; background: var(--r-bg); cursor: pointer; }
+.switch { appearance: none; width: 48px; height: 28px; flex: none; margin: 0; border-radius: 999px; background: #3a3466; position: relative; cursor: pointer; transition: background .2s; }
+.switch::after { content: ''; position: absolute; left: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--r-text-2); transition: transform .2s, background .2s; }
+.switch:checked { background: var(--r-accent); }
+.switch:checked::after { transform: translateX(20px); background: var(--r-on-accent); }
+.switch:focus-visible, .rowButton:focus-visible, .dangerRow:focus-visible, .dangerButton:focus-visible, .smallPrimary:focus-visible, .smallSecondary:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+.more { width: 44px; height: 44px; flex: none; border: 0; border-radius: 50%; background: none; color: var(--r-text-2); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.more:hover { background: var(--r-field); }
+.more:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+.personButton { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer; }
