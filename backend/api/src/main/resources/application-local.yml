@@ -8,3 +8,7 @@ spring:
         secret-key: test
       s3:
         path-style-access-enabled: true
+# ⑥ 관리자 로컬 전용 가짜 키 (운영 키 아님, 커밋해도 됨). 운영은 환경 변수 ADMIN_TOTP_KEY
+gyeol:
+  admin:
+    totp-key: bG9jYWwtb25seS1mYWtlLWFkbWluLXRvdHAta2V5ISE=

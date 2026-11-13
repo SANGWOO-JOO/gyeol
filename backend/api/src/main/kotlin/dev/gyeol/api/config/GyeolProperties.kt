@@ -16,7 +16,24 @@ data class GyeolProperties(
     /** 표지 이미지를 미리 받아 둔 비공개 버킷 */
     val coverBucket: String = "gyeol-local-covers",
     val room: Room = Room(),
+    val admin: Admin = Admin(),
 ) {
+    /**
+     * ⑥ 관리자 (room-plan.md 10절, 11-13 결정). totpKey가 비어 있으면 관리자 로그인을 막는다(503).
+     * 운영 키는 환경 변수 ADMIN_TOTP_KEY(base64 32바이트), 로컬은 application-local.yml의 가짜 키
+     */
+    data class Admin(
+        val totpKey: String = "",
+        val secureCookie: Boolean = false,
+        val sessionTtl: Duration = Duration.ofHours(1),
+        val challengeTtl: Duration = Duration.ofMinutes(5),
+        /** 비밀번호·OTP 실패를 합쳐 이 횟수면 잠금 */
+        val maxFails: Int = 5,
+        val lockFor: Duration = Duration.ofMinutes(15),
+        /** IP별 분당 로그인 시도 수 */
+        val loginPerMinute: Int = 10,
+    )
+
     /** 음악 방 (docs/todo/room-api-db.md) */
     data class Room(
         /** 방 담기 식별을 맡기는 큐 (worker room-song) */

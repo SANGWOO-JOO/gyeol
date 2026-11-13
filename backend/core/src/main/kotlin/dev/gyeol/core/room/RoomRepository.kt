@@ -69,8 +69,17 @@ class RoomRepository(private val jdbc: JdbcClient) {
      * 숨긴 시각도 같은 앱 시계로 넣는다 (DB now()와 앱 시계가 몇 ms 어긋나면 "7일 뒤"가 6일 23시간으로 보였다, 11-13 테스트)
      */
     fun hide(id: Long, hiddenAt: Instant, purgeAt: Instant) =
-        jdbc.sql("UPDATE room SET status = 'HIDDEN', hidden_at = :h, purge_at = :p WHERE id = :id AND status <> 'HIDDEN'")
+        jdbc.sql("UPDATE room SET status_before_hide = status, status = 'HIDDEN', hidden_at = :h, purge_at = :p WHERE id = :id AND status <> 'HIDDEN'")
             .param("id", id).param("h", Timestamp.from(hiddenAt)).param("p", Timestamp.from(purgeAt)).update()
+
+    /** 관리자 되살리기: 숨겼고 아직 완전 삭제 전인 방만, 숨기기 전 상태로. 바뀐 행 수 */
+    fun restore(id: Long, now: Instant): Int =
+        jdbc.sql(
+            """
+            UPDATE room SET status = coalesce(status_before_hide, 'ACTIVE'), status_before_hide = NULL, hidden_at = NULL, purge_at = NULL
+            WHERE id = :id AND status = 'HIDDEN' AND purge_at > :now
+            """.trimIndent(),
+        ).param("id", id).param("now", Timestamp.from(now)).update()
 
     fun saveHostEmail(roomId: Long, email: String, consentAt: Instant) {
         jdbc.sql("INSERT INTO room_host_email (room_id, email, consent_at) VALUES (:r, :e, :c)")
@@ -146,13 +155,38 @@ class RoomRepository(private val jdbc: JdbcClient) {
 
     // ── 감사 기록 ──
 
-    fun audit(actorType: String, actorId: Long?, roomId: Long, action: String, targetMemberId: Long? = null, detailJson: String? = null) {
+    /**
+     * 감사 기록. 방이 지워진 뒤에도 알아볼 수 있게 detail에 방 공개 id·이름을 함께 남긴다 (V26, 1년 보관).
+     * 개인정보(ip·nickname·oldNickname·newNickname)는 detail의 이 키들에만 넣는다: 방을 완전 삭제할 때 지운다
+     */
+    fun audit(actorType: String, actorId: Long?, roomId: Long?, action: String, targetMemberId: Long? = null, detailJson: String? = null) {
         jdbc.sql(
-            "INSERT INTO audit_log (actor_type, actor_id, room_id, action, target_member_id, detail) VALUES (:t, :a, :r, :act, :m, CAST(:d AS jsonb))",
+            """
+            INSERT INTO audit_log (actor_type, actor_id, room_id, action, target_member_id, detail)
+            SELECT :t, :a, :r, :act, :m,
+                   coalesce(CAST(:d AS jsonb), '{}'::jsonb)
+                   || coalesce((SELECT jsonb_build_object('roomPublicId', public_id, 'roomName', name) FROM room WHERE id = :r), '{}'::jsonb)
+            """.trimIndent(),
         ).param("t", actorType).param("a", actorId).param("r", roomId).param("act", action).param("m", targetMemberId).param("d", detailJson).update()
     }
 
-    /** 숨긴 지 7일이 지난 방을 완전히 지운다 (참가자·노래·이메일은 FK CASCADE). 지운 방 수 */
-    fun purgeHidden(now: Instant = Instant.now()): Int =
-        jdbc.sql("DELETE FROM room WHERE status = 'HIDDEN' AND purge_at <= :now").param("now", Timestamp.from(now)).update()
+    /**
+     * 숨긴 지 7일이 지난 방을 완전히 지운다 (참가자·노래·이메일·선물은 FK CASCADE).
+     * 감사 기록은 남기되(room_id는 NULL이 됨) 먼저 그 방 기록의 IP·닉네임을 지운다.
+     * 두 문장 사이에 멈춰도 되는 순서다: 이미 되살릴 수 없는 방의 기록을 먼저 가릴 뿐이다. 지운 방 수
+     */
+    fun purgeHidden(now: Instant = Instant.now()): Int {
+        val at = Timestamp.from(now)
+        jdbc.sql(
+            """
+            UPDATE audit_log SET detail = detail - 'ip' - 'nickname' - 'oldNickname' - 'newNickname'
+            WHERE room_id IN (SELECT id FROM room WHERE status = 'HIDDEN' AND purge_at <= :now)
+            """.trimIndent(),
+        ).param("now", at).update()
+        return jdbc.sql("DELETE FROM room WHERE status = 'HIDDEN' AND purge_at <= :now").param("now", at).update()
+    }
+
+    /** 1년 지난 감사 기록 삭제 (정리 작업). 지운 수 */
+    fun deleteOldAudit(before: Instant): Int =
+        jdbc.sql("DELETE FROM audit_log WHERE created_at < :b").param("b", Timestamp.from(before)).update()
 }

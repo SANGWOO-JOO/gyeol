@@ -35,6 +35,8 @@ data class CodeMatchPartsView(val genre: Double, val distance: Double, val artis
 data class CodeMatchView(
     val id: Long, val a: CodeMatchPerson, val b: CodeMatchPerson, val score: Int, val parts: CodeMatchPartsView,
     val sharedArtists: List<String>, val sharedGalaxies: List<String>, val sharedSongs: Int,
+    /** 목록은 10·5개로 자르므로 전체 수는 따로 (웹 8-b: 5~9곡이면 % 대신 겹친 수·이유만) */
+    val sharedArtistCount: Int, val sharedGalaxyCount: Int,
     val reason: String?, val evidence: List<EvidenceView>, val status: String,
     val confidence: String, val minSongs: Int, val stale: Boolean, val createdAt: Instant,
 )
@@ -104,7 +106,7 @@ class CodeMatchService(
             CodeMatchPerson(ma.id, ma.nickname, ma.colorIdx, ma.avatarCharacterId, countA),
             CodeMatchPerson(mb.id, mb.nickname, mb.colorIdx, mb.avatarCharacterId, countB),
             row.score, CodeMatchPartsView(round2(parts.genre), round2(parts.distance), round2(parts.artist), round2(parts.song)),
-            parts.sharedArtists.take(10), parts.sharedGalaxies.take(5), parts.sharedSongs,
+            parts.sharedArtists.take(10), parts.sharedGalaxies.take(5), parts.sharedSongs, parts.sharedArtists.size, parts.sharedGalaxies.size,
             row.reason, maps.chunksByIds(row.evidence).map { EvidenceView(it.id, it.source, it.url) }, row.status,
             CodeMatchScore.confidence(minOf(countA, countB)), p.minSongs, row.inputHash != currentHash, row.createdAt,
         )

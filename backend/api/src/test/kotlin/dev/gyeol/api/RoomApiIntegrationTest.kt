@@ -47,6 +47,10 @@ class RoomApiIntegrationTest {
         private const val SONG_QUEUE = "gyeol-test-room-song"
         private const val GIFT_QUEUE = "gyeol-test-gift-image"
         private const val CODE_QUEUE = "gyeol-test-code-match"
+        // 테스트 전용 가짜 키·비밀번호·OTP 비밀값
+        private const val ADMIN_KEY = "dGVzdC1vbmx5LWZha2Uta2V5LTAxMjM0NTY3ODlhYiE="
+        private const val ADMIN_PW = "test-only-password"
+        private const val ADMIN_TOTP = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
         private const val COVERS = "gyeol-test-room-covers"
 
         @Container
@@ -80,6 +84,8 @@ class RoomApiIntegrationTest {
             registry.add("gyeol.room.gift-queue") { GIFT_QUEUE }
             registry.add("gyeol.room.code-match-queue") { CODE_QUEUE }
             registry.add("gyeol.room.code-match.daily-limit") { "3" }
+            registry.add("gyeol.admin.totp-key") { ADMIN_KEY }
+            registry.add("gyeol.admin.login-per-minute") { "1000" }
             registry.add("gyeol.cover-bucket") { COVERS }
             // 한 테스트에서 방을 여러 번 만들므로 IP 제한을 넉넉히
             registry.add("gyeol.room.draft-per-minute") { "1000" }
@@ -113,6 +119,7 @@ class RoomApiIntegrationTest {
     @Autowired lateinit var songs: RoomSongRepository
     @Autowired lateinit var maps: MapRepository
     @Autowired lateinit var gifts: dev.gyeol.core.room.GiftRepository
+    @Autowired lateinit var roomRepo: dev.gyeol.core.room.RoomRepository
 
     private val http = HttpClient.newHttpClient()
 
@@ -505,5 +512,129 @@ class RoomApiIntegrationTest {
         add(minji, track("민지 6", "민지 가수 6"))
         assertEquals("CODE_MATCH_LIMIT", call("POST", path, mapOf("a" to host.memberId, "b" to minji.memberId), host.key).body!!["code"].asString())
         assertEquals(404, call("GET", "/api/rooms/${other.rid}/code-match?a=${host.memberId}&b=${minji.memberId}", key = other.key).status)
+    }
+
+    // ── ⑥ 관리자 ──
+
+    private fun newAdmin(): String {
+        val email = "admin${UUID.randomUUID().toString().take(6)}@example.com"
+        val hash = org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder(4).encode(ADMIN_PW)
+        jdbc.sql("INSERT INTO admin_user (email, password_hash, totp_secret) VALUES (:e, :h, :t)")
+            .param("e", email).param("h", hash).param("t", dev.gyeol.api.admin.TotpCipher(ADMIN_KEY).encrypt(ADMIN_TOTP)).update()
+        return email
+    }
+
+    private fun otpNow(offset: Long = 0) =
+        dev.gyeol.api.admin.Totp.code(dev.gyeol.api.admin.Totp.base32Decode(ADMIN_TOTP), dev.gyeol.api.admin.Totp.step(java.time.Instant.now()) + offset)
+
+    /** 로그인해서 쿠키 헤더("gyeol_admin=…")를 돌려준다. 같은 30초 칸 코드는 다시 못 쓰므로 계정마다 한 번 */
+    private fun adminLogin(email: String): String {
+        val ch = call("POST", "/api/admin/login", mapOf("email" to email, "password" to ADMIN_PW))
+        assertEquals(200, ch.status)
+        val res = call("POST", "/api/admin/login/otp", mapOf("challenge" to ch.body!!["challenge"].asString(), "code" to otpNow()))
+        assertEquals(200, res.status)
+        val setCookie = res.headers.entries.first { it.key.equals("set-cookie", true) }.value.single()
+        assertTrue(setCookie.contains("HttpOnly") && setCookie.contains("SameSite=Strict") && setCookie.contains("Path=/api/admin"))
+        return setCookie.substringBefore(';')
+    }
+
+    private fun admin(method: String, path: String, cookie: String, body: Any? = null, origin: String? = null) =
+        call(method, path, body, headers = mapOf("Cookie" to cookie) + (origin?.let { mapOf("Origin" to it) } ?: emptyMap()))
+
+    @Test
+    fun `관리자 로그인 - 비밀번호 다음 OTP, 틀리면 같은 오류, 같은 코드 재사용 거절, 쿠키 없으면 401, 로그아웃`() {
+        val email = newAdmin()
+        assertEquals("ADMIN_LOGIN_FAILED", call("POST", "/api/admin/login", mapOf("email" to "nobody@example.com", "password" to ADMIN_PW)).body!!["code"].asString())
+        assertEquals("ADMIN_LOGIN_FAILED", call("POST", "/api/admin/login", mapOf("email" to email, "password" to "wrong")).body!!["code"].asString())
+        val ch = call("POST", "/api/admin/login", mapOf("email" to email.uppercase(), "password" to ADMIN_PW)).body!!["challenge"].asString()
+        assertEquals(401, call("POST", "/api/admin/login/otp", mapOf("challenge" to ch, "code" to otpNow(5))).status)
+        assertEquals(401, call("GET", "/api/admin/me", headers = mapOf("Cookie" to "gyeol_admin=$ch")).status, "OTP 전 challenge로는 못 들어온다")
+        val ok = call("POST", "/api/admin/login/otp", mapOf("challenge" to ch, "code" to otpNow()))
+        assertEquals(200, ok.status)
+        val cookie = ok.headers.entries.first { it.key.equals("set-cookie", true) }.value.single().substringBefore(';')
+        assertEquals(email, admin("GET", "/api/admin/me", cookie).body!!["email"].asString())
+        assertEquals("no-store", admin("GET", "/api/admin/me", cookie).headers.entries.first { it.key.equals("cache-control", true) }.value.single())
+
+        // 같은 코드로 다시: 새 challenge를 받아도 같은 30초 칸 코드는 거절
+        val ch2 = call("POST", "/api/admin/login", mapOf("email" to email, "password" to ADMIN_PW)).body!!["challenge"].asString()
+        assertEquals(401, call("POST", "/api/admin/login/otp", mapOf("challenge" to ch2, "code" to otpNow())).status)
+
+        assertEquals(401, call("GET", "/api/admin/rooms").status)
+        assertEquals(204, admin("POST", "/api/admin/logout", cookie).status)
+        assertEquals(401, admin("GET", "/api/admin/me", cookie).status)
+    }
+
+    @Test
+    fun `관리자 잠금 - 비밀번호·OTP 실패 합쳐 5번이면 15분, 맞는 비밀번호도 막힌다`() {
+        val email = newAdmin()
+        repeat(3) { call("POST", "/api/admin/login", mapOf("email" to email, "password" to "wrong")) }
+        val ch = call("POST", "/api/admin/login", mapOf("email" to email, "password" to ADMIN_PW)).body!!["challenge"].asString()
+        assertEquals(401, call("POST", "/api/admin/login/otp", mapOf("challenge" to ch, "code" to ("000000".takeIf { it != otpNow() } ?: "111111"))).status)
+        val fifth = call("POST", "/api/admin/login/otp", mapOf("challenge" to ch, "code" to otpNow(9)))
+        assertEquals("ADMIN_LOCKED", fifth.body!!["code"].asString())
+        assertEquals("ADMIN_LOCKED", call("POST", "/api/admin/login", mapOf("email" to email, "password" to ADMIN_PW)).body!!["code"].asString())
+        val until = jdbc.sql("SELECT extract(epoch FROM locked_until - now())::int FROM admin_user WHERE email = :e").param("e", email).query(Int::class.java).single()
+        assertTrue(until in 14 * 60..15 * 60, "약 15분: $until 초")
+        val fails = jdbc.sql("SELECT count(*) FROM audit_log WHERE action = 'ADMIN_LOGIN_FAIL' AND actor_id = (SELECT id FROM admin_user WHERE email = :e)")
+            .param("e", email).query(Int::class.java).single()
+        assertEquals(5, fails, "실패도 감사 기록에 남는다 (401과 함께 되돌려지지 않음)")
+        jdbc.sql("UPDATE admin_user SET locked_until = now() - interval '1 second' WHERE email = :e").param("e", email).update()
+        assertEquals(200, call("POST", "/api/admin/login", mapOf("email" to email, "password" to ADMIN_PW)).status)
+    }
+
+    @Test
+    fun `관리자 방 관리 - 목록·상세(이메일 가림), 닉네임 변경, 내보내기(방장 409), 숨김·되살리기, 감사 기록, 다른 출처 403`() {
+        val cookie = adminLogin(newAdmin())
+        val host = newRoom(email = "abcd${UUID.randomUUID().toString().take(4)}@gmail.com")
+        val minji = join(host.rid, "민지").joined()
+        assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to track("관리 노래")), minji.key).status)
+
+        val list = admin("GET", "/api/admin/rooms?q=${host.rid}&sort=songs", cookie).body!!["items"]
+        assertTrue(list.toList().any { it["publicId"].asString() == host.rid && it["memberCount"].asInt() == 2 && it["songCount"].asInt() == 1 && it["hostNickname"].asString() == "상우" })
+        val detail = admin("GET", "/api/admin/rooms/${host.rid}", cookie).body!!
+        assertTrue(detail["hostEmail"].asString().matches(Regex("a\\*\\*\\*@g\\*\\*\\*\\.com")), detail["hostEmail"].asString())
+        assertEquals(1, detail["recentSongs"].size())
+
+        // 다른 출처: CORS 단계(본문이 JSON이 아님) 또는 관리자 Origin 확인에서 403
+        val evil = http.send(
+            HttpRequest.newBuilder(URI("http://localhost:$port/api/admin/rooms/${host.rid}/members/${minji.memberId}"))
+                .header("Content-Type", "application/json").header("Cookie", cookie).header("Origin", "https://evil.example")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString("""{"nickname":"x"}""")).build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        assertEquals(403, evil.statusCode())
+        assertEquals(204, admin("PATCH", "/api/admin/rooms/${host.rid}/members/${minji.memberId}", cookie, mapOf("nickname" to "민지2")).status)
+        assertEquals("CANNOT_KICK_HOST", admin("DELETE", "/api/admin/rooms/${host.rid}/members/${host.memberId}", cookie).body!!["code"].asString())
+        assertEquals(204, admin("DELETE", "/api/admin/rooms/${host.rid}/members/${minji.memberId}", cookie, mapOf("reason" to "테스트")).status)
+        assertEquals(401, call("GET", "/api/rooms/${host.rid}/me", key = minji.key).status, "내보낸 사람의 열쇠는 폐기")
+        assertEquals(204, admin("PATCH", "/api/admin/rooms/${host.rid}", cookie, mapOf("name" to "정리된 이름")).status)
+
+        // 숨김 → 일반 화면에서 사라짐 → 되살리면 원래 상태(마감)로
+        assertTrue(call("PATCH", "/api/rooms/${host.rid}", mapOf("closed" to true), host.key).status in 200..204)
+        assertEquals(204, admin("POST", "/api/admin/rooms/${host.rid}/hide", cookie, mapOf("reason" to "신고")).status)
+        assertEquals(404, call("GET", "/api/rooms/${host.rid}").status)
+        assertEquals("ALREADY_HIDDEN", admin("POST", "/api/admin/rooms/${host.rid}/hide", cookie).body!!["code"].asString())
+        assertEquals(204, admin("POST", "/api/admin/rooms/${host.rid}/restore", cookie).status)
+        assertEquals("CLOSED", call("GET", "/api/rooms/${host.rid}").body!!["status"].asString())
+
+        // 7일이 지난 숨긴 방은 되살릴 수 없다
+        assertEquals(204, admin("POST", "/api/admin/rooms/${host.rid}/hide", cookie).status)
+        jdbc.sql("UPDATE room SET purge_at = now() - interval '1 minute' WHERE public_id = :p").param("p", host.rid).update()
+        assertEquals("RESTORE_NOT_ALLOWED", admin("POST", "/api/admin/rooms/${host.rid}/restore", cookie).body!!["code"].asString())
+
+        val audit = admin("GET", "/api/admin/audit?room=${host.rid}", cookie).body!!.toList()
+        val actions = audit.map { it["action"].asString() }
+        assertTrue(listOf("ADMIN_MEMBER_RENAME", "ADMIN_MEMBER_KICK", "ADMIN_ROOM_RENAME", "ADMIN_ROOM_HIDE", "ADMIN_ROOM_RESTORE", "ROOM_CREATE").all { it in actions }, actions.toString())
+        val rename = audit.first { it["action"].asString() == "ADMIN_MEMBER_RENAME" }["detail"]
+        assertEquals("민지", rename["oldNickname"].asString())
+        assertTrue(rename.has("ip"))
+
+        // 완전 삭제: 감사 기록은 남고(room_id NULL, 방 공개 id·이름 유지) IP·닉네임은 지워진다
+        roomRepo.purgeHidden()
+        val after = admin("GET", "/api/admin/audit?room=${host.rid}", cookie).body!!.toList()
+        assertEquals(audit.size, after.size)
+        assertTrue(after.all { it["roomId"].isNull && it["detail"]["roomPublicId"].asString() == host.rid })
+        assertTrue(after.none { d -> listOf("ip", "nickname", "oldNickname", "newNickname").any { d["detail"].has(it) } })
+        assertTrue(after.any { it["detail"]["roomName"].asString() == "정리된 이름" })
     }
 }

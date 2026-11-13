@@ -59,8 +59,9 @@
 
 ### V26 관리자
 
-- `admin_user`: 이메일, BCrypt 비밀번호, TOTP 비밀값(암호화, 키는 환경 변수), 실패 횟수·잠금.
-- `admin_session`: 토큰 해시, 1시간, IP.
+- `admin_user`: 이메일, BCrypt 비밀번호, TOTP 비밀값(AES-GCM 암호문, 키는 환경 변수 `ADMIN_TOTP_KEY`), 마지막 TOTP 칸, 실패 횟수·잠금.
+- `admin_session`: 토큰 해시, 단계(PENDING_OTP 5분 → ACTIVE 1시간), IP, 폐기 시각.
+- `room.status_before_hide`(되살릴 때 원래 상태), `audit_log.room_id` 참조를 ON DELETE SET NULL로(감사 기록 1년 보관).
 - 계정 행은 운영 DB에 직접 INSERT. 비밀번호·해시는 저장소에 넣지 않는다.
 
 ## 2. 인증
@@ -206,3 +207,18 @@
 - **곡이 적으면 흔들릴 뿐 아니라 점수가 낮게 치우친다.** 5곡은 전체 점수보다 평균 35점가량 낮고(무작위·겹침), 10곡도 19~20점 낮다. 겹친 가수·노래와 장르 코사인이 곡 수가 늘수록 커지는 항목이기 때문이다. 5곡에서 겹친 가수 0인 경우가 30%(무작위)였다.
 - 20곡이면 표준편차 2.5~6.9, 전체와 차이 3.6~9.3점으로 안정된다.
 - 신뢰도 단계(5~9 낮음·10~19 보통·20~ 높음)는 측정과 맞는다. 다만 "낮음"에서는 점수 자체가 과소평가되므로, 비중 조정이나 곡 수 보정(예: 겹침 항목을 적은 쪽 곡 수로 보정, 5~9곡은 점수 대신 "아직 알아보는 중" 표시)은 사용자와 정한다.
+
+## 12. ⑥ 관리자 구현 기록 (11-13)
+
+- 결정(11-13, 관리 세션 전달): 비밀번호·OTP 실패 합쳐 5번이면 15분 잠금 + IP 분당 제한, 감사 기록 1년 보관(방 완전 삭제 때 그 방 기록의 IP·닉네임은 지움), TOTP 비밀값은 `ADMIN_TOTP_KEY`로 AES-GCM, 계정은 `tools/admin-account`로 사용자가 직접 만듦, ⑤ 응답에 `sharedArtistCount`·`sharedGalaxyCount` 추가.
+- 마이그레이션 `V26__admin.sql`: admin_user·admin_session, `room.status_before_hide`, audit_log 참조 SET NULL + 색인, 기존 기록 detail에 방 공개 id·이름 채움.
+- core: `admin/AdminRepository`(계정·세션·방 목록·상세·감사 기록 조회), `RoomRepository.audit`가 detail에 `roomPublicId`·`roomName`을 자동으로 붙임(방 없는 기록 가능), `hide`가 숨기기 전 상태 저장, `restore`, `purgeHidden`이 먼저 그 방 기록의 `ip`·`nickname`·`oldNickname`·`newNickname`을 지움, `deleteOldAudit`.
+- api `admin/`:
+  - `AdminSecurity.kt`: TOTP(RFC 6238, SHA1·30초·6자리, 앞뒤 1칸, 같은 칸 재사용 거절), Base32, `TotpCipher`(AES-256-GCM, iv 12바이트 + 암호문·태그 base64), 쿠키 `gyeol_admin`(HttpOnly·SameSite=Strict·Path=/api/admin, Secure는 설정값), `@AdminOnly AdminContext`, `/api/admin/**`에 `Cache-Control: no-store`와 상태 변경 요청의 Origin 확인.
+  - `AdminController.kt`: `POST /api/admin/login`(→ challenge) · `POST /api/admin/login/otp`(→ 쿠키) · `POST /api/admin/logout` · `GET /api/admin/me` · `GET /api/admin/rooms?q=&status=&sort=created|active|songs&page=&size=` · `GET /api/admin/rooms/{rid}`(방장 이메일 `a***@g***.com`) · `POST …/hide {reason}` · `POST …/restore` · `PATCH /api/admin/rooms/{rid} {name}` · `PATCH …/members/{mid} {nickname}` · `DELETE …/members/{mid} {reason}`(방장 409) · `GET /api/admin/audit?room=&page=&size=`. 로그인 실패 기록이 401과 함께 되돌려지지 않게 로그인은 트랜잭션으로 묶지 않음. 키가 비어 있으면 503 `ADMIN_DISABLED`.
+- worker: 정리 작업에 1년 지난 감사 기록 삭제.
+- `tools/admin-account/make_admin.py`(uv): 사용자가 직접 실행. BCrypt(12)·OTP 비밀값·otpauth 주소·INSERT 문을 화면에만 출력. `--self-test`는 가짜 값으로 TOTP(RFC 벡터)·암호화 왕복·BCrypt만 확인(세션은 이것만 실행).
+- 로컬 전용: `application-local.yml`의 `gyeol.admin.totp-key`는 가짜 키, `local/admin-dev-seed.sql`은 가짜 계정(admin@local.test / local-admin-only / OTP 비밀값 JBSWY3DPEHPK3PXP). 운영에는 쓰지 않는다.
+- 운영 계정 만들기 절차: ① 운영 키 `ADMIN_TOTP_KEY`(base64 32바이트, 예: `openssl rand -base64 32`)를 비밀 저장소에 두고 API에 환경 변수로 준다. ② 사용자 자신의 터미널에서 `ADMIN_TOTP_KEY=… uv run --directory tools/admin-account python make_admin.py`. ③ 출력된 otpauth 주소를 인증 앱에 등록하고, INSERT 문을 운영 DB에서 실행한다. 출력은 저장하지 않는다. ④ 배포 때 Traefik IP 허용으로 `/api/admin`과 웹 `/admin`을 지정 IP만 연다(Helm 값).
+- 테스트: api `AdminSecurityTest` 4개(RFC 6238 벡터, 시간 칸, Python 도구 암호문 풀기, 이메일 가리기), `RoomApiIntegrationTest` 관리자 3개(로그인 2단계·재사용·로그아웃, 잠금 15분·실패 기록, 방 관리·다른 출처 403·감사 기록·완전 삭제 뒤 IP·닉네임 지움). 전체 api 46(측정 1개 건너뜀)·worker 72 통과.
+- 로컬 확인: 개발 서버에서 V26 적용, 로컬 시드 계정으로 로그인 2단계 → 방 목록 조회.

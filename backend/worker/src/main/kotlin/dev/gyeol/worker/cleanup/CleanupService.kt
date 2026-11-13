@@ -22,7 +22,8 @@ data class CleanupResult(val files: Int, val listens: Int, val sessions: Int, va
  * 2. 청취 기록: listen_event.expires_at(7일) 지남
  * 3. 세션: expires_at(30일) 지남, 원본 파일을 다 지운 세션만 (연쇄 삭제)
  * 4. 일반 영상 음악 판정 캐시: 30일 지남 (YouTube API 정책)
- * 5. 음악 방: 숨긴 지 7일 지난 방 완전 삭제(참가자·노래·방장 이메일·선물 캐릭터 연쇄, 캐릭터 그림은 S3에서 먼저), 인증 안 끝난 방 만들기 내용(1시간)
+ * 5. 음악 방: 숨긴 지 7일 지난 방 완전 삭제(참가자·노래·방장 이메일·선물 캐릭터 연쇄, 캐릭터 그림은 S3에서 먼저, 감사 기록은 IP·닉네임만 지우고 남김),
+ *    인증 안 끝난 방 만들기 내용(1시간), 1년 지난 감사 기록
  * 순서가 중요하다: 세션을 먼저 지우면 S3 키를 잃어 파일이 고아로 남는다.
  * 여러 번 돌거나 워커 여러 대가 동시에 돌아도 결과가 같다 (S3 삭제는 없는 키도 성공).
  */
@@ -51,6 +52,9 @@ class CleanupService(
         // 캐릭터 그림(S3)을 먼저 지운다. 하나라도 실패하면 이번에는 방을 지우지 않는다 (키를 잃으면 그림이 고아로 남음)
         val purgedRooms = if (deleteCharacterImages(now)) rooms.purgeHidden(now) else 0
         val purgedDrafts = drafts.deleteExpired(now)
+        // 감사 기록은 1년 보관 (11-13 ⑥ 결정)
+        val oldAudit = rooms.deleteOldAudit(now.minus(java.time.Duration.ofDays(365)))
+        if (oldAudit > 0) log.info("1년 지난 감사 기록 {}건 삭제", oldAudit)
         val result = CleanupResult(files, listens, sessions, checks, purgedRooms, purgedDrafts)
         log.info("정리 완료: 원본 파일 {}개, 청취 기록 {}건, 세션 {}개, 음악 판정 {}건, 방 {}개, 방 만들기 {}건, {}ms", files, listens, sessions, checks, purgedRooms, purgedDrafts, (System.nanoTime() - started) / 1_000_000)
         return result

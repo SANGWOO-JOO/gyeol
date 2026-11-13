@@ -1,0 +1,9 @@
+[project]
+name = "gyeol-admin-account"
+version = "0.1.0"
+description = "결 관리자 계정 INSERT 문 만들기 (사용자가 직접 실행, 출력은 저장하지 않음)"
+requires-python = ">=3.12"
+dependencies = ["bcrypt>=4.2", "cryptography>=43"]
+
+[tool.uv]
+package = false
