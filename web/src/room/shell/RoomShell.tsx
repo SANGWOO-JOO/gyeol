@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { keyStore } from '../keyStore'
 import { roomApi, RoomApiError, type MeView, type MemberRow, type RoomMap, type RoomSummary, type RoomSearchItem, type SongView } from '../roomApi'
-import { addedMessage, addErrorText, failText, mapCounts } from '../roomLogic'
+import { addedMessage, addErrorText, failText, giftLine, mapCounts } from '../roomLogic'
 import { useRoomTheme } from '../components/RoomPage'
-import { Avatar } from '../components/Avatar'
+import { Avatar, AvatarRoom } from '../components/Avatar'
 import { Wordmark } from '../components/Wordmark'
 import { GalaxyView } from '../galaxy/GalaxyView'
 import { itemKey, SearchPanel } from './SearchPanel'
@@ -12,6 +12,7 @@ import { MineTab } from './MineTab'
 import { PeopleSheet } from './PeopleSheet'
 import { ArtistSheet } from './ArtistSheet'
 import { MemberSheet, MeSheet, SettingsSheet } from './AccountSheets'
+import { GiftSheet } from './GiftSheet'
 import { Toast, type ToastData } from './Toast'
 import s from '../room.module.css'
 import sh from './shell.module.css'
@@ -48,7 +49,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const [notFound, setNotFound] = useState<NotFound | null>(null)
   const [pollTick, setPollTick] = useState(0)
   const [sheet, setSheet] = useState<
-    | { kind: 'people' } | { kind: 'artist'; id: number } | { kind: 'me' } | { kind: 'member'; member: MemberRow } | { kind: 'settings' } | null
+    | { kind: 'people' } | { kind: 'artist'; id: number } | { kind: 'me' } | { kind: 'member'; member: MemberRow } | { kind: 'settings' } | { kind: 'gift'; boxId: number } | null
   >(null)
   // 담기·빼기가 일어날 때마다 올린다 → 내 노래·참가자·가수 판이 다시 받는다
   const [version, setVersion] = useState(0)
@@ -83,6 +84,14 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   useEffect(() => { refreshMe(); refreshMap(true) }, [refreshMe, refreshMap])
   const refreshSummary = useCallback(() => { roomApi.summary(roomId).then(setSummary).catch(() => { /* 정원 기본 5명 */ }) }, [roomId])
   useEffect(() => { refreshSummary() }, [refreshSummary])
+
+  const readyBox = me?.gift?.readyBoxId ?? null
+  useEffect(() => {
+    if (readyBox == null) return
+    const k = `gyeol.giftShown.${roomId}.${readyBox}`
+    try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, '1') } catch { /* 저장 못 해도 띄운다 */ }
+    setSheet(prev => prev ?? { kind: 'gift', boxId: readyBox })
+  }, [readyBox, roomId])
 
   /** 내 노래가 바뀜: 지도·내 정보·판들을 다시 받는다 */
   const changed = useCallback(() => { setVersion(v => v + 1); refreshMap(true); refreshMe(); refreshSummary() }, [refreshMap, refreshMe, refreshSummary])
@@ -124,6 +133,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       if (res.status === 'ADDED' && res.song) {
         setAdded(prev => new Map(prev).set(key, res.song!.id))
         announceAdded(res.song, r.sameSong)
+        if (res.gift?.status === 'WAITING') setTimeout(() => show({ title: `${res.gift!.milestone}곡 선물 상자가 생겼어요`, sub: '오늘 선물은 이미 받아서 내일 열려요', tone: 'gold' }), 1500)
       } else if (res.requestId != null) {
         setPending(prev => [...prev, { requestId: res.requestId!, key, title: r.item.title, artist: r.item.artist, sameSong: r.sameSong }])
         show({ title: '노래를 찾고 있어요', sub: `${r.item.title} · 찾으면 바로 우주에 떠요` })
@@ -181,16 +191,18 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
 
   const members = map?.members ?? []
   const isHost = me?.member.role === 'HOST'
+  const badge = me?.gift ? giftLine(me.gift).badge : null
   const counts = mapCounts(map)
 
   return (
+    <AvatarRoom.Provider value={roomId}>
     <div className={sh.shell}>
       <header className={sh.header}>
         <div className={sh.headRow}>
           <Link to="/" aria-label="첫 화면"><Wordmark size={20} /></Link>
           <div className={sh.headRight}>
             <button type="button" className={sh.faces} aria-label={`참가자 ${members.length}명 보기`} onClick={() => setSheet({ kind: 'people' })}>
-              {members.map(m => <Avatar key={m.id} nickname={m.nickname} colorIdx={m.colorIdx} size={32} />)}
+              {members.map(m => <Avatar key={m.id} nickname={m.nickname} colorIdx={m.colorIdx} characterId={m.avatarCharacterId} size={32} />)}
             </button>
             <button type="button" className={sh.iconButton} aria-label="친구 초대하기" onClick={invite}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 15V3" /><path d="M7 8l5-5 5 5" /><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></svg>
@@ -234,7 +246,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
         )}
 
         {tab === 'play' && <Soon title="놀이터가 곧 열려요" text="친구와 코드가 얼마나 맞는지 알아보는 '코드 맞추기'를 준비하고 있어요." />}
-        {tab === 'mine' && <MineTab roomId={roomId} me={me} map={map} version={version} onChanged={changed} onError={handle} show={show} />}
+        {tab === 'mine' && <MineTab roomId={roomId} me={me} map={map} version={version} onChanged={changed} onError={handle} show={show} onOpenGift={boxId => setSheet({ kind: 'gift', boxId })} />}
       </main>
 
       {sheet?.kind === 'people' && (
@@ -249,6 +261,9 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       {sheet?.kind === 'member' && (
         <MemberSheet roomId={roomId} member={sheet.member} onClose={() => setSheet({ kind: 'people' })} onError={handle} show={show}
           onKicked={() => { changed(); setSheet({ kind: 'people' }) }} />
+      )}
+      {sheet?.kind === 'gift' && me && (
+        <GiftSheet roomId={roomId} boxId={sheet.boxId} me={me} onClose={() => { setSheet(null); changed() }} onAvatarChanged={changed} onError={handle} show={show} />
       )}
       {sheet?.kind === 'settings' && summary && (
         <SettingsSheet roomId={roomId} summary={summary} memberCount={summary.members.length} songCount={counts.songs}
@@ -268,10 +283,12 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
           <button key={t.id} type="button" className={sh.tab} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{t.icon}</svg>
             {t.label}
+            {t.id === 'mine' && badge && <><span className={sh.tabBadge} aria-hidden="true">{badge}</span><span className={s.srOnly}> · 선물 소식 있음</span></>}
           </button>
         ))}
       </nav>
     </div>
+    </AvatarRoom.Provider>
   )
 }
 

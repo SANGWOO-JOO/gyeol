@@ -1,6 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, failText, galaxyOfTrack, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, failText, galaxyOfTrack, giftLine, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+
+describe('선물 표시 (4-l)', () => {
+  const base = { songCount: 47, nextMilestone: 50, remaining: 3, receivedToday: false, waiting: 0, readyBoxId: null }
+  it('3곡 이하면 금빛 줄과 남은 곡 배지', () => {
+    expect(giftLine(base)).toEqual({ text: '50곡 선물까지 3곡', gold: true, badge: '3', canOpen: false })
+  })
+  it('4곡 이상이면 보라 줄만', () => {
+    expect(giftLine({ ...base, songCount: 40, remaining: 10 })).toMatchObject({ gold: false, badge: null })
+  })
+  it('오늘 받았으면 배지 없음', () => {
+    expect(giftLine({ ...base, songCount: 64, nextMilestone: 100, remaining: 36, receivedToday: true }))
+      .toEqual({ text: '오늘 선물은 받았어요 · 100곡까지 36곡', gold: false, badge: null, canOpen: false })
+  })
+  it('기다리는 상자가 있으면 "상자" 배지', () => {
+    expect(giftLine({ ...base, receivedToday: true, waiting: 1 })).toMatchObject({ text: '기다리는 상자 1개 · 내일 열려요', badge: '상자' })
+  })
+  it('열 수 있는 상자가 가장 먼저', () => {
+    expect(giftLine({ ...base, waiting: 1, readyBoxId: 7 })).toMatchObject({ canOpen: true, badge: '상자' })
+  })
+})
 
 describe('가수 판', () => {
   const nameOf = (id: number) => ({ 1: '상우', 2: '민지', 3: '지훈' } as Record<number, string>)[id]

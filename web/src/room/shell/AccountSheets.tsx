@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { roomApi, RoomApiError, type MeView, type MemberRow, type RoomSummary } from '../roomApi'
+import { useEffect, useState, type FormEvent } from 'react'
+import { roomApi, RoomApiError, type GiftsResponse, type MeView, type MemberRow, type RoomSummary } from '../roomApi'
 import { Avatar } from '../components/Avatar'
 import { Spinner } from '../components/RoomPage'
 import { hasBatchim, iAm } from '../text'
@@ -46,7 +46,7 @@ export function MeSheet({ roomId, me, onClose, onRenamed, onLeft, onError, show 
 
   return (
     <Sheet title="내 정보" onClose={onClose}
-      head={<Avatar nickname={me.member.nickname} colorIdx={me.member.colorIdx} size={48} />}
+      head={<Avatar nickname={me.member.nickname} colorIdx={me.member.colorIdx} characterId={me.member.avatarCharacterId} size={48} />}
       sub={<span className={sh.songSub}>{me.roomName} · 노래 {me.songCount}곡</span>}>
       <form className={sh.panel} onSubmit={save} noValidate>
         <label htmlFor="me-nick" className={s.label}>닉네임</label>
@@ -56,6 +56,8 @@ export function MeSheet({ roomId, me, onClose, onRenamed, onLeft, onError, show 
         </div>
         {error ? <p className={s.error} role="alert">{error}</p> : <span className={s.hint}>12자까지 · 이 우주 안에서 겹치지 않게 · 친구들 화면에도 바로 바뀌어요</span>}
       </form>
+
+      <Characters roomId={roomId} me={me} onChanged={onRenamed} onError={onError} show={show} />
 
       <div className={sh.panel}>
         <button type="button" className={sh.rowButton} onClick={leave} disabled={leaving}>
@@ -67,6 +69,53 @@ export function MeSheet({ roomId, me, onClose, onRenamed, onLeft, onError, show 
         </span>
       </div>
     </Sheet>
+  )
+}
+
+/** 6-h 받은 캐릭터: 기본 얼굴 + 받은 캐릭터, 누르면 그 얼굴로. 다음 캐릭터까지 남은 곡 */
+function Characters({ roomId, me, onChanged, onError, show }: { roomId: string; me: MeView; onChanged: () => void; onError: (e: unknown) => boolean; show: Show }) {
+  const [data, setData] = useState<GiftsResponse | null>(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    const ac = new AbortController()
+    roomApi.gifts(roomId, ac.signal).then(setData).catch(err => { if (!ac.signal.aborted) onError(err) })
+    return () => ac.abort()
+  }, [roomId, onError, me.member.avatarCharacterId])
+
+  async function choose(characterId: number | null) {
+    if (characterId === (data?.avatarCharacterId ?? null)) return
+    setBusy(true)
+    try {
+      await roomApi.setAvatar(roomId, characterId)
+      show({ title: characterId == null ? '기본 얼굴로 바꿨어요' : '이 캐릭터로 바꿨어요' })
+      onChanged()
+    } catch (err) {
+      if (!onError(err)) show({ title: '바꾸지 못했어요', sub: errText(err, ''), tone: 'error' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!data) return null
+  const current = data.avatarCharacterId
+  const sum = data.summary
+  return (
+    <div className={sh.panel}>
+      <span style={{ fontSize: 14, fontWeight: 500 }}>받은 캐릭터 <span style={{ fontWeight: 400, color: 'var(--r-text-3)' }}>· 50곡마다 하나씩</span></span>
+      <div className={sh.characters} role="group" aria-label="얼굴 고르기">
+        <button type="button" className={sh.characterChoice} aria-pressed={current == null} aria-label="기본 얼굴" disabled={busy} onClick={() => choose(null)}>
+          <Avatar nickname={me.member.nickname} colorIdx={me.member.colorIdx} size={48} />
+        </button>
+        {data.characters.map((c, i) => (
+          <button key={c.id} type="button" className={sh.characterChoice} aria-pressed={current === c.id} aria-label={`받은 캐릭터 ${i + 1}${c.isFallback ? ' (기본 캐릭터)' : ''}`} disabled={busy} onClick={() => choose(c.id)}>
+            <Avatar nickname={me.member.nickname} colorIdx={me.member.colorIdx} characterId={c.id} size={48} />
+          </button>
+        ))}
+        <span className={sh.nextSlot} aria-label={`다음 캐릭터까지 ${sum.remaining}곡`}>+{sum.remaining}곡</span>
+      </div>
+      {sum.receivedToday && <span style={{ fontSize: 12, color: 'var(--r-peach)' }}>오늘 선물은 받았어요 · {sum.nextMilestone}곡이 되면 {sum.waiting > 0 ? '내일 열려요' : '다음 날 열려요'}</span>}
+      <span className={s.hint}>누르면 그 캐릭터로 바뀌어요 · 노래를 빼도 받은 캐릭터는 남아요</span>
+    </div>
   )
 }
 
@@ -110,7 +159,7 @@ export function MemberSheet({ roomId, member, onClose, onKicked, onError, show }
 
   return (
     <Sheet title={member.nickname} onClose={onClose}
-      head={<Avatar nickname={member.nickname} colorIdx={member.colorIdx} size={48} />}
+      head={<Avatar nickname={member.nickname} colorIdx={member.colorIdx} characterId={member.avatarCharacterId} size={48} />}
       sub={<span className={sh.songSub}>노래 {member.songCount}곡</span>}>
       <div className={sh.panel}>
         <strong style={{ fontSize: 14, fontWeight: 500 }}>{member.nickname}님 새 암호</strong>

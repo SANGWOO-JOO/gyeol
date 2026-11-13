@@ -42,6 +42,28 @@ export interface ArtistView {
   songs: MapSong[]; nearby: { artistId: number; name: string; inRoom: boolean }[]; preparing: boolean
 }
 
+export type GiftStatus = 'WAITING' | 'READY' | 'GENERATING' | 'OPENED' | 'FAILED'
+export interface GiftBoxView { id: number; milestone: number; status: GiftStatus; earnedAt: string; readyOn: string | null; openedAt: string | null; characterId: number | null }
+export interface CharacterView { id: number; giftBoxId: number | null; isFallback: boolean; createdAt: string }
+export interface GiftsResponse { summary: GiftSummary; boxes: GiftBoxView[]; characters: CharacterView[]; avatarCharacterId: number | null }
+export interface GiftBoxDetail { box: GiftBoxView; character: CharacterView | null }
+
+/** 캐릭터 그림은 같은 방 참가자만 볼 수 있어 열쇠 헤더를 붙여 받고, 화면에는 blob 주소로 넣는다 (쿠키가 안 남는 브라우저 대비) */
+const imageCache = new Map<string, Promise<string | null>>()
+export function characterImage(roomId: string, characterId: number): Promise<string | null> {
+  const k = `${roomId}/${characterId}`
+  let p = imageCache.get(k)
+  if (!p) {
+    const key = keyStore.get(roomId)?.key
+    p = fetch(`/api/rooms/${rid(roomId)}/characters/${characterId}/image`, { headers: key ? { 'X-Room-Key': key } : {}, credentials: 'same-origin' })
+      .then(res => (res.ok ? res.blob().then(b => URL.createObjectURL(b)) : null))
+      .catch(() => null)
+    p.then(url => { if (!url) imageCache.delete(k) })
+    imageCache.set(k, p)
+  }
+  return p
+}
+
 /** 서버 오류: code는 화면 분기용, detail에 남은 시도 횟수·잠금 남은 초 등 */
 export class RoomApiError extends Error {
   constructor(
@@ -128,6 +150,11 @@ export const roomApi = {
   hostReset: (roomId: string) => call<{ codeExpiresAt: string; resendAfter: string }>(`/rooms/${rid(roomId)}/host-reset`, { method: 'POST', body: {} }),
   hostResetVerify: (roomId: string, code: string, newPin: string) =>
     call<JoinedResponse>(`/rooms/${rid(roomId)}/host-reset/verify`, { method: 'POST', body: { code, newPin } }),
+  // ── 6단계: 50곡 선물 (room-api-db.md 9절) ──
+  gifts: (roomId: string, signal?: AbortSignal) => call<GiftsResponse>(`/rooms/${rid(roomId)}/me/gifts`, { roomId, signal }),
+  giftBox: (roomId: string, boxId: number, signal?: AbortSignal) => call<GiftBoxDetail>(`/rooms/${rid(roomId)}/me/gifts/${boxId}`, { roomId, signal }),
+  openGift: (roomId: string, boxId: number) => call<GiftBoxDetail>(`/rooms/${rid(roomId)}/me/gifts/${boxId}/open`, { method: 'POST', roomId, body: {} }),
+  setAvatar: (roomId: string, characterId: number | null) => call<MemberView>(`/rooms/${rid(roomId)}/me/avatar`, { method: 'PUT', roomId, body: { characterId } }),
   /** 되돌리기로 다시 담을 때 (trackId만) */
   addTrack: (roomId: string, trackId: number) => call<AddSongResponse>(`/rooms/${rid(roomId)}/songs`, { method: 'POST', roomId, body: { trackId } }),
 }

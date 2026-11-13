@@ -109,6 +109,21 @@ export function sourceName(source: string): string {
   }
 }
 
+/**
+ * 선물 표시 (room-plan ⑯ 남은 곡 표시, 캔버스 4-l). 내 노래 탭 맨 위 줄은 늘 있고, 탭 배지는
+ * 곧 받거나(3곡 이하) 상자가 있을 때만 뜬다. 오늘 이미 받았으면 배지 없음.
+ */
+export interface GiftSummaryLike { songCount: number; nextMilestone: number; remaining: number; receivedToday: boolean; waiting: number; readyBoxId: number | null }
+export interface GiftLineState { text: string; gold: boolean; badge: string | null; canOpen: boolean }
+
+export function giftLine(g: GiftSummaryLike): GiftLineState {
+  if (g.readyBoxId != null) return { text: '선물 상자가 왔어요 · 눌러서 열어요', gold: true, badge: '상자', canOpen: true }
+  if (g.waiting > 0) return { text: `기다리는 상자 ${g.waiting}개 · 내일 열려요`, gold: true, badge: '상자', canOpen: false }
+  if (g.receivedToday) return { text: `오늘 선물은 받았어요 · ${g.nextMilestone}곡까지 ${g.remaining}곡`, gold: false, badge: null, canOpen: false }
+  const soon = g.remaining <= 3
+  return { text: `${g.nextMilestone}곡 선물까지 ${g.remaining}곡`, gold: soon, badge: soon ? String(g.remaining) : null, canOpen: false }
+}
+
 /** 행성에 노래를 담은 사람들 (위성 색), 같이 담은 노래 수 (금빛) */
 export function planetPeople(p: Planet): { memberIds: number[]; shared: number } {
   const ids = new Set<number>()

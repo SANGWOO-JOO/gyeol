@@ -40,7 +40,7 @@ export function PeopleSheet({ roomId, capacity, version, isHost, onClose, onInvi
           {rows.map(m => {
             const body = (
               <>
-                <Avatar nickname={m.nickname} colorIdx={m.colorIdx} size={40} />
+                <Avatar nickname={m.nickname} colorIdx={m.colorIdx} characterId={m.avatarCharacterId} size={40} />
                 <span className={sh.personText}>
                   <span className={sh.personName}>
                     {m.nickname}

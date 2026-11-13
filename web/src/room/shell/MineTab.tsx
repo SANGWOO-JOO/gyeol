@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { roomApi, RoomApiError, type MeView, type MySong, type RoomMap } from '../roomApi'
-import { galaxyOfTrack } from '../roomLogic'
+import { galaxyOfTrack, giftLine } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import type { ToastData } from './Toast'
 import sh from './shell.module.css'
@@ -9,7 +9,7 @@ import sh from './shell.module.css'
  * 4-a 내 노래 (최근 담은 순). ✕로 빼면 친구 화면에서도 사라지고, 알림의 되돌리기로 다시 담는다.
  * 장르별·아티스트별 정렬은 2차 (API가 최근 순만 지원, room-api-db.md 7절).
  */
-export function MineTab({ roomId, me, map, version, onChanged, onError, show }: {
+export function MineTab({ roomId, me, map, version, onChanged, onError, show, onOpenGift }: {
   roomId: string
   me: MeView | null
   map: RoomMap | null
@@ -18,6 +18,7 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show }: 
   onChanged: () => void
   onError: (err: unknown) => boolean
   show: (t: Omit<ToastData, 'id'>) => void
+  onOpenGift: (boxId: number) => void
 }) {
   const [items, setItems] = useState<MySong[] | null>(null)
   const [cursor, setCursor] = useState<number | null>(null)
@@ -76,7 +77,7 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show }: 
 
   return (
     <section aria-label={`내 노래 ${total}곡`} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {gift && <GiftLine remaining={gift.remaining} receivedToday={gift.receivedToday} waiting={gift.waiting} />}
+      {gift && <GiftLine gift={gift} songCount={total} onOpen={onOpenGift} />}
 
       <div className={sh.mineHead}>
         <h2>내 노래 <strong>{total}</strong>곡</h2>
@@ -126,14 +127,18 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show }: 
   )
 }
 
-/** 선물까지 남은 곡 (④, 자세한 상자·캐릭터는 6단계) */
-function GiftLine({ remaining, receivedToday, waiting }: { remaining: number; receivedToday: boolean; waiting: number }) {
-  const text = waiting > 0 ? `기다리는 상자 ${waiting}개 · 내일 열려요` : receivedToday ? `오늘 선물은 받았어요 · +${remaining}곡` : `50곡 선물까지 ${remaining}곡`
-  return (
-    <div className={sh.giftLine}>
+/** 4-l 선물 줄: 내 노래 탭 맨 위에 늘 있다. 열 수 있는 상자가 있으면 눌러서 4-j */
+function GiftLine({ gift, songCount, onOpen }: { gift: NonNullable<MeView['gift']>; songCount: number; onOpen: (boxId: number) => void }) {
+  const g = giftLine(gift)
+  const inner = (
+    <>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M3 7h18v3H3zM12 7v13M12 7c-2-4-6-3-5-1 .6 1.2 3 1 5 1zM12 7c2-4 6-3 5-1-.6 1.2-3 1-5 1z" /></svg>
-      <span>{text}</span>
-      <span>하루 1개</span>
-    </div>
+      <span>{g.text}</span>
+      <span>내 노래 {songCount}곡</span>
+    </>
   )
+  const cls = `${sh.giftLine} ${g.gold ? sh.giftLineGold : ''}`
+  return g.canOpen && gift.readyBoxId != null
+    ? <button type="button" className={`${cls} ${sh.giftLineButton}`} onClick={() => onOpen(gift.readyBoxId!)}>{inner}</button>
+    : <div className={cls}>{inner}</div>
 }
