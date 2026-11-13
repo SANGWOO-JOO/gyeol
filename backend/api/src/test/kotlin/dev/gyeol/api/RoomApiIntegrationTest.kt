@@ -64,6 +64,21 @@ class RoomApiIntegrationTest {
 
         // 가짜 Last.fm 검색: 항상 "새 노래 / 가수 A"
         private val fakeFetcher = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress(0), 0).apply {
+            // I-30 ②: 가수 인기곡. TAEYEON은 "곡 1~30" + 8282, 태연(한글 페이지)은 8282·시간아 멈춰라·곡 1
+            createContext("/internal/lastfm/top-tracks") { ex ->
+                val q = ex.requestURI.query.orEmpty()
+                val page = Regex("page=(\\d+)").find(q)?.groupValues?.get(1)?.toInt() ?: 1
+                fun t(title: String, plays: Long) = """{"title":"$title","artist":"x","mbid":null,"playcount":$plays,"listeners":1}"""
+                val items = when {
+                    page > 1 -> emptyList()
+                    q.contains("artist=TAEYEON") -> listOf(t("8282", 1000)) + (1..30).map { t("곡 $it", 300L - it) }
+                    q.contains("artist=태연") -> listOf(t("시간아 멈춰라", 900), t("8282", 500), t("곡 1", 100))
+                    else -> emptyList()
+                }
+                val body = """{"items":[${items.joinToString(",")}],"total":${items.size}}""".toByteArray()
+                ex.responseHeaders.add("Content-Type", "application/json")
+                ex.sendResponseHeaders(200, body.size.toLong()); ex.responseBody.use { it.write(body) }
+            }
             createContext("/internal/lastfm/search") { ex ->
                 // 검색어에 "Pretty"가 있으면 스트리밍 앱 문구가 붙은 가수명 결과 (11-13 " • 잡음" 정리 확인)
                 val noisy = ex.requestURI.rawQuery.orEmpty().contains("Pretty")
@@ -821,5 +836,41 @@ class RoomApiIntegrationTest {
         // 가수와 상관없는 검색어에는 카드 없음
         val other = call("GET", "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("새 노래", "UTF-8"), key = host.key).body!!
         assertTrue(other["artist"] == null || other["artist"].isNull)
+    }
+
+    @Test
+    fun `I-30 인기순 - 한글·영문 페이지 합치기, 20곡씩, 우리 곡과 맞춤, 담음·친구 표시, 이름으로도`() {
+        val host = newRoom()
+        val minji = join(host.rid, "민지").joined()
+        // (I-30 ① 테스트의 DAVICHI와 섞이지 않게 다른 가수)
+        val taeyeon = ArtistInfo(UUID.randomUUID(), "TAEYEON", "TAEYEON", listOf("태연"))
+        val t8282 = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "8282", taeyeon, UUID.randomUUID(), UUID.randomUUID(), "음반", "2009-01-01", "Single"))
+        val aid = songs.trackArtist(t8282)!!
+        assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to t8282), host.key).status)
+
+        val p1 = call("GET", "/api/rooms/${host.rid}/artists/$aid/songs?sort=popular&page=1", key = minji.key).body!!
+        assertEquals(aid, p1["artist"]["artistId"].asLong())
+        val items = p1["items"].toList()
+        assertEquals(20, items.size)
+        assertTrue(p1["hasMore"].asBoolean())
+        // 8282(1000+500)가 1위, 시간아 멈춰라(900)가 2위, 곡 1(299+100)은 한 줄
+        assertEquals(listOf("8282", "시간아 멈춰라", "곡 1"), items.take(3).map { it["item"]["title"].asString() })
+        assertEquals(t8282, items[0]["item"]["trackId"].asLong())
+        assertEquals(listOf("상우"), items[0]["sameSong"].toList().map { it.asString() }, "친구(상우)가 담은 곡")
+        assertTrue(!items[0]["mine"].asBoolean())
+        assertEquals(1, items[0]["rank"].asInt())
+        assertTrue(items.all { it["item"]["artistId"].asLong() == aid })
+
+        val p2 = call("GET", "/api/rooms/${host.rid}/artists/$aid/songs?sort=popular&page=2", key = host.key).body!!
+        assertEquals(12, p2["items"].size(), "합쳐서 32곡(8282·곡 1~30·시간아 멈춰라): 20 + 12")
+        assertTrue(!p2["hasMore"].asBoolean())
+        assertEquals(21, p2["items"][0]["rank"].asInt())
+        assertTrue(p2["items"].toList().none { it["item"]["title"].asString() in setOf("8282", "곡 1") }, "앞 쪽과 겹치지 않음")
+        assertTrue(call("GET", "/api/rooms/${host.rid}/artists/$aid/songs?sort=popular&page=1", key = host.key).body!!["items"][0]["mine"].asBoolean())
+
+        // 이름으로 와도 우리 가수와 맞으면 같은 결과, 모르는 정렬은 400, 다른 방 열쇠는 401
+        assertEquals(aid, call("GET", "/api/rooms/${host.rid}/artist-songs?name=" + java.net.URLEncoder.encode("태연", "UTF-8") + "&page=1", key = host.key).body!!["artist"]["artistId"].asLong())
+        assertEquals(400, call("GET", "/api/rooms/${host.rid}/artists/$aid/songs?sort=xyz", key = host.key).status)
+        assertEquals(404, call("GET", "/api/rooms/${host.rid}/artists/99999999/songs", key = host.key).status)
     }
 }

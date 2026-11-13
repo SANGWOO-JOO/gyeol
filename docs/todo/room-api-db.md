@@ -249,3 +249,15 @@
   - "다비치": 카드 DAVICHI(별칭 다비치·Davichi), 10곡 모두 DAVICHI 표기
   - "너의 모든 순간": 성시경 DB 곡 1줄, "Every Moment of You 너의 모든 순간"(Sung Si Kyung)은 합쳐짐, "- Piano Ver."는 다른 곡으로 남음
 
+### ② 가수 화면 인기순
+- `GET /api/rooms/{rid}/artists/{artistId}/songs?sort=popular&page=N`(우리 가수), `GET /api/rooms/{rid}/artist-songs?name=&page=N`(카드 `artistId: null`인 가수, 이름이 우리 가수 한 명과 맞으면 그 가수로).
+- 응답 `{artist:{artistId,name,aliases}, sort, page, pageSize:20, hasMore, items:[{item:TrackItem, mine, sameSong:[닉네임], rank, releaseDate}], scan}`. 20곡씩, 최대 5쪽(100곡, A6). 정렬값이 틀리면 400, 없는 가수 404.
+- `api/room/ArtistSongsService`: Last.fm 이름 후보(대표 표기 + 한글 별칭 하나 + 로마자 별칭 하나, 정규화가 다른 것만 최대 3개, A2)마다 50곡씩 2쪽을 받는다. 같은 곡(제목 표기·MBID)은 재생 수를 더해 한 줄로 합치고 재생 수 순으로 정렬한다. 우리 곡과 맞추는 순서는 MBID → 식별 캐시 → 같은 가수 곡의 제목 표기. 합친 목록은 10분 메모리 캐시라 쪽을 넘길 때는 Last.fm을 다시 부르지 않는다.
+- fetcher `/internal/lastfm/top-tracks`: `page`(1~20), `limit` 최대 50, 항목에 `mbid`·`playcount`·`listeners`, 응답에 `total`. 추천(worker)의 기존 호출은 그대로 동작.
+- 테스트: `RoomApiIntegrationTest` I-30 ② 1개(가짜 Last.fm: 한글·영문 페이지 합치기, 재생 수 합산 순서, 20+12곡 두 쪽, 우리 곡 맞춤, 친구·담음, 이름으로, 400·404).
+- 로컬 실제 Last.fm(DAVICHI, artistId 2): 이름 2개(DAVICHI·다비치)에서 142곡 → 100곡, 우리 곡 18개 맞춤. 첫 쪽 1.9초(Last.fm 4번), 다음 쪽 20ms(캐시).
+- 남는 한계: 영문 제목만 있는 곡(예: "This love")은 같은 노래의 한글 제목과 근거가 없으면 합치지 않는다(A3).
+
+### ④ 지도 행성 → 가수 화면
+- 백엔드 변경 없음: 행성 자세히(`GET /api/rooms/{rid}/artists/{artistId}`)와 가수 화면이 같은 `artistId`를 쓴다. 웹에서 연결만 하면 된다.
+

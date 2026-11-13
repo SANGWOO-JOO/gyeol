@@ -70,14 +70,28 @@ class SearchController(
         return mapOf("items" to items)
     }
 
-    /** L3-4 추천 후보: 가수의 인기곡 (artist.getTopTracks), 순위 순 */
+    /**
+     * 가수의 인기곡 (artist.getTopTracks), 순위 순. L3-4 추천 후보와 I-30 가수 화면(인기순)이 쓴다.
+     * page는 1부터. 응답의 total은 Last.fm이 아는 전체 곡 수(없으면 0)
+     */
     @GetMapping("/internal/lastfm/top-tracks")
-    fun topTracks(@RequestParam artist: String, @RequestParam(defaultValue = "3") limit: Int): Map<String, Any> {
-        require(limit in 1..20) { "limit은 1~20이어야 합니다" }
-        val items = lastFm.info("artist.getTopTracks", mapOf("artist" to artist, "limit" to limit.toString()))
-            ?.path("toptracks")?.path("track")?.toList().orEmpty()
-            .mapNotNull { t -> t.path("name").asString("").ifEmpty { null }?.let { mapOf("title" to it, "artist" to t.path("artist").path("name").asString(artist)) } }
-        return mapOf("items" to items)
+    fun topTracks(
+        @RequestParam artist: String, @RequestParam(defaultValue = "3") limit: Int, @RequestParam(defaultValue = "1") page: Int,
+    ): Map<String, Any> {
+        require(limit in 1..50) { "limit은 1~50이어야 합니다" }
+        require(page in 1..20) { "page는 1~20이어야 합니다" }
+        val top = lastFm.info("artist.getTopTracks", mapOf("artist" to artist, "limit" to limit.toString(), "page" to page.toString()))?.path("toptracks")
+        val items = top?.path("track")?.toList().orEmpty().mapNotNull { t ->
+            t.path("name").asString("").ifEmpty { null }?.let {
+                mapOf(
+                    "title" to it, "artist" to t.path("artist").path("name").asString(artist),
+                    "mbid" to t.path("mbid").asString("").ifEmpty { null },
+                    "playcount" to t.path("playcount").asString("").toLongOrNull(),
+                    "listeners" to t.path("listeners").asString("").toLongOrNull(),
+                )
+            }
+        }
+        return mapOf("items" to items, "total" to (top?.path("@attr")?.path("total")?.asString("")?.toLongOrNull() ?: 0L))
     }
 
     private fun validate(q: String, limit: Int): Pair<String, Int> {
