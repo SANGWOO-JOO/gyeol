@@ -238,7 +238,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
         )}
 
         {tab === 'map' && (map
-          ? <GalaxyView map={map} meId={me?.member.id ?? -1} onAddFirst={() => setTab('search')} onSelectArtist={id => setSheet({ kind: 'artist', id })} />
+          ? <GalaxyView map={map} roomId={roomId} meId={me?.member.id ?? -1} onAddFirst={() => setTab('search')} onSelectArtist={id => setSheet({ kind: 'artist', id })} />
           : <p className={sh.center} role="status">우주를 불러오는 중…</p>)}
 
         {tab === 'search' && (

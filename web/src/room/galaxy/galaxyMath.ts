@@ -1,0 +1,93 @@
+// 은하 지도 좌표 계산 (room-web.md 9단계). 공용 지도 좌표 0~1을 세계 좌표 0~WORLD로 펴고,
+// 화면 = 세계 × scale + (tx, ty). 확대·이동은 이 세 값만 바꾼다.
+
+export const WORLD = 1000
+export const MIN_SCALE = 0.15
+export const MAX_SCALE = 6
+
+export interface View { scale: number; tx: number; ty: number }
+export interface Size { width: number; height: number }
+export interface Pt { x: number; y: number }
+
+export const toWorld = (v: number) => v * WORLD
+
+/** 행성 반지름(세계 단위): 노래가 많을수록 조금 크게 */
+export function planetRadius(songs: number): number {
+  return 12 + 4 * Math.sqrt(Math.max(1, songs))
+}
+
+export const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s))
+
+/** 점들이 모두 보이게 (⑤ 처음 위치: 방의 행성이 모두 보이게 확대). pad는 화면 픽셀 여백 */
+export function fitView(points: (Pt & { r?: number })[], size: Size, pad = 56): View {
+  if (points.length === 0 || size.width <= 0 || size.height <= 0) {
+    const s = clampScale(Math.min(size.width, size.height) / WORLD || 1)
+    return { scale: s, tx: (size.width - WORLD * s) / 2, ty: (size.height - WORLD * s) / 2 }
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const p of points) {
+    const r = p.r ?? 0
+    minX = Math.min(minX, p.x - r); maxX = Math.max(maxX, p.x + r)
+    minY = Math.min(minY, p.y - r); maxY = Math.max(maxY, p.y + r)
+  }
+  // 행성 하나뿐이면 너무 크게 확대하지 않도록 최소 크기
+  const w = Math.max(maxX - minX, 160), h = Math.max(maxY - minY, 160)
+  const scale = clampScale(Math.min((size.width - pad * 2) / w, (size.height - pad * 2) / h, 2.4))
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
+  return { scale, tx: size.width / 2 - cx * scale, ty: size.height / 2 - cy * scale }
+}
+
+/** 화면 점 (sx, sy)을 고정한 채 배율을 factor만큼 바꾼다 (휠·두 손가락) */
+export function zoomAt(v: View, sx: number, sy: number, factor: number): View {
+  const scale = clampScale(v.scale * factor)
+  const k = scale / v.scale
+  return { scale, tx: sx - (sx - v.tx) * k, ty: sy - (sy - v.ty) * k }
+}
+
+export const pan = (v: View, dx: number, dy: number): View => ({ ...v, tx: v.tx + dx, ty: v.ty + dy })
+
+/** 확대 단계: far(멀리, 궤도 없이 숫자) · mid(궤도) · near(위성 자세히). 이 값이 바뀔 때만 다시 그린다 */
+export type ZoomLevel = 'far' | 'mid' | 'near'
+export function zoomLevel(scale: number): ZoomLevel {
+  // 크기가 화면 기준이라 경계는 낮게: 휴대폰에서 방 전체를 맞추면 보통 0.3 근처
+  return scale < 0.22 ? 'far' : scale < 1.2 ? 'mid' : 'near'
+}
+
+/**
+ * 화면에서 읽을 수 있는 크기: 배율이 바뀌어도 행성·글자가 너무 작거나 커지지 않게 (멈춘 뒤 배율 기준).
+ * 행성 화면 반지름은 노래 수에 따라 7~20px 근처, 확대할수록 조금 커진다.
+ */
+export function screenPlanetRadius(songs: number, scale: number): number {
+  const zoomBoost = Math.sqrt(Math.min(2.2, Math.max(0.6, scale)))
+  return (7 + 2.6 * Math.sqrt(Math.max(1, songs))) * zoomBoost
+}
+
+/**
+ * 이름 겹침 피하기: 노래가 많은 행성부터 이름 상자를 놓고, 이미 놓인 상자와 겹치면 그 이름은 숨긴다.
+ * 입력은 화면 좌표. 돌려주는 값은 이름을 보여 줄 id 집합.
+ */
+export interface Box { x0: number; y0: number; x1: number; y1: number }
+export function visibleLabels(items: { id: number; sx: number; sy: number; r: number; w: number; weight: number }[], h = 14, obstacles: Box[] = []): Set<number> {
+  const placed: Box[] = [...obstacles]
+  const out = new Set<number>()
+  for (const it of [...items].sort((a, b) => b.weight - a.weight)) {
+    const box = { x0: it.sx - it.w / 2, x1: it.sx + it.w / 2, y0: it.sy + it.r + 2, y1: it.sy + it.r + 2 + h }
+    if (placed.some(p => box.x0 < p.x1 && box.x1 > p.x0 && box.y0 < p.y1 && box.y1 > p.y0)) continue
+    placed.push(box)
+    out.add(it.id)
+  }
+  return out
+}
+
+/** 이름 상자 (visibleLabels와 같은 자리): 다른 이름 계산의 장애물로 쓴다 */
+export function labelBox(it: { sx: number; sy: number; r: number; w: number }, h = 14): Box {
+  return { x0: it.sx - it.w / 2, x1: it.sx + it.w / 2, y0: it.sy + it.r + 2, y1: it.sy + it.r + 2 + h }
+}
+
+/** 별 배경: 방마다 같은 무늬가 나오게 시드로 만든 점 */
+export function stars(seed: string, count = 140): { x: number; y: number; r: number; o: number }[] {
+  let h = 2166136261
+  for (const c of seed) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) }
+  const rand = () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000 }
+  return Array.from({ length: count }, () => ({ x: rand() * WORLD * 1.4 - WORLD * 0.2, y: rand() * WORLD * 1.4 - WORLD * 0.2, r: 0.6 + rand() * 1.6, o: 0.25 + rand() * 0.55 }))
+}

@@ -1,26 +1,39 @@
+import { useState } from 'react'
 import type { MemberView, Planet, RoomMap } from '../roomApi'
 import { memberColor } from '../roomApi'
 import { groupByGalaxy, planetPeople } from '../roomLogic'
+import { GalaxyMap } from './GalaxyMap'
 import g from './galaxy.module.css'
 
 /**
- * 지도 자리 (room-web.md Q1). 9단계에서 같은 props로 SVG 은하 지도(행성·궤도·위성)로 바꾼다.
- * 지금은 임시 판: 구역(은하)별로 가수를 묶고, 담은 사람 색 점과 같이 담은 노래(금빛 숫자)를 보여 준다.
+ * 지도 자리 (room-web.md Q1·9단계). 기본은 SVG 은하 지도(GalaxyMap), "목록으로 보기"를 누르면
+ * 구역별 가수 목록(화면 읽기 프로그램·키보드로 훑기 쉬운 대체 화면).
  */
 export interface GalaxyViewProps {
   map: RoomMap
+  roomId: string
   meId: number
   onSelectArtist?: (artistId: number) => void
   onAddFirst?: () => void
 }
 
-export function GalaxyView({ map, meId, onSelectArtist, onAddFirst }: GalaxyViewProps) {
+export function GalaxyView({ map, roomId, meId, onSelectArtist, onAddFirst }: GalaxyViewProps) {
+  const [asList, setAsList] = useState(false)
   if (map.planets.length === 0) return <EmptyGalaxy onAddFirst={onAddFirst} />
+  const toggle = <button type="button" className={g.viewToggle} onClick={() => setAsList(v => !v)}>{asList ? '지도로 보기' : '목록으로 보기'}</button>
+  if (!asList) {
+    return (
+      <section aria-label="우리 음악 은하" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {toggle}
+        <GalaxyMap map={map} meId={meId} roomId={roomId} onSelectArtist={onSelectArtist} />
+      </section>
+    )
+  }
 
   const members = new Map(map.members.map(m => [m.id, m]))
   return (
     <section className={g.board} aria-label="우리 우주의 가수 목록 (임시 지도)">
-      <p className={g.note}>지도 그림은 준비 중이에요. 지금은 구역별 목록으로 보여 드려요.</p>
+      {toggle}
       {groupByGalaxy(map).map(group => (
         <div key={group.id ?? 'none'} className={g.group}>
           <h2 className={g.galaxy}>{group.name}</h2>

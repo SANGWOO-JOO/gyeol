@@ -28,3 +28,31 @@
 
 @keyframes pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .preparing { animation: none; } }
+
+/* 9단계: SVG 은하 지도 */
+.mapWrap { position: relative; margin: 0 -16px; height: calc(100dvh - 200px - env(safe-area-inset-bottom)); min-height: 360px; }
+.map { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; background: var(--r-bg); }
+.map:active { cursor: grabbing; }
+.map svg { display: block; }
+.galaxyNames text { fill: #5e5794; font-family: var(--r-font-title); font-weight: 700; pointer-events: none; }
+.planetNode { cursor: pointer; outline: none; }
+.planetHit { fill: transparent; }
+.planetBody { transition: stroke .2s; }
+.planetNode:hover .planetBody, .planetNode:focus-visible .planetBody { stroke: var(--r-accent-strong); stroke-width: 3; }
+.planetNode:focus-visible .planetHit { stroke: var(--r-accent-strong); stroke-width: 2; stroke-dasharray: 4 4; }
+.planetInitial { fill: var(--r-text); font-weight: 700; pointer-events: none; }
+.planetCount { fill: var(--r-text); font-weight: 700; pointer-events: none; }
+.planetName { fill: var(--r-silver); pointer-events: none; }
+.preparingNode .planetBody { stroke: var(--r-peach) !important; stroke-dasharray: 3 4; animation: pulse 2.4s ease-in-out infinite; }
+.preparingNode .planetInitial, .preparingNode .planetName { fill: var(--r-peach); }
+.ghost { cursor: pointer; outline: none; opacity: .55; }
+.ghost circle { fill: none; stroke: var(--r-peach); stroke-width: 1.2; stroke-dasharray: 3 4; }
+.ghost .ghostHit { fill: transparent; stroke: none; }
+.ghost text { fill: var(--r-peach); pointer-events: none; }
+.ghost:hover, .ghost:focus-visible { opacity: .95; }
+.controls { position: absolute; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
+.ctrl { width: 44px; height: 44px; border: 1px solid var(--r-chip); border-radius: 50%; background: #1a1730; color: var(--r-silver); font: inherit; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.ctrl:hover { background: var(--r-chip); }
+.ctrl:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+.viewToggle { align-self: flex-end; min-height: 32px; padding: 0 12px; border: 1px solid var(--r-border); border-radius: 999px; background: none; color: var(--r-text-2); font: inherit; font-size: 12px; cursor: pointer; }
+.viewToggle:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
