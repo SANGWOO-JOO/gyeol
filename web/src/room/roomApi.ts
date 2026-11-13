@@ -6,7 +6,8 @@ export type RoomStatus = 'ACTIVE' | 'CLOSED' | 'HIDDEN'
 
 export interface MemberView { id: number; nickname: string; role: Role; colorIdx: number; avatarCharacterId?: number | null }
 export interface RoomSummary { roomId: string; name: string; status: RoomStatus; capacity: number; members: MemberView[] }
-export interface DraftResponse { draftToken: string; email: string; expiresAt: string; resendAfter: string }
+/** expiresAt: 초안(1시간) 만료 · codeExpiresAt: 지금 코드(10분) 만료 (서버 4552764부터) */
+export interface DraftResponse { draftToken: string; email: string; expiresAt: string; resendAfter: string; codeExpiresAt?: string | null }
 export interface JoinedResponse { roomId: string; key: string; member: MemberView }
 
 /** ④ 선물 요약 (6단계에서 씀) */

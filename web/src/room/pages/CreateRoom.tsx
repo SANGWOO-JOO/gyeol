@@ -152,9 +152,10 @@ function VerifyStep({ saved, onResent, onRestart }: { saved: SavedDraft; onResen
   const [info, setInfo] = useState<string | null>(null)
 
   const { draft } = saved
-  // 응답의 expiresAt은 초안(1시간) 만료라 코드 만료(10분)가 아니다. 코드 만료 시각이 응답에 없어
-  // 보낸 시각(= 다시 받기 가능 시각 − 1분)에 10분을 더해 계산한다 (서버 설정 codeTtl·codeResendAfter 기본값 기준)
-  const codeExpiresAt = Math.min(Date.parse(draft.resendAfter) - RESEND_AFTER_MS + CODE_TTL_MS, Date.parse(draft.expiresAt))
+  // 코드 만료는 응답의 codeExpiresAt. 옛 응답(필드 없음)이면 보낸 시각(= 다시 받기 가능 시각 − 1분) + 10분으로 계산
+  const codeExpiresAt = draft.codeExpiresAt
+    ? Date.parse(draft.codeExpiresAt)
+    : Math.min(Date.parse(draft.resendAfter) - RESEND_AFTER_MS + CODE_TTL_MS, Date.parse(draft.expiresAt))
   const left = (codeExpiresAt - now) / 1000
   const resendIn = (Date.parse(draft.resendAfter) - now) / 1000
   const expired = left <= 0
