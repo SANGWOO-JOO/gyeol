@@ -67,7 +67,7 @@
 | 4-k | 새 캐릭터 받기 · 바꿀까요 | Gift-pick / -pc | `GET …/gifts/{id}`, `PUT …/me/avatar` | A1 (④) |
 | 4-l | 선물 표시 (탭 배지·내 노래 줄) | Gift-states / -pc | `GET …/me` | A1 (④) |
 | 8-a | 놀이터 · 코드 맞추기 고르기 | Play-home / -pc | `POST …/code-match` | A2 (⑤) |
-| 8-b | 코드 맞추기 결과 | Play-code / -pc | `GET …/code-match` | A2 (⑤) |
+| 8-b | 코드 맞추기 결과 | Play-code / -pc | `GET …/code-match` | A2 (⑤) · **표시 규칙(11-13 결정 "라"):** 둘 중 적은 쪽 곡 수가 5~9곡(신뢰도 LOW)이면 % 점수를 보여 주지 않고 겹친 것(같은 가수 수·같은 구역 수·같은 노래)과 이유 문장만, "각자 10곡을 넘기면 코드 점수가 나와요" 안내. 10곡부터 % 점수. 근거: 5곡은 실제보다 평균 약 35점, 10곡은 약 20점 낮게 나옴(`room-api-db.md` 11절 측정) |
 | 7-a~7-c | 관리자 로그인·목록·상세 (PC) | Admin-login·list·detail | `/admin/…` | ⑥ |
 | CI | 로고·색 | CI | — | 참고 자료 |
 | — | 캔버스의 Artboard 1 | Artboard-acdw | — | 제외 (빈 판으로 보임) |
