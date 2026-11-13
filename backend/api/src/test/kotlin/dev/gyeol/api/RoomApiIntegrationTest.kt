@@ -160,6 +160,10 @@ class RoomApiIntegrationTest {
         assertEquals(201, draft.status)
         assertEquals("m***@example.com", draft.body!!["email"].asString(), "응답에는 가린 주소만")
         val token = draft.body["draftToken"].asString()
+        // 코드 만료(10분)와 초안 만료(1시간)는 따로
+        fun minutesLeft(v: JsonNode, field: String) = java.time.Duration.between(java.time.Instant.now(), java.time.Instant.parse(v[field].asString())).toMinutes()
+        assertTrue(minutesLeft(draft.body, "codeExpiresAt") in 9..10, draft.body.toString())
+        assertTrue(minutesLeft(draft.body, "expiresAt") in 59..60)
         assertEquals(400, call("POST", "/api/room-drafts", mapOf("name" to "우리 우주", "nickname" to "상우", "pin" to "12a4", "email" to email, "consent" to true)).status)
         assertEquals(400, call("POST", "/api/room-drafts", mapOf("name" to "우리 우주", "nickname" to "상우", "pin" to "1234", "email" to email, "consent" to false)).status)
 
@@ -173,7 +177,9 @@ class RoomApiIntegrationTest {
 
         assertEquals("RESEND_TOO_SOON", call("POST", "/api/room-drafts/$token/resend").body!!["code"].asString())
         jdbc.sql("UPDATE email_code SET last_sent_at = now() - interval '2 minutes'").update()
-        assertEquals(200, call("POST", "/api/room-drafts/$token/resend").status)
+        val resent = call("POST", "/api/room-drafts/$token/resend")
+        assertEquals(200, resent.status)
+        assertTrue(minutesLeft(resent.body!!, "codeExpiresAt") in 9..10, "다시 보내면 새 코드 기준 10분")
         val res = call("POST", "/api/room-drafts/$token/verify", mapOf("code" to mail.outbox[email]!!))
         assertEquals(201, res.status)
         val j = res.joined()

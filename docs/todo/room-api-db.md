@@ -80,7 +80,7 @@
 
 | 영역 | 엔드포인트 | 화면 |
 |---|---|---|
-| 방 만들기 | `POST /room-drafts` → `POST /room-drafts/{id}/verify`(방 생성 + 열쇠) · `POST /room-drafts/{id}/resend` | 2, 3 |
+| 방 만들기 | `POST /room-drafts` → `POST /room-drafts/{id}/verify`(방 생성 + 열쇠) · `POST /room-drafts/{id}/resend`. 만들기·다시 받기 응답: `expiresAt`(초안 1시간), `resendAfter`, `codeExpiresAt`(방금 보낸 코드 10분, 11-13 추가) | 2, 3 |
 | 초대·참가 | `GET /rooms/{rid}`(공개 요약) · `POST /rooms/{rid}/members`(참가) · `POST /rooms/{rid}/session`(나는 OO예요 + 4자리, 잠김 423) · `DELETE /rooms/{rid}/session`(이 기기에서 나가기) | 5, 6-a, 6-g, 6-h |
 | 내 정보 | `GET /rooms/{rid}/me`(닉네임·선물 상태·오늘 담은 수) · `PATCH /rooms/{rid}/me`(닉네임) | 6-h, 4-l |
 | 지도 | `GET /rooms/{rid}/map`(ETag=`map_rev`, 5초 새로고침) · `GET /rooms/{rid}/artists/{id}`(방 안 노래·설명·가까운 가수) | 4, 4′ |

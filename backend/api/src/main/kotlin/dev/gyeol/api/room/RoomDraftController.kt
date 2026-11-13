@@ -23,7 +23,8 @@ import java.time.Duration
 import java.time.Instant
 
 data class CreateDraftRequest(val name: String?, val nickname: String?, val pin: String?, val email: String?, val consent: Boolean?)
-data class DraftResponse(val draftToken: String, val email: String, val expiresAt: Instant, val resendAfter: Instant)
+/** expiresAt: 방 만들기 초안 만료(1시간). codeExpiresAt: 방금 보낸 인증 코드 만료(10분, 화면의 남은 시간) */
+data class DraftResponse(val draftToken: String, val email: String, val expiresAt: Instant, val resendAfter: Instant, val codeExpiresAt: Instant)
 data class VerifyRequest(val code: String?)
 
 /** 참가·다시 들어오기·방 만들기가 돌려주는 열쇠 (localStorage용. 같은 값이 HttpOnly 쿠키로도 간다) */
@@ -68,7 +69,7 @@ class RoomDraftService(
         val now = Instant.now()
         val id = drafts.create(Tokens.hash(token), name, nickname, pins.hash(pin), email, now, now.plus(p.draftTtl))
         val sentAt = sendCode(id, email, ip)
-        return DraftResponse(token, LogMailSender.mask(email), now.plus(p.draftTtl), sentAt.plus(p.codeResendAfter))
+        return DraftResponse(token, LogMailSender.mask(email), now.plus(p.draftTtl), sentAt.plus(p.codeResendAfter), sentAt.plus(p.codeTtl))
     }
 
     @Transactional
@@ -80,7 +81,7 @@ class RoomDraftService(
         }
         checkSendLimits(draft.email, ip)
         val sentAt = sendCode(draft.id, draft.email, ip)
-        return DraftResponse(token, LogMailSender.mask(draft.email), draft.expiresAt, sentAt.plus(p.codeResendAfter))
+        return DraftResponse(token, LogMailSender.mask(draft.email), draft.expiresAt, sentAt.plus(p.codeResendAfter), sentAt.plus(p.codeTtl))
     }
 
     /** 코드가 맞으면 방을 만들고 방장 열쇠를 준다 */
@@ -127,6 +128,7 @@ class RoomDraftService(
         }
     }
 
+    /** 보낸 시각. 코드 만료는 보낸 시각 + codeTtl (응답의 codeExpiresAt과 같다) */
     private fun sendCode(draftId: Long, email: String, ip: String): Instant {
         val code = pins.randomCode()
         val now = Instant.now()
