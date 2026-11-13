@@ -30,7 +30,11 @@ import java.time.LocalDate
 data class GiftBoxView(val id: Long, val milestone: Int, val status: String, val earnedAt: Instant, val readyOn: LocalDate?, val openedAt: Instant?, val characterId: Long?)
 data class CharacterView(val id: Long, val giftBoxId: Long?, val isFallback: Boolean, val createdAt: Instant)
 data class GiftsResponse(val summary: GiftSummary, val boxes: List<GiftBoxView>, val characters: List<CharacterView>, val avatarCharacterId: Long?)
-data class GiftBoxDetail(val box: GiftBoxView, val character: CharacterView?)
+/** 캐릭터를 만든 재료: 구역 이름과 그 구역 노래 수 (가수 이름 없음) */
+data class GenreShare(val galaxy: String, val songs: Int)
+
+/** genreMix: 열린 상자(OPENED)만, 상자를 연 시각까지 담은 노래의 구역 상위 4개 (웹 4-k "시티팝 25곡 · 댄스 팝 15곡") */
+data class GiftBoxDetail(val box: GiftBoxView, val character: CharacterView?, val genreMix: List<GenreShare> = emptyList())
 data class AvatarRequest(val characterId: Long?)
 
 private fun GiftBox.view() = GiftBoxView(id, milestone, status.name, earnedAt, readyOn, openedAt, characterId)
@@ -61,7 +65,10 @@ class GiftService(
 
     fun box(ctx: RoomContext, boxId: Long): GiftBoxDetail {
         val b = myBox(ctx, boxId)
-        return GiftBoxDetail(b.view(), b.characterId?.let(gifts::character)?.view())
+        val mix = if (b.status == dev.gyeol.core.room.GiftStatus.OPENED) {
+            gifts.genreMix(b.memberId, 4, b.openedAt).map { GenreShare(it.first, it.second) }
+        } else emptyList()
+        return GiftBoxDetail(b.view(), b.characterId?.let(gifts::character)?.view(), mix)
     }
 
     /** READY 상자만 연다 → GENERATING, 커밋 뒤 큐 */

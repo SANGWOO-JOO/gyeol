@@ -717,4 +717,40 @@ class RoomApiIntegrationTest {
         val pick = call("GET", "/api/tracks/search?q=Pretty%20Girl").body!!["items"].toList()
         assertEquals(listOf("Clairo"), pick.map { it["artist"].asString() })
     }
+
+    @Test
+    fun `선물 상자 genreMix - 열린 상자만, 연 시각까지 담은 노래의 구역 비율, 가수 이름 없음`() {
+        val host = newRoom()
+        jdbc.sql("UPDATE map_version SET active = false").update()
+        val version = jdbc.sql("INSERT INTO map_version (params, artist_count, active) VALUES ('{}', 2, true) RETURNING id").query(Long::class.java).single()
+        val city = jdbc.sql("INSERT INTO galaxy (map_version, label, name, cx, cy) VALUES (:v, 0, '시티팝', 0.2, 0.2) RETURNING id").param("v", version).query(Long::class.java).single()
+        val dance = jdbc.sql("INSERT INTO galaxy (map_version, label, name, cx, cy) VALUES (:v, 1, '댄스 팝', 0.8, 0.8) RETURNING id").param("v", version).query(Long::class.java).single()
+        fun addIn(galaxy: Long, n: Int, artist: String) {
+            val first = track("$artist 0", artist)
+            maps.savePosition(version, songs.trackArtist(first)!!, 0.5, 0.5, galaxy, "UMAP")
+            assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to first), host.key).status)
+            (1 until n).forEach { i ->
+                // 같은 가수의 다른 곡 (track()은 부를 때마다 새 가수를 만들므로 같은 가수로 맞춘다)
+                val t = track("$artist $i", artist)
+                jdbc.sql("UPDATE track SET artist_id = :a WHERE id = :t").param("a", songs.trackArtist(first)!!).param("t", t).update()
+                assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to t), host.key).status)
+            }
+        }
+        addIn(city, 3, "시티 가수")
+        addIn(dance, 2, "댄스 가수")
+        val boxId = jdbc.sql("INSERT INTO gift_box (member_id, milestone, status, ready_on) VALUES (:m, 50, 'READY', current_date) RETURNING id")
+            .param("m", host.memberId).query(Long::class.java).single()
+        assertTrue(call("GET", "/api/rooms/${host.rid}/me/gifts/$boxId", key = host.key).body!!["genreMix"].isEmpty, "열기 전에는 비어 있다")
+        assertEquals(202, call("POST", "/api/rooms/${host.rid}/me/gifts/$boxId/open", key = host.key).status)
+        gifts.finishOpening(boxId, "preset:1", null, "preset", true)
+        // 연 뒤에 담은 노래는 세지 않는다
+        jdbc.sql("UPDATE room_song SET added_at = now() - interval '2 minutes' WHERE member_id = :m").param("m", host.memberId).update()
+        jdbc.sql("UPDATE gift_box SET opened_at = now() - interval '1 minute' WHERE id = :b").param("b", boxId).update()
+        addIn(dance, 2, "나중 가수")
+
+        val mix = call("GET", "/api/rooms/${host.rid}/me/gifts/$boxId", key = host.key).body!!["genreMix"].toList()
+        assertEquals(listOf("시티팝" to 3, "댄스 팝" to 2), mix.map { it["galaxy"].asString() to it["songs"].asInt() })
+        assertTrue(mix.none { it.toString().contains("가수") }, "가수 이름 없음")
+        jdbc.sql("UPDATE map_version SET active = false WHERE id = :v").param("v", version).update()
+    }
 }

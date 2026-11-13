@@ -167,6 +167,7 @@
 - 테스트: api `RoomApiIntegrationTest` 선물 1개(50곡째 상자·요약·열기·그림 권한·기본 그림·얼굴), worker `GiftIntegrationTest` 4개(50곡·최고 기록·하루 1개·다음 날, S3 저장·중복 메시지, 예산 초과, 실패 큐), `RoomSongIntegrationTest` 식별 경로 50곡째 1개. 전체 api 27·worker 70 통과.
 - 로컬 확인(11-13, fake): 개발 서버에서 50곡 담기 → 상자 READY → 열기 → 1초 안에 OPENED → 그림 200(S3 `characters/…svg`).
 - 아직: 실제 Bedrock 이미지 호출(요청·응답 형식은 문서 기준, 미확인), 웹 화면(갈래 A: 4-j·4-k·4-l).
+- 11-13 추가: `GET /me/gifts/{id}` 응답에 `genreMix`([{galaxy, songs}] 상위 4개, OPENED 상자만). 상자를 연 시각까지 담은 노래로 다시 센다(따로 저장하지 않아, 연 뒤에 뺀 노래·바뀐 지도 판은 반영되지 않는 근사). 가수 이름 없음.
 
 ## 10. ③ 메일 구현 기록 (11-13, 갈래 B)
 

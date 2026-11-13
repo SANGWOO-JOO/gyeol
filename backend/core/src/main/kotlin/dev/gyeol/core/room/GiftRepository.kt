@@ -153,17 +153,21 @@ class GiftRepository(private val jdbc: JdbcClient) {
         jdbc.sql("UPDATE member SET avatar_character_id = :c WHERE id = :m").param("c", characterId).param("m", memberId).update()
 
     /** 이 사람이 담은 노래가 속한 구역 이름과 곡 수 (활성 지도 판, 많은 순). 캐릭터 프롬프트 재료 — 가수 이름은 들어가지 않는다 */
-    fun genreMix(memberId: Long, limit: Int = 5): List<Pair<String, Int>> =
+    /**
+     * [until]을 주면 그 시각까지 담은 노래만 센다 (상자를 연 시각 기준으로 "이 캐릭터를 만든 재료"를 다시 보여 줄 때).
+     * 그 뒤에 뺀 노래·바뀐 지도 판은 반영되지 않는 근사다 (따로 저장하지 않음)
+     */
+    fun genreMix(memberId: Long, limit: Int = 5, until: Instant? = null): List<Pair<String, Int>> =
         jdbc.sql(
             """
             SELECT g.name, count(*) FROM room_song s
             JOIN map_version v ON v.active
             JOIN artist_position p ON p.artist_id = s.artist_id AND p.map_version = v.id
             JOIN galaxy g ON g.id = p.galaxy_id
-            WHERE s.member_id = :m AND g.name IS NOT NULL
+            WHERE s.member_id = :m AND g.name IS NOT NULL AND (CAST(:u AS timestamptz) IS NULL OR s.added_at <= :u)
             GROUP BY g.name ORDER BY 2 DESC, 1 LIMIT :l
             """.trimIndent(),
-        ).param("m", memberId).param("l", limit).query { rs, _ -> rs.getString(1) to rs.getInt(2) }.list()
+        ).param("m", memberId).param("l", limit).param("u", until?.let(Timestamp::from)).query { rs, _ -> rs.getString(1) to rs.getInt(2) }.list()
 
     /** 서비스 전체 오늘(한국 날짜) 이미지 생성 수 (llm_call GIFT_IMAGE) */
     fun imagesToday(today: LocalDate): Int =
