@@ -47,6 +47,9 @@ import kotlin.test.assertTrue
         "gyeol.worker.role=parse",
         "gyeol.worker.parse-dlq=gyeol-test-parse-dlq",
         "gyeol.worker.identify.queue=gyeol-test-identify", // 계획은 큐에 넣기만 한다 (identify 리스너는 꺼짐)
+        // 앱은 없는 큐를 만들지 않는다(queue-not-found-strategy: fail): 리스너가 듣는 큐는 모두 시험 이름으로 만들어 둔다
+        "gyeol.worker.identify.dlq=gyeol-test-identify-dlq",
+        "gyeol.worker.enrich.dlq=gyeol-test-enrich-dlq",
         "gyeol.worker.cleanup.enabled=false",
     ],
 )
@@ -92,6 +95,8 @@ class ParseWorkerIntegrationTest {
         fun infra() {
             s3.createBucket { it.bucket(BUCKET) }
             sqs.createQueue { it.queueName("gyeol-test-identify") }
+            sqs.createQueue { it.queueName("gyeol-test-identify-dlq") }
+            sqs.createQueue { it.queueName("gyeol-test-enrich-dlq") }
             dlqUrl = sqs.createQueue { it.queueName(DLQ) }.queueUrl()
             val dlqArn = sqs.getQueueAttributes { it.queueUrl(dlqUrl).attributeNames(QueueAttributeName.QUEUE_ARN) }.attributes()[QueueAttributeName.QUEUE_ARN]
             queueUrl = sqs.createQueue {

@@ -51,6 +51,8 @@ import kotlin.test.assertNull
         "gyeol.worker.guess.queue=gyeol-test-guess",
         "gyeol.worker.artist-image.queue=gyeol-test-artist-image",
         "gyeol.worker.enrich.queue=gyeol-test-enrich",
+        // 앱은 없는 큐를 만들지 않는다(queue-not-found-strategy: fail): 리스너가 듣는 큐는 모두 시험 이름으로 만들어 둔다
+        "gyeol.worker.enrich.dlq=gyeol-test-enrich-dlq",
         "gyeol.worker.cover.queue=gyeol-test-cover",
         "gyeol.worker.cover.bucket=gyeol-test-covers",
         "gyeol.worker.cleanup.enabled=false",
@@ -143,6 +145,7 @@ class IdentifyIntegrationTest {
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(localstack.accessKey, localstack.secretKey))).build()
                 .createBucket { it.bucket("gyeol-test-covers") }
             enrichUrl = sqs.createQueue { it.queueName("gyeol-test-enrich") }.queueUrl()
+            sqs.createQueue { it.queueName("gyeol-test-enrich-dlq") }
             val dlqUrl = sqs.createQueue { it.queueName("gyeol-test-identify-dlq") }.queueUrl()
             val dlqArn = sqs.getQueueAttributes { it.queueUrl(dlqUrl).attributeNames(QueueAttributeName.QUEUE_ARN) }.attributes()[QueueAttributeName.QUEUE_ARN]
             sqs.createQueue {

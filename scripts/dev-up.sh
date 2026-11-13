@@ -15,7 +15,8 @@ if ! docker info >/dev/null 2>&1; then
   echo "Docker Desktop 시작 중…"; open -a Docker
   for _ in $(seq 1 60); do docker info >/dev/null 2>&1 && break; sleep 2; done
 fi
-docker compose -f local/compose.yaml up -d
+# --wait: DB·LocalStack이 healthy가 될 때까지 기다린다. 앱은 없는 큐를 만들지 않으므로(queue-not-found-strategy: fail) 큐가 먼저 있어야 한다
+docker compose -f local/compose.yaml up -d --wait
 
 # 2) 빌드 (테스트는 건너뜀, SKIP_BUILD=1이면 생략)
 [ "${SKIP_BUILD:-0}" = 1 ] || ./gradlew -q build -x test

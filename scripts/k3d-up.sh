@@ -11,7 +11,8 @@ export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 21 2>/dev/null)}"
 t0=$(date +%s); lap() { echo "  ($(( $(date +%s) - t0 ))초)"; }
 
 docker info >/dev/null 2>&1 || { echo "Docker가 꺼져 있습니다. scripts/dev-up.sh 또는 Docker Desktop을 먼저 켜세요."; exit 1; }
-docker compose -f local/compose.yaml up -d >/dev/null
+# --wait: LocalStack 초기화(버킷·큐)가 끝난 뒤 파드를 올린다. 앱은 없는 큐를 만들지 않는다(I-1)
+docker compose -f local/compose.yaml up -d --wait >/dev/null
 
 echo "1) 빌드"
 if [ "${SKIP_BUILD:-0}" != 1 ]; then
