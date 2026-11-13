@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GROW_MAX, orbitSpin, zoomGrow, clampScale, screenSpacing, fitView, MAX_SCALE, MIN_SCALE, pan, planetRadius, screenPlanetRadius, stars, visibleLabels, zoomAt, zoomLevel } from './galaxyMath'
+import { GROW_MAX, orbitSpin, zoomAnchor, zoomGrow, clampScale, screenSpacing, fitView, MAX_SCALE, MIN_SCALE, pan, planetRadius, screenPlanetRadius, stars, visibleLabels, zoomAt, zoomLevel } from './galaxyMath'
 
 const size = { width: 390, height: 600 }
 
@@ -125,5 +125,17 @@ describe('I-38 공전', () => {
     const rev = all.filter(x => x.reverse).length
     expect(rev).toBeGreaterThan(30)
     expect(rev).toBeLessThan(270)
+  })
+})
+
+describe('I-43 +/− 기준점', () => {
+  const size = { width: 400, height: 300 }
+  it('화면 안 행성 중 가운데에 가장 가까운 것', () => {
+    expect(zoomAnchor([{ x: 20, y: 20 }, { x: 210, y: 140 }, { x: 390, y: 290 }], size)).toEqual({ x: 210, y: 140 })
+  })
+  it('화면 밖 행성은 빼고, 하나도 없으면 화면 가운데', () => {
+    expect(zoomAnchor([{ x: -50, y: 150 }, { x: 380, y: 10 }], size)).toEqual({ x: 380, y: 10 })
+    expect(zoomAnchor([{ x: -50, y: 150 }, { x: 900, y: 10 }], size)).toEqual({ x: 200, y: 150 })
+    expect(zoomAnchor([], size)).toEqual({ x: 200, y: 150 })
   })
 })

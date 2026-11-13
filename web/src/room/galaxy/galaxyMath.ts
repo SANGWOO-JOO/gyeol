@@ -40,6 +40,18 @@ export function fitView(points: (Pt & { r?: number })[], size: Size, padFrac = 0
   return { scale, tx: size.width / 2 - cx * scale, ty: size.height / 2 - cy * scale }
 }
 
+/** +/− 버튼의 고정점: 화면 안 행성 중 가운데에 가장 가까운 것, 화면 안에 없으면 화면 가운데 (I-43 ②) */
+export function zoomAnchor(screenPts: Pt[], size: Size): Pt {
+  const c = { x: size.width / 2, y: size.height / 2 }
+  let best: Pt | null = null, bd = Infinity
+  for (const p of screenPts) {
+    if (p.x < 0 || p.x > size.width || p.y < 0 || p.y > size.height) continue
+    const d = (p.x - c.x) ** 2 + (p.y - c.y) ** 2
+    if (d < bd) { bd = d; best = p }
+  }
+  return best ?? c
+}
+
 /** 화면 점 (sx, sy)을 고정한 채 배율을 factor만큼 바꾼다 (휠·두 손가락) */
 export function zoomAt(v: View, sx: number, sy: number, factor: number): View {
   const scale = clampScale(v.scale * factor)
@@ -97,6 +109,10 @@ export function orbitSpin(artistId: number, ring: number): { seconds: number; re
   return { seconds: 30 + (h % 31), reverse: ((h >>> 5) + ring) % 3 === 0 }
 }
 
+/**
+ * 행성 화면 반지름. scale 자리에는 "크기 기준 배율"을 넣는다: 확대 쪽 커짐은 zoomGrow가 맡으므로(I-43 ④)
+ * 지도는 min(지금 배율, 처음 맞춘 배율)을 넘긴다 → 처음 맞춤보다 확대해도 여기서는 더 커지지 않는다.
+ */
 export function screenPlanetRadius(songs: number, scale: number): number {
   const zoomBoost = Math.sqrt(Math.min(2.2, Math.max(0.6, scale)))
   // 지름 14px 이상

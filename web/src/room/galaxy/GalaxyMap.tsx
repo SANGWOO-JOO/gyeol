@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { MemberView, RoomMap } from '../roomApi'
 import { memberColor } from '../roomApi'
 import { planetPeople } from '../roomLogic'
-import { fitView, GALAXY_PX, orbitSpin, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type View } from './galaxyMath'
+import { fitView, GALAXY_PX, orbitSpin, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type View } from './galaxyMath'
 import { NO_FRESH, songKey, type Fresh } from './fresh'
 import { orbitLayout, ringRadius, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
@@ -93,6 +93,16 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
   }, [size, planets.length, fit])
   const refit = () => { touched.current = false; fit() }
 
+  // 다시 그려질 때(개발 중 화면 갱신·탭 복귀 등) 보던 시점에 행성이 하나도 안 보이면 처음 맞춤으로 (I-43 ①)
+  useEffect(() => {
+    if (!ready || size.width === 0 || planets.length === 0) return
+    const v = viewRef.current
+    const any = planets.some(p => { const x = p.wx * v.scale + v.tx, y = p.wy * v.scale + v.ty; return x >= 0 && x <= size.width && y >= 0 && y <= size.height })
+    if (!any) refit()
+    // 처음 그려질 때와 크기·행성이 바뀔 때만 본다 (사용자가 빈 곳으로 옮긴 건 그대로 둔다)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, size, planets.length])
+
   // ── 손가락·마우스 (라이브러리 없이 포인터 이벤트) ──
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const gesture = useRef<{ moved: number; downTarget: EventTarget | null; pinch: number | null }>({ moved: 0, downTarget: null, pinch: null })
@@ -160,7 +170,13 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
     return () => el.removeEventListener('wheel', onWheel)
   }, [apply, holdSpin])
 
-  const zoomBy = (f: number) => { touched.current = true; apply(zoomAt(viewRef.current, size.width / 2, size.height / 2, f), true) }
+  // +/− 버튼: 화면 가운데에 가장 가까운 행성을 기준으로 (가운데 기준이면 멀리 떨어진 행성들이 모두 밖으로 나간다, I-43 ②)
+  const zoomBy = (f: number) => {
+    touched.current = true
+    const v = viewRef.current
+    const a = zoomAnchor(planets.map(p => ({ x: p.wx * v.scale + v.tx, y: p.wy * v.scale + v.ty })), size)
+    apply(zoomAt(v, a.x, a.y, f), true)
+  }
   /** 행성은 자세히 판, 유령(근처 가수)은 가수 화면 */
   function select(id: number) {
     const ghost = onSelectGhost ? ghosts.find(x => x.artistId === id) : undefined
@@ -175,10 +191,12 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
   const grow = zoomGrow(s, fitScale) // 확대 체감: 처음 맞춤보다 확대하면 1 → GROW_MAX
   const galaxyGrow = Math.min(1.3, grow) // 구역 이름은 덜 커지게
   const nameGrow = Math.min(1.4, grow) // 행성 이름도 행성보다 덜
-  const ghostR = screenPlanetRadius(1, s) * grow // 근처 가수: 노래 1곡 행성 크기
+  const ghostR = screenPlanetRadius(1, fitScale > 0 ? Math.min(s, fitScale) : s) * grow // 근처 가수: 노래 1곡 행성 크기
   const spacing = useMemo(() => screenSpacing(planets.map(p => ({ x: p.wx, y: p.wy })), settled, size), [planets, settled, size])
   const level = zoomLevel(s, spacing)
-  const radius = useMemo(() => new Map(planets.map(p => [p.artistId, screenPlanetRadius(p.songs.length, s) * grow])), [planets, s, grow])
+  // 크기 기준 배율: 축소하면 작아지고(예전처럼), 확대 쪽 커짐은 grow 하나만 (둘을 곱하면 상한 1.7배를 넘는다, I-43 ④)
+  const sizeScale = fitScale > 0 ? Math.min(s, fitScale) : s
+  const radius = useMemo(() => new Map(planets.map(p => [p.artistId, screenPlanetRadius(p.songs.length, sizeScale) * grow])), [planets, sizeScale, grow])
   // 궤도까지 포함한 바깥 반지름(px): 멀리서는 궤도를 그리지 않으므로 행성만
   const outer = useMemo(() => new Map(planets.map(p => {
     const r = radius.get(p.artistId)!

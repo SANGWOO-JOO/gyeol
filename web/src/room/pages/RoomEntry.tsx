@@ -20,10 +20,15 @@ type View =
   | { kind: 'hostReset' }
   | { kind: 'blocked'; reason: 'full' | 'closed' }
 
+const AUTO_RETRIES = 2
+const AUTO_RETRY_MS = 3000
+
 export function RoomEntry() {
   const { rid = '' } = useParams()
   const [summary, setSummary] = useState<RoomSummary | null>(null)
   const [loadError, setLoadError] = useState<'gone' | 'network' | null>(null)
+  // 네트워크 실패면 몇 초 뒤 저절로 두 번까지 다시 (서버 재시작 등). 그 뒤엔 [다시 시도] (I-43 ③)
+  const [attempt, setAttempt] = useState(0)
   const [hasKey, setHasKey] = useState(() => keyStore.get(rid) !== null)
   // 참가·나가기 뒤 사람 목록이 바뀌므로 다시 불러온다
   const [version, setVersion] = useState(0)
@@ -39,14 +44,20 @@ export function RoomEntry() {
         setLoadError(err instanceof RoomApiError && err.status === 404 ? 'gone' : 'network')
       })
     return () => ac.abort()
-  }, [rid, version])
+  }, [rid, version, attempt])
+  useEffect(() => {
+    if (loadError !== 'network' || attempt >= AUTO_RETRIES) return
+    const t = setTimeout(() => setAttempt(n => n + 1), AUTO_RETRY_MS * (attempt + 1))
+    return () => clearTimeout(t)
+  }, [loadError, attempt])
 
   if (loadError === 'gone') return <Blocked reason="gone" />
   if (loadError === 'network') {
     return (
       <RoomPage label="우주">
         <header className={s.top}><Link to="/" aria-label="첫 화면"><Wordmark size={22} /></Link></header>
-        <p className={s.error} role="alert">우주를 불러오지 못했어요. 잠시 뒤 다시 열어 주세요.</p>
+        <p className={s.error} role="alert">우주를 불러오지 못했어요. {attempt < AUTO_RETRIES ? '잠시 뒤 다시 불러올게요.' : '서버가 잠시 바쁠 수 있어요.'}</p>
+        <button type="button" className={s.secondary} style={{ alignSelf: 'center', minWidth: 160 }} onClick={() => setAttempt(n => n + 1)}>다시 시도</button>
       </RoomPage>
     )
   }
