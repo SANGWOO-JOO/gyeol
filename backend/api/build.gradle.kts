@@ -11,6 +11,7 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("io.awspring.cloud:spring-cloud-aws-starter-s3")
     implementation("io.awspring.cloud:spring-cloud-aws-starter-sqs") // 고른 곡 식별 요청 (L2-2)
+    implementation("org.springframework.security:spring-security-crypto") // 음악 방 4자리 암호·메일 코드 BCrypt (Spring Security 전체는 넣지 않음)
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")

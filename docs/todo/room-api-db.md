@@ -1,0 +1,155 @@
+# 음악 방 API·DB 설계 (2026-11-13)
+
+상태: 설계 승인(11-13), 구현 전. 기획은 `room-plan.md`, 화면은 프로토타입 캔버스(보드 번호를 그대로 씀).
+
+## 0. 전제
+
+- 방은 기존 `session`(토큰 링크·30일 보관)을 쓰지 않고 새 테이블로 만든다. 영구 보관·여러 참가자라 수명과 권한이 다르다.
+- 재사용: `artist`·`track`, 곡 검색(DB 먼저 + Last.fm), identify·enrich 큐, `knowledge_chunk`, e5 임베딩, 표지·가수 이미지, `llm_call`(비용 기록).
+- 마이그레이션은 영역별로 V21~V26.
+
+## 1. DB
+
+### V21 방·참가자·인증
+
+| 테이블 | 주요 열 | 메모 |
+|---|---|---|
+| `room` | `public_id`(링크용 무작위 10자), `name`, `status`(ACTIVE·CLOSED·HIDDEN), `map_rev`, `hidden_at`, `purge_at`, `created_at`, `last_active_at` | `map_rev`는 지도가 바뀔 때마다 +1 → 지도 새로고침에 ETag로 써서 바뀐 게 없으면 304 |
+| `room_host_email` | `room_id`(PK), `email`, `consent_at` | 방 완전 삭제 때 함께 삭제. 관리자 화면은 일부 가림 |
+| `member` | `room_id`, `nickname`, `role`(HOST·MEMBER), `color_idx`(0~4), `pin_hash`(BCrypt), `fail_count`, `locked_until`, `avatar_character_id`, `removed_at` | 방 안 닉네임 중복 금지(대소문자 무시, 내보낸 사람 제외 부분 유니크 인덱스). 5명 제한은 `room` 행 잠금 후 셈 |
+| `member_key` | `key_hash`(SHA-256, PK), `member_id`, `created_at`, `last_seen_at`, `revoked_at` | 기기 열쇠. 원문은 쿠키·localStorage에만 |
+| `room_draft` | 방 이름·닉네임·`pin_hash`·이메일, `expires_at`(1시간) | "방 만들기 → 메일 코드 → 방 생성" 순서라 인증 전 내용을 잠시 보관 |
+| `email_code` | `purpose`(CREATE·HOST_RESET), 대상(draft 또는 room), `code_hash`, `expires_at`(10분), `attempts`(5회), `last_sent_at`(다시 받기 1분) | 방장 인증·재설정 공용 |
+| `mail_send_log` | `email_hash`, `ip`, `sent_at` | 이메일별·IP별 발송 제한 |
+| `audit_log` | `actor_type`(ADMIN·HOST·SYSTEM), `actor_id`, `room_id`, `action`, `target_member_id`, `detail`(JSON), `created_at` | 관리자 상세(7-c)의 기록 |
+
+### V22 노래 담기
+
+| 테이블 | 주요 열 | 메모 |
+|---|---|---|
+| `room_song` | `room_id`, `member_id`, `track_id`, `artist_id`(중복 저장), `added_at` | UNIQUE(room_id, member_id, track_id). 금빛 숫자 = 같은 (room, track)의 사람 수 |
+| `song_request` | `room_id`, `member_id`, 입력한 제목·가수·mbid, `status`(IDENTIFYING·PREPARING·DONE·FAILED), `track_id`, `fail_reason` | DB에 없는 곡을 식별하는 동안의 상태 → 4-g·4-i |
+| `member_daily` | `member_id`, `day`(한국 날짜), `songs_added` | 하루 100곡. 빼도 줄지 않게 따로 셈 |
+
+### V23 음악 지도 (모든 방 공용)
+
+| 테이블 | 주요 열 | 메모 |
+|---|---|---|
+| `artist_profile` | `artist_id`, `country`, RAG 설명, 근거 조각 id들, `text_hash` | 가수 단위 설명 |
+| `artist_vector` | 원문 벡터, 설명 벡터, 섞은 벡터(HNSW) | 원문 0.5 + 설명 0.5 (room-plan 8절) |
+| `map_version` | 만든 시각, UMAP 설정, 가수 수 | 좌표는 판별로 고정 |
+| `artist_position` | `artist_id`, `map_version`, `x`, `y`, `placed_by`(UMAP·NEIGHBOR) | 새 가수 = 가까운 이웃 좌표 평균 |
+| `galaxy`, `artist_galaxy` | 구역 이름, 중심, 근거 id들 | 장르 구역 이름 |
+| `artist_prepare` | `artist_id`, `status`, `step`, 오류 | 새 가수 지도 올리기 진행 상태. 1인 동시 3개 |
+
+### V24 50곡 선물
+
+| 테이블 | 주요 열 | 메모 |
+|---|---|---|
+| `member_progress` | `member_id`, `best_count`(최고 기록), `next_milestone` | 빼고 다시 담아 같은 단계를 넘어도 상자 없음 |
+| `gift_box` | `member_id`, `milestone`, `status`(WAITING·READY·GENERATING·OPENED·FAILED), `earned_at`, `opened_on` | 하루 1개. 넘친 상자는 WAITING |
+| `character` | `member_id`, `gift_box_id`, `s3_key`, 프롬프트, 모델, `is_fallback` | 비공개 S3 + API 전달 |
+| (기존 `llm_call`) | 이미지 호출도 기록 | 서비스 전체 하루 예산 계산 |
+
+### V25 놀이터
+
+| 테이블 | 주요 열 | 메모 |
+|---|---|---|
+| `code_match` | `room_id`, `member_a`<`member_b`, `input_hash`(두 사람 곡 목록), `score`, 항목별 점수(JSON), 이유, 근거 id들, `status` | 곡이 그대로면 저장 결과 재사용 |
+
+### V26 관리자
+
+- `admin_user`: 이메일, BCrypt 비밀번호, TOTP 비밀값(암호화, 키는 환경 변수), 실패 횟수·잠금.
+- `admin_session`: 토큰 해시, 1시간, IP.
+- 계정 행은 운영 DB에 직접 INSERT. 비밀번호·해시는 저장소에 넣지 않는다.
+
+## 2. 인증
+
+- 참가하면 32바이트 열쇠 발급.
+  - HttpOnly 쿠키(SameSite=Lax, Path=`/api/rooms/{rid}`) → 방마다 따로.
+  - localStorage에도 저장해 `X-Room-Key` 헤더로 보냄 (카톡 안 브라우저처럼 쿠키가 잘 안 남는 경우).
+- 방장 전용 API는 `role=HOST` 확인.
+- 4자리 암호는 참가자별 5회 실패 10분 잠금.
+- 요청 제한:
+  - 분 단위 IP 제한은 서버 메모리. 단일 서버는 정확, EKS 여러 파드면 파드별 근사.
+  - 하루 100곡·메일 발송 제한은 DB.
+- **링크만 받은 사람은 지도를 볼 수 없다**(11-13 결정). 열쇠 없이 부를 수 있는 방 API는 `GET /rooms/{rid}`(방 이름·사람 수·닉네임·상태)뿐.
+
+## 3. API (`/api`)
+
+| 영역 | 엔드포인트 | 화면 |
+|---|---|---|
+| 방 만들기 | `POST /room-drafts` → `POST /room-drafts/{id}/verify`(방 생성 + 열쇠) · `POST /room-drafts/{id}/resend` | 2, 3 |
+| 초대·참가 | `GET /rooms/{rid}`(공개 요약) · `POST /rooms/{rid}/members`(참가) · `POST /rooms/{rid}/session`(나는 OO예요 + 4자리, 잠김 423) · `DELETE /rooms/{rid}/session`(이 기기에서 나가기) | 5, 6-a, 6-g, 6-h |
+| 내 정보 | `GET /rooms/{rid}/me`(닉네임·선물 상태·오늘 담은 수) · `PATCH /rooms/{rid}/me`(닉네임) | 6-h, 4-l |
+| 지도 | `GET /rooms/{rid}/map`(ETag=`map_rev`, 5초 새로고침) · `GET /rooms/{rid}/artists/{id}`(방 안 노래·설명·가까운 가수) | 4, 4′ |
+| 검색·담기 | `GET /rooms/{rid}/search?q=`(같은 아티스트·같은 노래·이미 담음·새 가수 표시) · `POST /rooms/{rid}/songs` → 201(담김, 겹침·선물 여부) 또는 202(`song_request`) · `GET /rooms/{rid}/song-requests/{id}` · `DELETE /rooms/{rid}/songs/{id}`(빼기·되돌리기) | 4-d, 4-e, 4-g, 4-h, 4-i |
+| 내 노래 | `GET /rooms/{rid}/me/songs?sort=recent\|genre\|artist&cursor=` | 4-a |
+| 방장 | `GET /rooms/{rid}/members` · `POST /rooms/{rid}/members/{mid}/pin`(새 4자리를 한 번만 보여 줌) · `DELETE /rooms/{rid}/members/{mid}`(내보내기) · `PATCH /rooms/{rid}`(이름·마감) · `DELETE /rooms/{rid}`(숨김, 7일 뒤 완전 삭제) | 4-b, 6-c, 6-e, 6-f |
+| 방장 암호 재설정 | `POST /rooms/{rid}/host-reset`(등록 메일로 코드, 주소는 화면에 안 보임) · `POST /rooms/{rid}/host-reset/verify`(코드 + 새 암호) | 6-d |
+| 선물 | `GET /rooms/{rid}/me/gifts` · `POST /rooms/{rid}/me/gifts/{id}/open`(202) · `GET /rooms/{rid}/me/gifts/{id}` · `PUT /rooms/{rid}/me/avatar` · `GET /rooms/{rid}/characters/{id}/image` | 4-j, 4-k |
+| 놀이터 | `POST /rooms/{rid}/code-match {a,b}`(저장 결과 200, 없으면 202) · `GET /rooms/{rid}/code-match?a=&b=` | 8-a, 8-b |
+| 관리자 | `POST /admin/login` → `POST /admin/login/otp` · `GET /admin/rooms` · `GET /admin/rooms/{id}` · 숨김·되살리기 · 닉네임 변경·내보내기 · `GET /admin/audit` | 7-a~7-c |
+
+## 4. 비동기 (SQS + 실패 큐)
+
+| 큐 | 하는 일 |
+|---|---|
+| `mail` | SES 발송, 로컬은 가짜 메일함 |
+| identify·enrich (기존) | DB에 없는 곡 식별 → `song_request` 갱신. 식별되면 바로 `room_song` 저장(위성 표시), 곡 설명·벡터는 뒤에서 (`room-measure.md` 3절) |
+| `artist-prepare` | 새 가수: 근거 → RAG 설명 → 벡터 → 이웃 평균 좌표 → 지도에 반영 |
+| `gift-image` | Haiku 프롬프트 → us-west-2 이미지 모델 → S3. 실패·예산 초과면 기본 캐릭터 |
+| `code-match` | 점수는 API에서 SQL로 바로, LLM은 이유만 |
+
+- 초기 가수 1,500명 지도 만들기는 한 번 돌리는 worker 작업이다. UMAP만 Python 임베딩 서비스에서 계산한다.
+- 방 완전 삭제(숨긴 지 7일 뒤)는 기존 정리 작업(worker 매일 04:00)에 붙인다.
+
+## 5. 한 트랜잭션에서 지키는 규칙
+
+- 참가(5명), 노래 담기(하루 100곡 + 선물 단계), 새 암호 발급.
+- 담기: 곡 수 ≥ 다음 50곡 단위이고 최고 기록보다 크면 상자를 만든다. 그날 이미 받았으면 WAITING.
+- 지도를 바꾸는 쓰기(담기·빼기·닉네임·참가·내보내기)는 같은 트랜잭션에서 `map_rev`를 올린다.
+
+## 6. 결정 (11-13)
+
+| # | 항목 | 결정 |
+|---|---|---|
+| 1 | 링크만 받은 사람의 지도 보기 | **볼 수 없음.** 초대 화면은 방 이름·사람 수·닉네임만, 지도·노래는 참가 후 |
+| 2 | 방장 우주 삭제 | **바로 숨김 → 7일 뒤 완전 삭제**(이메일·노래·캐릭터 이미지). 7일 안에는 관리자만 되살림. 화면 문구는 그대로, 개인정보 안내에 "삭제 후 7일 안에 완전히 지워져요" 추가 |
+| 3 | 구현 순서 | ⓪ 측정·P0 → ① 방·참가·담기(V21~22, 지도는 임시 좌표) → ② 지도 데이터(V23) → ③ 메일(SES) → ④ 선물(V24) → ⑤ 놀이터(V25) → ⑥ 관리자(V26) |
+
+## 7. ① 구현 기록 (11-13)
+
+- 마이그레이션: `V21__room.sql`(room·room_host_email·member·member_key·room_draft·email_code·mail_send_log·audit_log), `V22__room_song.sql`(room_song·song_request·member_daily)
+- core `room/`: `RoomRepository`, `RoomDraftRepository`, `RoomSongRepository`
+- api `room/`: `RoomDraftController`(방 만들기·코드), `RoomController`(공개 요약·참가·다시 들어오기·나가기·내 정보·방장), `RoomSongController`(검색·담기·식별 요청·빼기·내 노래·지도), `RoomSupport`(열쇠 쿠키·헤더, `@RoomMember`, BCrypt, IP 분당 제한, 커밋 뒤 큐, 가짜 메일)
+- worker: `IdentifyService`에서 곡 식별 부분을 `identifyTargets(targets, sink)`로 떼어 냄(세션 묶음은 그대로 identify_target에, 방은 song_request에). `room/RoomSongService`·`RoomSongListener`(큐 `room-song` + 실패 큐), 정리 작업에 숨긴 방 7일 뒤 삭제·만료된 방 만들기 내용 삭제 추가
+- 큐: 로컬 `local/localstack/init-aws.sh`에 `gyeol-local-room-song`(+dlq, 표시 제한 15분). Terraform·Helm 값은 배포 단계에서
+- 테스트: api `RoomApiIntegrationTest` 8개, worker `RoomSongIntegrationTest` 5개
+
+### 이번 단계에서 뺀 것·임시
+- 메일은 `LogMailSender`(로그에 코드). SES는 ③
+- 지도 좌표는 가수 mbid 해시로 만든 임시 좌표(`placeholder: true`). ②에서 `artist_position`으로 바꿈
+- 내 노래 정렬은 최근 담은 순만. 장르별은 ②(가수 설명·구역) 뒤, 아티스트별은 웹 화면 만들 때
+- 행성 자세히(`GET /rooms/{rid}/artists/{id}`)는 ②에서 설명과 함께
+- 웹 화면은 아직 없음 (② 뒤, 지도 화면은 Codex)
+
+## 8. ② 지도 데이터 구현 기록 (11-13)
+
+- 마이그레이션 `V23__artist_map.sql`: artist_profile(나라·초기 가수 순위·설명·근거), artist_vector(raw·descr·mixed, HNSW), map_version(활성 하나), galaxy, artist_position(UMAP·NEIGHBOR), artist_prepare
+- fetcher `MapController`: `GET /internal/lastfm/geo-top`(나라별 인기 가수), `GET /internal/musicbrainz/artist`(출신 국가·별칭, mbid 또는 이름 검색 1위 95점 이상)
+- worker `map/`: `MapService`(seed·describeAll·embedAll·nameGalaxies·prepare·place), `MapLlm`(가짜·Bedrock, 11-11 프롬프트 + 근거 번호, 근거 없는 설명은 버림), `MapAdminController`(`/internal/map/…`, `MAP_ADMIN_ENDPOINT=true`일 때만, 한 번에 작업 하나)
+- 새 가수: 방에 담긴 가수가 활성 판에 자리가 없으면 `room-song` 큐에 PREPARE_ARTIST(한 번만) → 근거·설명·벡터 → 이웃 5명 평균 자리·구역 다수결 → 그 가수가 담긴 방 map_rev +1
+- `tools/map-build/build.py`(uv): 모든 가수 벡터 → UMAP(cosine, 이웃 10, min_dist 0.1) → 0.04~0.96 → KMeans(√(n/2), 6~60) → 새 판 활성 + 모든 방 map_rev +1. `--dry-run`, `--eval`(Last.fm 비슷한 가수 일치율)
+- API: 지도 응답에 진짜 좌표·galaxyId·preparing, galaxies(방에 행성이 있는 구역), ghosts(최근 가수 곁 방에 없는 가까운 가수, 최대 3). `GET /rooms/{rid}/artists/{id}`(설명·근거 링크·방 안 노래·가까운 가수 5)
+- 테스트: worker `MapIntegrationTest` 4개, api 방 테스트 9개(+지도 판)
+
+### 실행 순서 (로컬)
+1. worker를 `MAP_ADMIN_ENDPOINT=true LLM_MODE=bedrock`으로 켠다
+2. `POST /internal/map/seed {"countries":[{"iso":"KR","lastfm":"South Korea"},{"iso":"JP","lastfm":"Japan"},{"iso":"US","lastfm":"United States"}],"perCountry":100}` → `GET /internal/map/job`
+3. `POST /internal/map/describe {"limit":2000}` (비용) → `POST /internal/map/embed`
+4. `uv run --directory tools/map-build python build.py --eval`
+5. `POST /internal/map/name-galaxies` (비용)
+
+### 알려진 한계
+- 근거를 90일 뒤 다시 가져오면 knowledge_chunk id가 바뀌어 설명의 근거 번호가 끊긴다. 다시 설명을 만들 때 고친다

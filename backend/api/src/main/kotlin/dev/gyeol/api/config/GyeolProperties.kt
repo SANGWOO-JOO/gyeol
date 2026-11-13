@@ -15,7 +15,34 @@ data class GyeolProperties(
     val upload: Upload = Upload(),
     /** 표지 이미지를 미리 받아 둔 비공개 버킷 */
     val coverBucket: String = "gyeol-local-covers",
+    val room: Room = Room(),
 ) {
+    /** 음악 방 (docs/todo/room-api-db.md) */
+    data class Room(
+        /** 방 담기 식별을 맡기는 큐 (worker room-song) */
+        val songQueue: String = "gyeol-local-room-song",
+        val maxMembers: Int = 5,
+        val dailySongLimit: Int = 100,
+        /** 한 사람이 동시에 식별을 기다리는 곡 수 */
+        val maxPendingRequests: Int = 3,
+        val pinMaxFails: Int = 5,
+        val pinLock: Duration = Duration.ofMinutes(10),
+        val draftTtl: Duration = Duration.ofHours(1),
+        val codeTtl: Duration = Duration.ofMinutes(10),
+        val codeMaxAttempts: Int = 5,
+        val codeResendAfter: Duration = Duration.ofMinutes(1),
+        /** 같은 이메일로 1시간에 보낼 수 있는 메일 수, 같은 IP로 1시간에 보낼 수 있는 메일 수 */
+        val mailPerEmailHour: Int = 5,
+        val mailPerIpHour: Int = 20,
+        /** 방장 삭제 후 완전 삭제까지 */
+        val purgeAfter: Duration = Duration.ofDays(7),
+        /** IP별 분당 요청 수: 방 만들기·코드 확인, 참가, 다시 들어오기 */
+        val draftPerMinute: Int = 10,
+        val joinPerMinute: Int = 20,
+        /** 열쇠 쿠키에 Secure를 붙일지 (로컬 http는 false) */
+        val secureCookie: Boolean = false,
+    )
+
     data class Upload(
         val bucket: String = "gyeol-local-uploads",
         val maxBytes: Long = 20L * 1024 * 1024,

@@ -54,17 +54,58 @@ class IdentifyService(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /**
+     * 식별 결과를 받는 곳. 세션 묶음은 identify_target·청취 기록·고른 곡에 쓰고(sessionSink),
+     * 음악 방 담기는 곡 요청에 쓴다(RoomSongService). 식별 규칙은 둘이 같다.
+     */
+    interface TargetSink {
+        fun finish(t: Target, trackId: Long?)
+        /** 4xx로 거절된 곡. 캐시에 남기지 않는다 */
+        fun fail(t: Target)
+    }
+
+    private val sessionSink = object : TargetSink {
+        override fun finish(t: Target, trackId: Long?) {
+            tx.executeWithoutResult {
+                if (repo.finishTarget(t.sessionId, t.key, TargetStatus.DONE) && trackId != null) {
+                    repo.linkListens(t, trackId)
+                    repo.linkSeeds(t, trackId)
+                }
+            }
+        }
+        override fun fail(t: Target) { repo.finishTarget(t.sessionId, t.key, TargetStatus.FAILED) }
+    }
+
+    data class Identified(val found: List<Long>, val llmCount: Int)
+
     fun process(msg: IdentifyMessage) {
         val started = System.nanoTime()
+        val r = identifyTargets(repo.targets(msg.sessionId, msg.keys).filter { it.status == TargetStatus.PENDING }, sessionSink)
+        val found = r.found
+        // 표지를 아직 확인하지 않은 곡은 표지 큐로 (식별과 따로, 늦게 붙어도 곡 이름은 먼저 보인다)
+        val needCover = requestCovers(found)
+        enrichTrigger.afterIdentify(msg.sessionId) // 식별이 다 끝났으면 지식 인입 시작 (L3-1)
+        log.info("식별 묶음: 세션 {}, {}곡 중 찾음 {} (LLM {}곡, 표지 확인 {}), {}ms", msg.sessionId, msg.keys.size, found.size, r.llmCount, needCover.size, (System.nanoTime() - started) / 1_000_000)
+    }
+
+    /** 표지를 아직 확인하지 않은 곡을 표지 큐로 보낸다. 보낸 곡 */
+    fun requestCovers(found: List<Long>): List<Long> {
+        val needCover = found.distinct().filter { repo.coverTarget(it)?.checkedAt == null }
+        if (needCover.isNotEmpty()) sqs.send { it.queue(props.cover.queue).payload(json.writeValueAsString(CoverMessage(needCover))) }
+        return needCover
+    }
+
+    /** 곡마다: 캐시 다시 확인 → 규칙으로 (가수, 곡) → fetcher(MusicBrainz) → 저장. 결과는 [sink]로 */
+    fun identifyTargets(targets: List<Target>, sink: TargetSink): Identified {
         val retryBefore = Instant.now().minus(props.identify.notFoundRetry)
         val found = mutableListOf<Long>()
         val forLlm = mutableListOf<Target>()
         val toRespell = mutableListOf<Respell>()
-        for (t in repo.targets(msg.sessionId, msg.keys).filter { it.status == TargetStatus.PENDING }) {
+        for (t in targets) {
             // 다른 세션이 그사이 같은 곡을 찾았을 수 있다
             val cached = repo.findAlias(t.key)?.takeIf { it.isFresh(retryBefore) }
             if (cached != null) {
-                finish(t, cached.trackId); cached.trackId?.let(found::add); continue
+                sink.finish(t, cached.trackId); cached.trackId?.let(found::add); continue
             }
             val query = RuleIdentifier.query(t.title, t.channel, t.source)
             if (query == null) {
@@ -74,36 +115,31 @@ class IdentifyService(
                 if (official == null || hit == null) { forLlm += t; continue }
                 val id = tx.execute { repo.upsertTrack(hit) }!!
                 tx.executeWithoutResult { repo.saveAlias(t.key, id, AliasMethod.RULE, official) }
-                finish(t, id); found += id
+                sink.finish(t, id); found += id
                 continue
             }
             val info = try {
                 fetcher.identify(query.artist, query.title)
             } catch (e: HttpClientErrorException) {
-                failOne(t, e); continue
+                failOne(t, e, sink); continue
             }
             // Topic 곡을 못 찾으면 다른 표기로 한 번 더 찾는다 (묶음 끝에서 LLM을 한 번만 부른다)
             // Topic 곡을 못 찾았거나, 발매일 없는 차선 음반으로만 찾았으면(로마자 일본어 제목 등) 다른 표기로 원곡을 한 번 더 찾는다
             if ((info == null || info.releaseDate == null) && t.channel?.endsWith(" - Topic") == true) { toRespell += Respell(t, query, info); continue }
             val trackId = info?.let { found -> tx.execute { repo.upsertTrack(found) } }
             tx.executeWithoutResult { repo.saveAlias(t.key, trackId, AliasMethod.RULE, query, reason = if (trackId == null) "NOT_IN_MUSICBRAINZ" else null) }
-            finish(t, trackId); trackId?.let(found::add)
+            sink.finish(t, trackId); trackId?.let(found::add)
         }
-        if (forLlm.isNotEmpty()) found += identifyWithLlm(forLlm)
-        if (toRespell.isNotEmpty()) found += respell(toRespell)
-
-        // 표지를 아직 확인하지 않은 곡은 표지 큐로 (식별과 따로, 늦게 붙어도 곡 이름은 먼저 보인다)
-        val needCover = found.distinct().filter { repo.coverTarget(it)?.checkedAt == null }
-        if (needCover.isNotEmpty()) sqs.send { it.queue(props.cover.queue).payload(json.writeValueAsString(CoverMessage(needCover))) }
-        enrichTrigger.afterIdentify(msg.sessionId) // 식별이 다 끝났으면 지식 인입 시작 (L3-1)
-        log.info("식별 묶음: 세션 {}, {}곡 중 찾음 {} (LLM {}곡, 표지 확인 {}), {}ms", msg.sessionId, msg.keys.size, found.size, forLlm.size, needCover.size, (System.nanoTime() - started) / 1_000_000)
+        if (forLlm.isNotEmpty()) found += identifyWithLlm(forLlm, sink)
+        if (toRespell.isNotEmpty()) found += respell(toRespell, sink)
+        return Identified(found, forLlm.size)
     }
 
     /**
      * 규칙으로 못 푼 제목을 LLM으로 한 번에 정리하고 검증한 뒤 MusicBrainz로 식별한다.
      * ORIGINAL·LIVE·REMIX는 원곡으로 식별(취향에서는 같은 곡), COVER·MEDLEY·NOT_SONG·INSTRUMENTAL은 식별하지 않는다.
      */
-    private fun identifyWithLlm(targets: List<Target>): List<Long> {
+    private fun identifyWithLlm(targets: List<Target>, sink: TargetSink): List<Long> {
         val raws = targets.mapIndexed { i, t -> RawTitle(i, t.title, t.channel) }
         val result = cleaner.clean(raws)
         if (result.model != "fake") llmCalls.record("TITLE_CLEANUP", LlmUsage(result.model, raws.size, result.inputTokens, result.outputTokens, result.latencyMs))
@@ -135,7 +171,7 @@ class IdentifyService(
                         val info = try {
                             fetcher.identify(a!!, b!!)
                         } catch (e: HttpClientErrorException) {
-                            failOne(t, e); return@mapIndexedNotNull null
+                            failOne(t, e, sink); return@mapIndexedNotNull null
                         } ?: continue
                         hit = tx.execute { repo.upsertTrack(info) }!! to Query(a, b, byChannelName = false)
                         break
@@ -144,7 +180,7 @@ class IdentifyService(
                 }
             }
             tx.executeWithoutResult { repo.saveAlias(t.key, trackId, AliasMethod.LLM, query, titleAlt = cleaned?.titleAlt, reason = reason) }
-            finish(t, trackId)
+            sink.finish(t, trackId)
             trackId
         }
     }
@@ -220,7 +256,7 @@ class IdentifyService(
         return null
     }
 
-    private fun respell(items: List<Respell>): List<Long> {
+    private fun respell(items: List<Respell>, sink: TargetSink): List<Long> {
         val first = askSpellings(items)
         val hits = items.indices.associateWith { tryCandidates(items[it], first[it]) }.toMutableMap()
         // 첫 답으로 못 찾은 곡만 한 번 더 묻는다 (묶음 구성이 바뀌면 답이 달라지는 경우가 있다)
@@ -238,23 +274,14 @@ class IdentifyService(
                 else -> tx.executeWithoutResult { repo.saveAlias(t.key, null, AliasMethod.RULE, q, reason = "NOT_IN_MUSICBRAINZ") }
             }
             val trackId = hit?.first ?: kept
-            finish(t, trackId)
+            sink.finish(t, trackId)
             trackId
         }
     }
 
-    /** 요청 자체가 거절된 곡(4xx)은 다시 시도해도 같으므로 이 곡만 실패로 두고 묶음을 계속한다. 캐시에는 남기지 않아 다음 세션에서 다시 시도한다 */
-    private fun failOne(t: Target, e: HttpClientErrorException) {
+    /** 요청 자체가 거절된 곡(4xx)은 다시 시도해도 같으므로 이 곡만 실패로 두고 묶음을 계속한다. 캐시에는 남기지 않아 다음에 다시 시도한다 */
+    private fun failOne(t: Target, e: HttpClientErrorException, sink: TargetSink) {
         log.warn("식별 거절: 세션 {}, 키 {}: {}", t.sessionId, t.key, e.statusCode)
-        repo.finishTarget(t.sessionId, t.key, TargetStatus.FAILED)
-    }
-
-    private fun finish(t: Target, trackId: Long?) {
-        tx.executeWithoutResult {
-            if (repo.finishTarget(t.sessionId, t.key, TargetStatus.DONE) && trackId != null) {
-                repo.linkListens(t, trackId)
-                repo.linkSeeds(t, trackId)
-            }
-        }
+        sink.fail(t)
     }
 }

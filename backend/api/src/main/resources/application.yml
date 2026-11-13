@@ -23,6 +23,9 @@ gyeol:
   fetcher-url: ${FETCHER_URL:http://localhost:18081}
   identify-queue: ${IDENTIFY_QUEUE:gyeol-local-identify}
   enrich-queue: ${ENRICH_QUEUE:gyeol-local-enrich}
+  room:
+    song-queue: ${ROOM_SONG_QUEUE:gyeol-local-room-song}
+    secure-cookie: ${ROOM_SECURE_COOKIE:false}
   upload:
     bucket: ${UPLOAD_BUCKET:gyeol-local-uploads}
     max-bytes: 20971520 # 20MB

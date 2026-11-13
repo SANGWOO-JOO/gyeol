@@ -1,0 +1,152 @@
+package dev.gyeol.core.room
+
+import org.springframework.jdbc.core.RowMapper
+import org.springframework.jdbc.core.simple.JdbcClient
+import org.springframework.stereotype.Repository
+import java.sql.Timestamp
+import java.time.Instant
+
+enum class RoomStatus { ACTIVE, CLOSED, HIDDEN }
+enum class Role { HOST, MEMBER }
+
+data class Room(
+    val id: Long, val publicId: String, val name: String, val status: RoomStatus, val mapRev: Long,
+    val createdAt: Instant, val lastActiveAt: Instant, val purgeAt: Instant?,
+)
+
+data class Member(
+    val id: Long, val roomId: Long, val nickname: String, val role: Role, val colorIdx: Int,
+    val pinHash: String, val failCount: Int, val lockedUntil: Instant?, val createdAt: Instant, val removedAt: Instant?,
+)
+
+/** 방·참가자·기기 열쇠·감사 기록 (V21) */
+@Repository
+class RoomRepository(private val jdbc: JdbcClient) {
+
+    private val roomMapper = RowMapper { rs, _ ->
+        Room(
+            rs.getLong("id"), rs.getString("public_id"), rs.getString("name"), RoomStatus.valueOf(rs.getString("status")),
+            rs.getLong("map_rev"), rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("last_active_at").toInstant(),
+            rs.getTimestamp("purge_at")?.toInstant(),
+        )
+    }
+    private val memberMapper = RowMapper { rs, _ ->
+        Member(
+            rs.getLong("id"), rs.getLong("room_id"), rs.getString("nickname"), Role.valueOf(rs.getString("role")), rs.getInt("color_idx"),
+            rs.getString("pin_hash"), rs.getInt("fail_count"), rs.getTimestamp("locked_until")?.toInstant(),
+            rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("removed_at")?.toInstant(),
+        )
+    }
+
+    fun create(publicId: String, name: String): Long =
+        jdbc.sql("INSERT INTO room (public_id, name) VALUES (:p, :n) RETURNING id").param("p", publicId).param("n", name)
+            .query(Long::class.java).single()
+
+    fun findByPublicId(publicId: String): Room? =
+        jdbc.sql("SELECT * FROM room WHERE public_id = :p").param("p", publicId).query(roomMapper).optional().orElse(null)
+
+    fun findById(id: Long): Room? =
+        jdbc.sql("SELECT * FROM room WHERE id = :id").param("id", id).query(roomMapper).optional().orElse(null)
+
+    /** 참가·담기처럼 인원·한도를 세는 쓰기 전에 방 행을 잠근다 (동시 참가 6명 → 5명만) */
+    fun lock(id: Long): Room =
+        jdbc.sql("SELECT * FROM room WHERE id = :id FOR UPDATE").param("id", id).query(roomMapper).single()
+
+    fun bumpMapRev(id: Long) {
+        jdbc.sql("UPDATE room SET map_rev = map_rev + 1, last_active_at = now() WHERE id = :id").param("id", id).update()
+    }
+
+    fun renameRoom(id: Long, name: String) = jdbc.sql("UPDATE room SET name = :n WHERE id = :id").param("id", id).param("n", name).update()
+
+    fun setStatus(id: Long, status: RoomStatus) =
+        jdbc.sql("UPDATE room SET status = :s WHERE id = :id AND status <> 'HIDDEN'").param("id", id).param("s", status.name).update()
+
+    /** 숨김(삭제): 바로 못 들어오게 하고 [purgeAt]에 완전 삭제 */
+    fun hide(id: Long, purgeAt: Instant) =
+        jdbc.sql("UPDATE room SET status = 'HIDDEN', hidden_at = now(), purge_at = :p WHERE id = :id AND status <> 'HIDDEN'")
+            .param("id", id).param("p", Timestamp.from(purgeAt)).update()
+
+    fun saveHostEmail(roomId: Long, email: String, consentAt: Instant) {
+        jdbc.sql("INSERT INTO room_host_email (room_id, email, consent_at) VALUES (:r, :e, :c)")
+            .param("r", roomId).param("e", email).param("c", Timestamp.from(consentAt)).update()
+    }
+
+    fun hostEmail(roomId: Long): String? =
+        jdbc.sql("SELECT email FROM room_host_email WHERE room_id = :r").param("r", roomId).query(String::class.java).optional().orElse(null)
+
+    // ── 참가자 ──
+
+    fun members(roomId: Long): List<Member> =
+        jdbc.sql("SELECT * FROM member WHERE room_id = :r AND removed_at IS NULL ORDER BY id").param("r", roomId).query(memberMapper).list()
+
+    fun member(id: Long): Member? =
+        jdbc.sql("SELECT * FROM member WHERE id = :id").param("id", id).query(memberMapper).optional().orElse(null)
+
+    fun nicknameTaken(roomId: Long, nickname: String, exceptMemberId: Long? = null): Boolean =
+        jdbc.sql("SELECT EXISTS (SELECT 1 FROM member WHERE room_id = :r AND lower(nickname) = lower(:n) AND removed_at IS NULL AND id <> :e)")
+            .param("r", roomId).param("n", nickname).param("e", exceptMemberId ?: -1L).query(Boolean::class.java).single()
+
+    fun addMember(roomId: Long, nickname: String, role: Role, colorIdx: Int, pinHash: String): Long =
+        jdbc.sql("INSERT INTO member (room_id, nickname, role, color_idx, pin_hash) VALUES (:r, :n, :role, :c, :p) RETURNING id")
+            .param("r", roomId).param("n", nickname).param("role", role.name).param("c", colorIdx).param("p", pinHash)
+            .query(Long::class.java).single()
+
+    fun renameMember(memberId: Long, nickname: String): Int =
+        jdbc.sql("UPDATE member SET nickname = :n WHERE id = :id").param("id", memberId).param("n", nickname).update()
+
+    /** 내보내기: 참가자 표시를 지우고 열쇠를 모두 무효로 */
+    fun remove(memberId: Long) {
+        jdbc.sql("UPDATE member SET removed_at = now() WHERE id = :id AND removed_at IS NULL").param("id", memberId).update()
+        jdbc.sql("UPDATE member_key SET revoked_at = now() WHERE member_id = :id AND revoked_at IS NULL").param("id", memberId).update()
+    }
+
+    fun recordPinFailure(memberId: Long, maxFails: Int, lockUntil: Instant): Int =
+        jdbc.sql(
+            """
+            UPDATE member SET fail_count = fail_count + 1,
+                   locked_until = CASE WHEN fail_count + 1 >= :max THEN :until ELSE locked_until END
+            WHERE id = :id RETURNING fail_count
+            """.trimIndent(),
+        ).param("id", memberId).param("max", maxFails).param("until", Timestamp.from(lockUntil)).query(Int::class.java).single()
+
+    fun resetPinFailures(memberId: Long) {
+        jdbc.sql("UPDATE member SET fail_count = 0, locked_until = NULL WHERE id = :id").param("id", memberId).update()
+    }
+
+    /** 새 암호: 해시를 바꾸고 틀린 횟수·잠금도 푼다. 기존 기기 열쇠는 유지 */
+    fun setPin(memberId: Long, pinHash: String) {
+        jdbc.sql("UPDATE member SET pin_hash = :p, fail_count = 0, locked_until = NULL WHERE id = :id").param("id", memberId).param("p", pinHash).update()
+    }
+
+    // ── 기기 열쇠 ──
+
+    fun addKey(memberId: Long, keyHash: ByteArray) {
+        jdbc.sql("INSERT INTO member_key (key_hash, member_id) VALUES (:h, :m)").param("h", keyHash).param("m", memberId).update()
+    }
+
+    /** 살아 있는 열쇠의 참가자 (내보냈거나 나간 열쇠는 없음). 쓸 때마다 last_seen_at 갱신 */
+    fun memberByKey(keyHash: ByteArray): Member? =
+        jdbc.sql(
+            """
+            UPDATE member_key k SET last_seen_at = now()
+            FROM member m WHERE k.key_hash = :h AND k.revoked_at IS NULL AND m.id = k.member_id AND m.removed_at IS NULL
+            RETURNING m.*
+            """.trimIndent(),
+        ).param("h", keyHash).query(memberMapper).optional().orElse(null)
+
+    fun revokeKey(keyHash: ByteArray) {
+        jdbc.sql("UPDATE member_key SET revoked_at = now() WHERE key_hash = :h AND revoked_at IS NULL").param("h", keyHash).update()
+    }
+
+    // ── 감사 기록 ──
+
+    fun audit(actorType: String, actorId: Long?, roomId: Long, action: String, targetMemberId: Long? = null, detailJson: String? = null) {
+        jdbc.sql(
+            "INSERT INTO audit_log (actor_type, actor_id, room_id, action, target_member_id, detail) VALUES (:t, :a, :r, :act, :m, CAST(:d AS jsonb))",
+        ).param("t", actorType).param("a", actorId).param("r", roomId).param("act", action).param("m", targetMemberId).param("d", detailJson).update()
+    }
+
+    /** 숨긴 지 7일이 지난 방을 완전히 지운다 (참가자·노래·이메일은 FK CASCADE). 지운 방 수 */
+    fun purgeHidden(now: Instant = Instant.now()): Int =
+        jdbc.sql("DELETE FROM room WHERE status = 'HIDDEN' AND purge_at <= :now").param("now", Timestamp.from(now)).update()
+}

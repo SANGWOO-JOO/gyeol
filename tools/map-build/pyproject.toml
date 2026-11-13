@@ -1,0 +1,11 @@
+[project]
+name = "gyeol-map-build"
+version = "0.1.0"
+description = "음악 지도 판 만들기 (오프라인): 가수 벡터 → UMAP 2D → 구역 묶기 → map_version (room-plan.md 8절)"
+requires-python = ">=3.12"
+dependencies = [
+    "umap-learn>=0.5.7",
+    "scikit-learn>=1.5",
+    "numpy>=2",
+    "psycopg[binary]>=3.2",
+]

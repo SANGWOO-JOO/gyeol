@@ -24,6 +24,11 @@ class LlmConfig {
     fun trackDescriber(props: WorkerProperties, json: JsonMapper): TrackDescriber =
         if (props.llm.mode == "bedrock") BedrockDescriber(props.llm, json) else FakeDescriber()
 
+    /** 음악 지도: 가수 설명·구역 이름 */
+    @Bean
+    fun mapLlm(props: WorkerProperties, json: JsonMapper): dev.gyeol.worker.map.MapLlm =
+        if (props.llm.mode == "bedrock") dev.gyeol.worker.map.BedrockMapLlm(props.llm, json) else dev.gyeol.worker.map.FakeMapLlm()
+
     /** L3-4 추천 재정렬 */
     @Bean
     fun reranker(props: WorkerProperties, json: JsonMapper): dev.gyeol.worker.recommend.Reranker =

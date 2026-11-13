@@ -56,6 +56,15 @@ RQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
 awslocal sqs create-queue --queue-name "$RQ" --region "$REGION" \
   --attributes "{\"VisibilityTimeout\":\"900\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$RQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
 
+# 음악 방 담기 식별 큐. 곡 하나 식별이 길면 1~2분(측정 최대 82초)이라 15분, 실패 큐에서 요청을 FAILED로
+MQ=gyeol-local-room-song
+awslocal sqs create-queue --queue-name "$MQ-dlq" --region "$REGION" >/dev/null
+MQ_DLQ_ARN=$(awslocal sqs get-queue-attributes --region "$REGION" \
+  --queue-url "$(awslocal sqs get-queue-url --queue-name "$MQ-dlq" --region "$REGION" --query QueueUrl --output text)" \
+  --attribute-names QueueArn --query Attributes.QueueArn --output text)
+awslocal sqs create-queue --queue-name "$MQ" --region "$REGION" \
+  --attributes "{\"VisibilityTimeout\":\"900\",\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$MQ_DLQ_ARN\\\",\\\"maxReceiveCount\\\":\\\"3\\\"}\"}" >/dev/null
+
 # 방송·일반 채널 영상의 가수·곡 뽑기 큐. 실패해도 해당 재생이 가수 순위에서 빠질 뿐이라 실패 큐는 기록용
 GQ=gyeol-local-guess
 awslocal sqs create-queue --queue-name "$GQ-dlq" --region "$REGION" >/dev/null

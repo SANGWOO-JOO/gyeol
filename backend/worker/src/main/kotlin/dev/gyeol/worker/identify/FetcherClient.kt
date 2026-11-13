@@ -79,6 +79,14 @@ class FetcherClient(props: WorkerProperties) {
         http.get().uri { b -> b.path("/internal/lastfm/$path").apply { params.forEach { (k, v) -> queryParam(k, v) } }.build() }
             .retrieve().body(JsonNode::class.java) ?: error("fetcher 응답이 비어 있습니다")
 
+    /** 음악 지도 초기 가수: Last.fm 나라별 인기 가수 (country는 Last.fm 나라 이름) */
+    fun geoTop(country: String, page: Int): JsonNode = lastfm("geo-top", mapOf("country" to country, "page" to page, "limit" to 100))
+
+    /** MusicBrainz 가수 (출신 국가·별칭). mbid가 없으면 이름 검색 1위(점수 95 이상)만 */
+    fun mbArtist(mbid: String?, name: String): JsonNode =
+        http.get().uri { b -> b.path("/internal/musicbrainz/artist").apply { if (mbid != null) queryParam("mbid", mbid) else queryParam("name", name) }.build() }
+            .retrieve().body(JsonNode::class.java) ?: error("fetcher 응답이 비어 있습니다")
+
     /** 찾으면 곡 정보, 못 찾으면 null */
     fun identify(artist: String, title: String): TrackInfo? {
         val r = http.post().uri("/internal/musicbrainz/identify")

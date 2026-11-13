@@ -20,11 +20,19 @@ data class WorkerProperties(
     val recommend: Recommend = Recommend(),
     val guess: Guess = Guess(),
     val artistImage: ArtistImageProps = ArtistImageProps(),
+    val room: RoomProps = RoomProps(),
+    val map: MapProps = MapProps(),
     /** 청취 기록 세션에서 식별 뒤 보강·추천까지 자동으로 이어 갈지 (기본은 분석까지만) */
     val autoRecommend: Boolean = false,
     /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
     val busyRetry: Duration = Duration.ofSeconds(30),
 ) {
+    /** 음악 지도 데이터 만들기 내부 엔드포인트 (/internal/map 아래, 로컬에서만 켠다) */
+    data class MapProps(val adminEndpoint: Boolean = false, val knowledgeRetryWait: Duration = Duration.ofSeconds(30))
+
+    /** 음악 방 담기 식별 (docs/todo/room-api-db.md) */
+    data class RoomProps(val songQueue: String = "gyeol-local-room-song", val songDlq: String = "gyeol-local-room-song-dlq")
+
     /** 가수 이미지 (docs/todo/artist-images.md). 사진은 표지와 같은 버킷의 artists/ 아래에 둔다 */
     data class ArtistImageProps(
         val queue: String = "gyeol-local-artist-image",

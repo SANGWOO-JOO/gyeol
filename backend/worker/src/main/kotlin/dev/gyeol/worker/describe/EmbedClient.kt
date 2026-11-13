@@ -39,5 +39,17 @@ class EmbedClient(props: WorkerProperties, private val vectors: VectorRepository
         return todo.size
     }
 
+    /** 문장들 → (모델, 벡터들). 32개씩 나눠 부른다 */
+    fun embed(texts: List<String>, kind: String): Pair<String, List<FloatArray>> {
+        var model = ""
+        val out = mutableListOf<FloatArray>()
+        texts.chunked(32).forEach { group ->
+            val r = http.post().uri("/embed").body(mapOf("texts" to group, "kind" to kind)).retrieve().body(JsonNode::class.java) ?: error("embed 응답이 비어 있습니다")
+            model = r.path("model").asString()
+            r.path("vectors").toList().forEach { v -> out += v.toList().map { it.asDouble().toFloat() }.toFloatArray() }
+        }
+        return model to out
+    }
+
     private fun sha256(s: String) = MessageDigest.getInstance("SHA-256").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }
 }
