@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, appendSongs, artistCardSub, asSearchItem, canLoadMore, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -181,6 +181,12 @@ describe('I-30 가수 화면', () => {
     expect(canLoadMore({ hasMore: true, page: 1 })).toBe(true)
     expect(canLoadMore({ hasMore: true, page: 5 })).toBe(false)
     expect(canLoadMore({ hasMore: false, page: 2 })).toBe(false)
+  })
+  it('끝 문구: 100곡 상한이면 "여기까지", 실제로 끝났으면 "다 봤어요" (I-42 B)', () => {
+    expect(artistEndText({ hasMore: false, page: 5 }, 100)).toContain('여기까지')
+    expect(artistEndText({ hasMore: true, page: 5 }, 97)).toContain('여기까지')
+    expect(artistEndText({ hasMore: false, page: 5 }, 87)).toBe('이 가수의 노래를 다 봤어요')
+    expect(artistEndText({ hasMore: false, page: 2 }, 31)).toBe('이 가수의 노래를 다 봤어요')
   })
   it('이어 붙일 때 같은 곡은 앞의 것만 남긴다', () => {
     const a = [song('8282', null, 1), song('My Man')]

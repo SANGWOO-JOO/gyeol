@@ -265,7 +265,8 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
     setSheet({ kind: 'artist', id: from })
   }
   const searchPanel = artistPage ? (
-    <ArtistPage key={`${artistPage.artistId ?? ''}|${artistPage.name}`} roomId={roomId} artist={artistPage} added={added} pending={pendingKeys} busy={busy} onAdd={add}
+    <ArtistPage key={`${artistPage.artistId ?? ''}|${artistPage.name}`} roomId={roomId} artist={artistPage} added={added}
+      roomCount={artistPage.artistId != null && map ? (map.planets.find(p => p.artistId === artistPage.artistId)?.songs.length ?? 0) : undefined} pending={pendingKeys} busy={busy} onAdd={add}
       onError={handle} backLabel={artistPage.fromPlanet != null ? `${artistPage.name} 가수 판으로` : '검색 결과로'} onBack={backFromArtist} />
   ) : (
     <SearchPanel roomId={roomId} query={query} setQuery={setQuery} added={added}

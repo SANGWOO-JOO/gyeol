@@ -358,3 +358,6 @@
 .cover.skel { border-radius: 10px; }
 @keyframes skel { 0%, 100% { opacity: .45; } 50% { opacity: .9; } }
 @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
+/* I-42 F: 가수 화면 [인기순][최신순]은 머리 아래 고정. 휴대폰은 방 머리 아래, PC 판은 판 탭 아래 */
+.sortSticky { position: sticky; top: var(--sort-top, 104px); z-index: 3; margin: 0 -4px; padding: 4px; background: var(--r-bg); }
+.sidePanel .sortSticky { --sort-top: 46px; background: #1e1b36; }

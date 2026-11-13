@@ -239,6 +239,12 @@ export function canLoadMore(p: { hasMore: boolean; page: number }): boolean {
   return p.hasMore && p.page < ARTIST_MAX_PAGES
 }
 
+/** 가수 화면 끝 문구 (I-42 B): 5쪽(100곡) 상한에 닿았으면 "여기까지", 실제로 곡이 끝났으면 "다 봤어요" */
+export function artistEndText(p: { hasMore: boolean; page: number }, count: number): string {
+  const capped = p.page >= ARTIST_MAX_PAGES && (p.hasMore || count >= ARTIST_MAX_PAGES * 20)
+  return capped ? '여기까지 보여 드려요 · 다른 노래는 검색으로 찾아보세요' : '이 가수의 노래를 다 봤어요'
+}
+
 /** 이어 불러온 페이지를 붙인다. 페이지 사이에 같은 곡이 다시 오면 앞의 것을 남긴다 */
 export function appendSongs(prev: ArtistSongItem[], next: ArtistSongItem[]): ArtistSongItem[] {
   const seen = new Set(prev.map(x => trackKey(x.item)))

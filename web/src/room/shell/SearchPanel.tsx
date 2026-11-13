@@ -28,6 +28,8 @@ export function SearchPanel({
   const [artist, setArtist] = useState<SearchArtist | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 오류 뒤 같은 검색어로 다시 (I-42 D): Enter 또는 [다시 시도]
+  const [retry, setRetry] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
@@ -44,13 +46,14 @@ export function SearchPanel({
         .finally(() => { if (!ac.signal.aborted) setLoading(false) })
     }, 300)
     return () => { clearTimeout(t); ac.abort() }
-  }, [roomId, query])
+  }, [roomId, query, retry])
 
   return (
     <section aria-label="노래 검색" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <label className={sh.searchBox}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B7AFD1" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-        <input ref={inputRef} type="search" aria-label="노래 검색" placeholder="노래나 가수 이름" value={query} onChange={e => setQuery(e.target.value)} enterKeyHint="search" />
+        <input ref={inputRef} type="search" aria-label="노래 검색" placeholder="노래나 가수 이름" value={query} onChange={e => setQuery(e.target.value)} enterKeyHint="search"
+          onKeyDown={e => { if (e.key === 'Enter' && query.trim()) { e.preventDefault(); setRetry(n => n + 1) } }} />
         {query && (
           <button type="button" className={sh.clear} aria-label="검색어 지우기" onClick={() => { setQuery(''); inputRef.current?.focus() }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
@@ -63,7 +66,12 @@ export function SearchPanel({
         <span>담는 즉시 우주에 떠요</span>
       </div>
 
-      {error && <p className={sh.center} role="alert" style={{ color: 'var(--r-error)' }}>{error}</p>}
+      {error && (
+        <p className={sh.center} role="alert" style={{ color: 'var(--r-error)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {error}
+          <button type="button" className={sh.sortChip} onClick={() => setRetry(n => n + 1)}>다시 시도</button>
+        </p>
+      )}
 
       {artist && !loading && (
         <>

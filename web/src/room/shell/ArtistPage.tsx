@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { roomApi, RoomApiError, type ArtistSongItem, type ArtistSort, type RoomSearchItem, type SearchArtist } from '../roomApi'
-import { appendSongs, artistCardSub, artistSongsErrorText, asSearchItem, canLoadMore, groupByRelease, mergeArtist, releaseText, scanNotice, scanPollMs, trackKey } from '../roomLogic'
+import { appendSongs, artistCardSub, artistEndText, artistSongsErrorText, asSearchItem, canLoadMore, groupByRelease, mergeArtist, releaseText, scanNotice, scanPollMs, trackKey } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { SearchRow } from './SearchPanel'
 import s from '../room.module.css'
@@ -21,9 +21,11 @@ const errText = (err: unknown) => err instanceof RoomApiError ? artistSongsError
  * 담기·금빛(친구가 담은 곡 → 나도 담기)·담음은 방 검색과 같다. 담는 일은 부모(RoomShell)가 한다.
  * 최신순은 DB에 있는 가수(artistId)만: 발매일을 처음 모으는 동안(scan RUNNING)은 모은 것만 보이고 몇 초마다 다시 읽는다.
  */
-export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack, backLabel, onError }: {
+export function ArtistPage({ roomId, artist, roomCount, added, pending, busy, onAdd, onBack, backLabel, onError }: {
   roomId: string
   artist: ArtistRef
+  /** 지금 우리 우주에 담긴 이 가수 곡 수 (지도 기준, 담기·빼기 뒤 갱신). 모르면 undefined */
+  roomCount?: number
   added: Map<string, number>
   pending: Set<string>
   busy: Set<string>
@@ -99,7 +101,9 @@ export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack
     return () => io.disconnect()
   }, [more])
 
-  const shown = mergeArtist({ artistId: artist.artistId, name: artist.name, songCountInRoom: artist.songCountInRoom, onMap: artist.onMap }, info)
+  const merged = mergeArtist({ artistId: artist.artistId, name: artist.name, songCountInRoom: artist.songCountInRoom, onMap: artist.onMap }, info)
+  // 담기·빼기 뒤에는 지도 곡 수가 더 최신이다 (I-42 C)
+  const shown = roomCount != null ? { ...merged, songCountInRoom: roomCount } : merged
   const sub = artistCardSub(shown)
   const notice = sort === 'latest' ? scanNotice(cur?.scan) : null
 
@@ -127,13 +131,15 @@ export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack
       </div>
 
       {canLatest && (
-        <nav className={sh.sortTabs} aria-label="노래 정렬">
-          {(['popular', 'latest'] as const).map(k => (
-            <button key={k} type="button" className={sh.segTab} aria-current={sort === k ? 'page' : undefined} onClick={() => setSort(k)}>
-              {k === 'popular' ? '인기순' : '최신순'}
-            </button>
-          ))}
-        </nav>
+        <div className={sh.sortSticky}>
+          <nav className={sh.sortTabs} aria-label="노래 정렬">
+            {(['popular', 'latest'] as const).map(k => (
+              <button key={k} type="button" className={sh.segTab} aria-current={sort === k ? 'page' : undefined} onClick={() => setSort(k)}>
+                {k === 'popular' ? '인기순' : '최신순'}
+              </button>
+            ))}
+          </nav>
+        </div>
       )}
 
       {notice && (
@@ -183,7 +189,7 @@ export function ArtistPage({ roomId, artist, added, pending, busy, onAdd, onBack
         </div>
       )}
       {cur && !canLoadMore(cur) && cur.items.length > 0 && !scanBusy && (
-        <span className={sh.center}>{cur.hasMore ? '여기까지 보여 드려요 · 다른 노래는 검색으로 찾아보세요' : '이 가수의 노래를 다 봤어요'}</span>
+        <span className={sh.center}>{artistEndText(cur, cur.items.length)}</span>
       )}
     </section>
   )
