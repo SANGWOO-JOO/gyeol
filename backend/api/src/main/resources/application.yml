@@ -30,6 +30,8 @@ gyeol:
   room:
     song-queue: ${ROOM_SONG_QUEUE:gyeol-local-room-song}
     gift-queue: ${GIFT_QUEUE:gyeol-local-gift-image}
+    # 하루 새 그림 한도(선착순). worker와 같은 환경 변수를 읽어 남은 장수를 보여 준다
+    gift-daily-image-limit: ${GIFT_DAILY_IMAGE_LIMIT:10}
     # ⑤ 코드 맞추기: 이유는 worker가 쓴다. 비중은 측정 뒤 조정 (docs/todo/room-api-db.md 11절)
     code-match-queue: ${CODE_MATCH_QUEUE:gyeol-local-code-match}
     code-match:

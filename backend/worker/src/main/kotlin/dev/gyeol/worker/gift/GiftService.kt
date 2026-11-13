@@ -125,6 +125,10 @@ class GiftConfig {
  * 상자 열기 (gift-image 큐): 구역 비율 → 묘사 문장 → 그림 → S3(covers 버킷 characters/) → 캐릭터 저장·상자 OPENED.
  * 서비스 전체 하루 예산을 넘었거나 생성·저장이 실패하면 기본 캐릭터(preset:N)로 연다. 기본 캐릭터 저장마저 실패하면 예외 → 3번 뒤 실패 큐 → FAILED
  */
+/** 기본 캐릭터로 연 이유 (gift_character.model, API가 fallbackReason으로 돌려줌) */
+const val PRESET_DAILY_LIMIT = "preset:DAILY_LIMIT"
+const val PRESET_FAILED = "preset:FAILED"
+
 @Service
 class GiftService(
     private val gifts: GiftRepository,
@@ -142,24 +146,23 @@ class GiftService(
         val box = gifts.box(boxId) ?: return
         if (box.status != GiftStatus.GENERATING) return // 이미 열렸거나 메시지를 두 번 받은 경우
         val today = LocalDate.now(kst)
-        val made = runCatching { generate(box.memberId, boxId, today) }
+        // 기본 캐릭터 이유를 model에 남긴다 (API의 fallbackReason): 하루 한도면 preset:DAILY_LIMIT, 생성·저장 실패면 preset:FAILED
+        val overLimit = gifts.imagesToday(today) >= props.gift.dailyImageLimit
+        if (overLimit) log.info("선물 그림 하루 한도({}장) 다 씀: 상자 {} 기본 캐릭터", props.gift.dailyImageLimit, boxId)
+        val made = if (overLimit) null else runCatching { generate(box.memberId, boxId) }
             .onFailure { log.warn("선물 그림 실패, 기본 캐릭터로: 상자 {} {}", boxId, it.toString()) }
             .getOrNull()
         val characterId = tx.execute {
             if (made != null) gifts.finishOpening(boxId, made.key, made.prompt, made.model, false)
-            else gifts.finishOpening(boxId, GiftRepository.presetKey(boxId.toInt()), null, "preset", true)
+            else gifts.finishOpening(boxId, GiftRepository.presetKey(boxId.toInt()), null, if (overLimit) PRESET_DAILY_LIMIT else PRESET_FAILED, true)
         }
-        log.info("선물 상자 {} 열림: 캐릭터 {} ({})", boxId, characterId, if (made != null) made.model else "기본")
+        log.info("선물 상자 {} 열림: 캐릭터 {} ({})", boxId, characterId, made?.model ?: if (overLimit) "기본, 한도" else "기본, 실패")
     }
 
     private data class Made(val key: String, val prompt: String, val model: String)
 
-    /** 예산 안이면 그림을 만들어 S3에 올린다. 예산을 넘으면 null (기본 캐릭터) */
-    private fun generate(memberId: Long, boxId: Long, today: LocalDate): Made? {
-        if (gifts.imagesToday(today) >= props.gift.dailyImageLimit) {
-            log.info("선물 그림 하루 예산({}장) 초과: 상자 {} 기본 캐릭터", props.gift.dailyImageLimit, boxId)
-            return null
-        }
+    /** 그림을 만들어 S3에 올린다 (한도 확인은 open에서) */
+    private fun generate(memberId: Long, boxId: Long): Made {
         val p = prompter.describe(gifts.genreMix(memberId))
         if (p.model != "fake") llmCalls.record("GIFT_PROMPT", LlmUsage(p.model, 1, p.inputTokens, p.outputTokens, p.latencyMs))
         val img = images.generate(p.text, boxId)

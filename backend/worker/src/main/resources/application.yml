@@ -36,7 +36,7 @@ gyeol:
       dlq: ${GIFT_DLQ:gyeol-local-gift-image-dlq}
       image-model: ${GIFT_IMAGE_MODEL:stability.stable-image-core-v1:1}
       image-region: ${GIFT_IMAGE_REGION:us-west-2}
-      daily-image-limit: ${GIFT_DAILY_IMAGE_LIMIT:50}
+      daily-image-limit: ${GIFT_DAILY_IMAGE_LIMIT:10}
     # ⑤ 코드 맞추기 이유 (근거 번호 없는 이유는 버림)
     code-match:
       queue: ${CODE_MATCH_QUEUE:gyeol-local-code-match}

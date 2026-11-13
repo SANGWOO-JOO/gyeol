@@ -180,6 +180,7 @@ class GiftIntegrationTest {
         val c = gifts.character(gifts.box(boxId)!!.characterId!!)!!
         assertTrue(c.isFallback)
         assertTrue(c.s3Key.startsWith("preset:"))
+        assertEquals(PRESET_DAILY_LIMIT, c.model, "이유: 하루 한도")
         jdbc.sql("DELETE FROM llm_call WHERE purpose = 'GIFT_IMAGE' AND model = 'test'").update()
     }
 
@@ -190,5 +191,44 @@ class GiftIntegrationTest {
         service.fail(boxId)
         assertEquals(GiftStatus.FAILED, gifts.box(boxId)!!.status)
         assertNull(gifts.box(boxId)!!.characterId)
+    }
+
+    @Test
+    fun `그림 저장이 실패하면 기본 캐릭터, 이유는 FAILED`() {
+        val m = member()
+        val boxId = readyBox(m)
+        s3.deleteBucket { it.bucket("gyeol-test-covers") }
+        try {
+            service.open(boxId)
+        } finally {
+            s3.createBucket { it.bucket("gyeol-test-covers") }
+        }
+        val c = gifts.character(gifts.box(boxId)!!.characterId!!)!!
+        assertTrue(c.isFallback)
+        assertEquals(PRESET_FAILED, c.model)
+    }
+
+    @Test
+    fun `열지 않은 READY 상자는 다음 날에도 READY로 남는다 (하루 한도를 다 써서 내일 여는 경우)`() {
+        val m = member()
+        addSongs(m, 50)
+        val box = gifts.boxes(m).single()
+        assertEquals(GiftStatus.READY, box.status)
+        val tomorrow = today.plusDays(1)
+        assertFalse(gifts.promoteWaiting(m, tomorrow))
+        assertEquals(GiftStatus.READY, gifts.box(box.id)!!.status)
+        assertEquals(box.id, gifts.summary(m, tomorrow, 10).readyBoxId)
+        assertTrue(gifts.startOpening(box.id, m), "다음 날 열 수 있다")
+    }
+
+    @Test
+    fun `오늘 남은 새 그림 수 = 한도 - 오늘 만든 그림, 0 아래로 안 내려감`() {
+        val used = gifts.imagesToday(today)
+        assertEquals(maxOf(0, used + 3 - used), gifts.imagesLeft(today, used + 3))
+        assertEquals(0, gifts.imagesLeft(today, used - 1))
+        val m = member()
+        val s = gifts.summary(m, today, used + 2)
+        assertEquals(used + 2, s.imageDailyLimit)
+        assertEquals(2, s.imagesLeftToday)
     }
 }

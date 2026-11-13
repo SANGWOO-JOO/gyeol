@@ -757,4 +757,31 @@ class RoomApiIntegrationTest {
         assertTrue(mix.none { it.toString().contains("가수") }, "가수 이름 없음")
         jdbc.sql("UPDATE map_version SET active = false WHERE id = :v").param("v", version).update()
     }
+
+    @Test
+    fun `선물 하루 새 그림 - 남은 장수(한도 10 - 오늘 만든 수), 기본 캐릭터 이유 DAILY_LIMIT·FAILED`() {
+        val host = newRoom()
+        jdbc.sql("DELETE FROM llm_call WHERE purpose = 'GIFT_IMAGE'").update()
+        repeat(3) { jdbc.sql("INSERT INTO llm_call (purpose, model, items, input_tokens, output_tokens, latency_ms) VALUES ('GIFT_IMAGE', 'test', 1, 0, 0, 0)").update() }
+        val me = call("GET", "/api/rooms/${host.rid}/me", key = host.key).body!!["gift"]
+        assertEquals(10, me["imageDailyLimit"].asInt())
+        assertEquals(7, me["imagesLeftToday"].asInt())
+
+        val boxId = jdbc.sql("INSERT INTO gift_box (member_id, milestone, status, ready_on) VALUES (:m, 50, 'READY', current_date) RETURNING id")
+            .param("m", host.memberId).query(Long::class.java).single()
+        assertEquals(7, call("GET", "/api/rooms/${host.rid}/me/gifts/$boxId", key = host.key).body!!["imagesLeftToday"].asInt())
+        repeat(10) { jdbc.sql("INSERT INTO llm_call (purpose, model, items, input_tokens, output_tokens, latency_ms) VALUES ('GIFT_IMAGE', 'test', 1, 0, 0, 0)").update() }
+        assertEquals(0, call("GET", "/api/rooms/${host.rid}/me", key = host.key).body!!["gift"]["imagesLeftToday"].asInt(), "0 아래로 안 내려감")
+        val opened = call("POST", "/api/rooms/${host.rid}/me/gifts/$boxId/open", key = host.key)
+        assertEquals(202, opened.status, "0이어도 기본 캐릭터로 지금 받기는 열 수 있다")
+        assertEquals(0, opened.body!!["imagesLeftToday"].asInt())
+        gifts.finishOpening(boxId, "preset:2", null, "preset:DAILY_LIMIT", true)
+        assertEquals("DAILY_LIMIT", call("GET", "/api/rooms/${host.rid}/me/gifts/$boxId", key = host.key).body!!["character"]["fallbackReason"].asString())
+
+        val failedId = jdbc.sql("INSERT INTO gift_character (member_id, s3_key, model, is_fallback) VALUES (:m, 'preset:1', 'preset:FAILED', true) RETURNING id")
+            .param("m", host.memberId).query(Long::class.java).single()
+        val chars = call("GET", "/api/rooms/${host.rid}/me/gifts", key = host.key).body!!["characters"].toList()
+        assertEquals("FAILED", chars.single { it["id"].asLong() == failedId }["fallbackReason"].asString())
+        jdbc.sql("DELETE FROM llm_call WHERE purpose = 'GIFT_IMAGE' AND model = 'test'").update()
+    }
 }

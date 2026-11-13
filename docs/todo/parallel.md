@@ -67,6 +67,8 @@
 | 11-13 | 1 | `backend/api/.../application.yml` · `gyeol.admin.*` | ⑥ 관리자: TOTP 키(ADMIN_TOTP_KEY), 쿠키 Secure, 세션·잠금 시간, IP 분당 제한 |
 | 11-13 | 1 | `backend/api/.../application-local.yml` · `gyeol.admin.totp-key` | ⑥ 로컬 전용 가짜 키(커밋 가능, 운영 키 아님) |
 | 11-14 | 1 | `backend/api·worker/.../application.yml` · `spring.cloud.aws.sqs.queue-not-found-strategy: fail` | I-1: 앱이 없는 큐를 만들지 않음 |
+| 11-14 | 1 | `infra/terraform/base/sqs.tf`, `deploy/helm/gyeol/values*.yaml`·`templates/backend.yaml` | I-1 추가: 음악 방 큐 3쌍, 선물 하루 한도 GIFT_DAILY_IMAGE_LIMIT |
+| 11-14 | 1 | `backend/api·worker/.../application.yml` · gift daily-image-limit | 선물 하루 새 그림 10장(기본값), api도 같은 환경 변수 |
 | 11-14 | 1 | `local/localstack/init-aws.sh` 전체, `local/compose.yaml` localstack 상태 검사, `scripts/dev-up.sh`·`scripts/k3d-up.sh` `up -d --wait` | I-1: 멱등 초기화·준비 표시 파일·DB·LocalStack이 준비될 때까지 대기 |
 | 11-13 | B | `backend/api/.../application.yml` · `gyeol.mail.mode`·`from`·`from-name`·`configuration-set` | ③ 메일 설정. `gyeol.room.*`는 안 건드림 (관리 세션 기록) |
 | 11-13 | B | `deploy/helm/gyeol/templates/backend.yaml` · api env `MAIL_MODE`·`MAIL_FROM`·`MAIL_CONFIG_SET` | ③ 메일 (관리 세션 기록) |

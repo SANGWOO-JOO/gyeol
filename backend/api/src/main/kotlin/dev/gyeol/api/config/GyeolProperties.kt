@@ -40,6 +40,8 @@ data class GyeolProperties(
         val songQueue: String = "gyeol-local-room-song",
         /** ④ 선물 상자 열기 → worker가 캐릭터를 만든다 */
         val giftQueue: String = "gyeol-local-gift-image",
+        /** 서비스 전체 하루 새 그림 한도 (worker gyeol.worker.gift.daily-image-limit와 같은 환경 변수 GIFT_DAILY_IMAGE_LIMIT) */
+        val giftDailyImageLimit: Int = 10,
         val maxMembers: Int = 5,
         val dailySongLimit: Int = 100,
         /** 한 사람이 동시에 식별을 기다리는 곡 수 */

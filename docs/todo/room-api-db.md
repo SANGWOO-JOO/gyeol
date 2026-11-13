@@ -168,6 +168,7 @@
 - 로컬 확인(11-13, fake): 개발 서버에서 50곡 담기 → 상자 READY → 열기 → 1초 안에 OPENED → 그림 200(S3 `characters/…svg`).
 - 아직: 실제 Bedrock 이미지 호출(요청·응답 형식은 문서 기준, 미확인), 웹 화면(갈래 A: 4-j·4-k·4-l).
 - 11-13 추가: `GET /me/gifts/{id}` 응답에 `genreMix`([{galaxy, songs}] 상위 4개, OPENED 상자만). 상자를 연 시각까지 담은 노래로 다시 센다(따로 저장하지 않아, 연 뒤에 뺀 노래·바뀐 지도 판은 반영되지 않는 근사). 가수 이름 없음.
+- 11-14 변경(room-plan.md "⑯ 변경: 새 그림은 하루 10장 선착순"): 서비스 전체 하루 새 그림 한도 50 → 10(`GIFT_DAILY_IMAGE_LIMIT`, worker `gyeol.worker.gift.daily-image-limit`·api `gyeol.room.gift-daily-image-limit`가 같은 환경 변수, Helm `gift.dailyImageLimit`). `GET /me`의 `gift`와 `GET /me/gifts/{id}`·열기 응답에 `imageDailyLimit`·`imagesLeftToday`(= max(0, 한도 − 오늘 `llm_call` GIFT_IMAGE 수), 가짜 모드는 세지 않음). 열지 않은 READY 상자는 다음 날에도 READY로 남아 내일 열 수 있다(테스트로 확인). 남은 장수 0에서 열면 worker가 기본 캐릭터. 캐릭터 응답 `fallbackReason`: `DAILY_LIMIT`(열 때 한도를 다 씀, 동시 열기 포함) · `FAILED`(생성·저장 실패), `gift_character.model`에 `preset:DAILY_LIMIT`·`preset:FAILED`로 남김(마이그레이션 없음, 11-14 전 기본 캐릭터 `preset`은 FAILED로 봄).
 
 ## 10. ③ 메일 구현 기록 (11-13, 갈래 B)
 

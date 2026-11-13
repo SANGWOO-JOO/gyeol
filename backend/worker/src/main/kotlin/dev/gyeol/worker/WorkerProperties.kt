@@ -41,8 +41,8 @@ data class WorkerProperties(
         val dlq: String = "gyeol-local-gift-image-dlq",
         val imageModel: String = "stability.stable-image-core-v1:1",
         val imageRegion: String = "us-west-2",
-        /** 서비스 전체 하루(한국 날짜) 이미지 생성 수. 넘으면 기본 캐릭터 (11-13 결정: 50장 ≈ $2) */
-        val dailyImageLimit: Int = 50,
+        /** 서비스 전체 하루(한국 날짜) 새 그림 수, 선착순. 넘으면 기본 캐릭터 (11-14 결정: 50 → 10장, api gyeol.room.gift-daily-image-limit와 같은 환경 변수) */
+        val dailyImageLimit: Int = 10,
     )
 
     /** ⑤ 코드 맞추기 이유 쓰기 (점수는 API가 계산) */

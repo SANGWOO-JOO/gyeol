@@ -117,7 +117,7 @@ class RoomService(
         return MeView(
             ctx.room.publicId, ctx.room.name, ctx.room.status.name, m.view(),
             songs.countOf(m.id), songs.daily(m.id, today), p.dailySongLimit, songs.pendingRequests(m.id),
-            gifts.summary(m.id, today),
+            gifts.summary(m.id, today, p.giftDailyImageLimit),
         )
     }
 

@@ -14,12 +14,18 @@ data class GiftBox(
     val readyOn: LocalDate?, val openedAt: Instant?, val characterId: Long?,
 )
 
-data class GiftCharacter(val id: Long, val memberId: Long, val giftBoxId: Long?, val s3Key: String, val isFallback: Boolean, val createdAt: Instant)
+data class GiftCharacter(
+    val id: Long, val memberId: Long, val giftBoxId: Long?, val s3Key: String, val isFallback: Boolean, val createdAt: Instant,
+    /** 만든 모델. 기본 캐릭터는 preset:DAILY_LIMIT(하루 한도) · preset:FAILED(생성 실패) · preset(11-14 전) */
+    val model: String = "",
+)
 
 /** 아래 바·탭 배지·담은 직후 알림에 쓰는 요약. remaining = 다음 단계 − 지금 곡 수 (노래를 빼면 50보다 클 수 있음) */
 data class GiftSummary(
     val songCount: Int, val bestCount: Int, val nextMilestone: Int, val remaining: Int,
     val receivedToday: Boolean, val waiting: Int, val readyBoxId: Long?,
+    /** 서비스 전체 오늘 새 그림 한도와 남은 장수 (선착순, 0이면 상자를 내일 열거나 기본 캐릭터로 지금 받기) */
+    val imageDailyLimit: Int = 0, val imagesLeftToday: Int = 0,
 )
 
 @Repository
@@ -43,7 +49,7 @@ class GiftRepository(private val jdbc: JdbcClient) {
     private val characterMapper = org.springframework.jdbc.core.RowMapper { rs, _ ->
         GiftCharacter(
             rs.getLong("id"), rs.getLong("member_id"), rs.getObject("gift_box_id") as Long?, rs.getString("s3_key"),
-            rs.getBoolean("is_fallback"), rs.getTimestamp("created_at").toInstant(),
+            rs.getBoolean("is_fallback"), rs.getTimestamp("created_at").toInstant(), rs.getString("model"),
         )
     }
 
@@ -102,7 +108,7 @@ class GiftRepository(private val jdbc: JdbcClient) {
         ).param("m", memberId).param("d", today).update() == 1
     }.getOrElse { e -> if (e is org.springframework.dao.DuplicateKeyException) false else throw e }
 
-    fun summary(memberId: Long, today: LocalDate): GiftSummary {
+    fun summary(memberId: Long, today: LocalDate, imageDailyLimit: Int = 0): GiftSummary {
         val count = songCount(memberId)
         val (best, next) = progress(memberId)
         val boxes = boxes(memberId)
@@ -111,8 +117,12 @@ class GiftRepository(private val jdbc: JdbcClient) {
             boxes.any { it.readyOn == today },
             boxes.count { it.status == GiftStatus.WAITING },
             boxes.firstOrNull { it.status == GiftStatus.READY }?.id,
+            imageDailyLimit, imagesLeft(today, imageDailyLimit),
         )
     }
+
+    /** 오늘 남은 새 그림 수 = max(0, 한도 − 오늘 만든 그림) */
+    fun imagesLeft(today: LocalDate, limit: Int): Int = (limit - imagesToday(today)).coerceAtLeast(0)
 
     fun boxes(memberId: Long): List<GiftBox> =
         jdbc.sql("SELECT * FROM gift_box WHERE member_id = :m ORDER BY milestone").param("m", memberId).query(boxMapper).list()

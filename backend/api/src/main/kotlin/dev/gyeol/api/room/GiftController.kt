@@ -28,17 +28,29 @@ import java.time.Instant
 import java.time.LocalDate
 
 data class GiftBoxView(val id: Long, val milestone: Int, val status: String, val earnedAt: Instant, val readyOn: LocalDate?, val openedAt: Instant?, val characterId: Long?)
-data class CharacterView(val id: Long, val giftBoxId: Long?, val isFallback: Boolean, val createdAt: Instant)
+/** fallbackReason: 기본 캐릭터일 때 DAILY_LIMIT(오늘 새 그림을 다 씀) · FAILED(생성 실패), 새 그림이면 null */
+data class CharacterView(val id: Long, val giftBoxId: Long?, val isFallback: Boolean, val createdAt: Instant, val fallbackReason: String? = null)
 data class GiftsResponse(val summary: GiftSummary, val boxes: List<GiftBoxView>, val characters: List<CharacterView>, val avatarCharacterId: Long?)
 /** 캐릭터를 만든 재료: 구역 이름과 그 구역 노래 수 (가수 이름 없음) */
 data class GenreShare(val galaxy: String, val songs: Int)
 
 /** genreMix: 열린 상자(OPENED)만, 상자를 연 시각까지 담은 노래의 구역 상위 4개 (웹 4-k "시티팝 25곡 · 댄스 팝 15곡") */
-data class GiftBoxDetail(val box: GiftBoxView, val character: CharacterView?, val genreMix: List<GenreShare> = emptyList())
+/** imageDailyLimit·imagesLeftToday: 서비스 전체 오늘 새 그림 한도·남은 장수 (0이면 내일 열거나 기본 캐릭터로 지금 받기) */
+data class GiftBoxDetail(
+    val box: GiftBoxView, val character: CharacterView?, val genreMix: List<GenreShare> = emptyList(),
+    val imageDailyLimit: Int = 0, val imagesLeftToday: Int = 0,
+)
 data class AvatarRequest(val characterId: Long?)
 
 private fun GiftBox.view() = GiftBoxView(id, milestone, status.name, earnedAt, readyOn, openedAt, characterId)
-private fun GiftCharacter.view() = CharacterView(id, giftBoxId, isFallback, createdAt)
+private fun GiftCharacter.view() = CharacterView(
+    id, giftBoxId, isFallback, createdAt,
+    when {
+        !isFallback -> null
+        model == "preset:DAILY_LIMIT" -> "DAILY_LIMIT"
+        else -> "FAILED" // preset:FAILED, 11-14 전 기록(preset)
+    },
+)
 
 /**
  * ④ 50곡 선물 (room-plan.md ⑯, room-api-db.md 3절). 상자를 열면 worker(gift-image 큐)가 캐릭터를 만든다.
@@ -58,7 +70,7 @@ class GiftService(
         val today = todayKst()
         gifts.promoteWaiting(m.id, today)
         return GiftsResponse(
-            gifts.summary(m.id, today), gifts.boxes(m.id).map { it.view() }, gifts.characters(m.id).map { it.view() },
+            gifts.summary(m.id, today, props.room.giftDailyImageLimit), gifts.boxes(m.id).map { it.view() }, gifts.characters(m.id).map { it.view() },
             rooms.member(m.id)?.avatarCharacterId,
         )
     }
@@ -68,7 +80,8 @@ class GiftService(
         val mix = if (b.status == dev.gyeol.core.room.GiftStatus.OPENED) {
             gifts.genreMix(b.memberId, 4, b.openedAt).map { GenreShare(it.first, it.second) }
         } else emptyList()
-        return GiftBoxDetail(b.view(), b.characterId?.let(gifts::character)?.view(), mix)
+        val limit = props.room.giftDailyImageLimit
+        return GiftBoxDetail(b.view(), b.characterId?.let(gifts::character)?.view(), mix, limit, gifts.imagesLeft(todayKst(), limit))
     }
 
     /** READY 상자만 연다 → GENERATING, 커밋 뒤 큐 */
@@ -77,7 +90,8 @@ class GiftService(
         myBox(ctx, boxId)
         if (!gifts.startOpening(boxId, ctx.member.id)) throw ApiException.conflict("GIFT_NOT_READY", "지금 열 수 있는 상자가 아니에요")
         sender.send(props.room.giftQueue, json.writeValueAsString(mapOf("boxId" to boxId)))
-        return GiftBoxDetail(gifts.box(boxId)!!.view(), null)
+        val limit = props.room.giftDailyImageLimit
+        return GiftBoxDetail(gifts.box(boxId)!!.view(), null, emptyList(), limit, gifts.imagesLeft(todayKst(), limit))
     }
 
     /** 내 캐릭터로 얼굴 바꾸기 (null이면 기본 얼굴 원). 참가자 판·지도 얼굴이 바뀌므로 map_rev를 올린다 */
