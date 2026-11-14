@@ -347,6 +347,8 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
   - `ADMIN_SECURE_COOKIE=true`, `ROOM_SECURE_COOKIE=true`
 - base: `bedrock_models`에 이미지 모델·리전(7절), `web_origins`에 `https://ourgyeol.com`(업로드 버킷 CORS).
 - release.yml: deploy 작업(OIDC → SSM `gyeol-deploy <태그>` → 헬스 체크), rollback(`workflow_dispatch`).
+- Helm: `/api` Ingress 분리 + `gyeol-api-ratelimit` 미들웨어(15-1), 값 `rateLimit.*`.
+- api: 검색 2개에 `IpRateLimiter`(15-2), 배포 뒤 `X-Forwarded-For` 위조 확인(15-2).
 - 도구: `tools/db-tunnel.sh`(14-3, ClusterIP 조회 + 포트 포워딩, 로컬 포트 25432).
 - 문서: `single-server.md`의 "맥북에서 빌드해 서버 k3s에 직접 넣는다"는 ghcr로 바뀜.
 
@@ -356,6 +358,7 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 |---|---|
 | 11-14 | 초안 (갈래 1). AWS 호출 없음, 가격은 11-10 조회값 + 확인 필요 표시 |
 | 11-14 | 14절 운영 DB 접속(SSM 포트 포워딩, 읽기 전용 계정) 추가 |
+| 11-14 | 15절 요청 수 제한(Traefik RateLimit, 앱 검색 제한, X-Forwarded-For 확인) 추가 |
 
 ## 14. 운영 DB 접속 (맥북 → SSM 포트 포워딩)
 
@@ -423,3 +426,44 @@ ALTER DEFAULT PRIVILEGES FOR ROLE gyeol IN SCHEMA public GRANT SELECT ON TABLES 
 - 비밀번호가 대화 기록에 남지 않게 SQL은 사용자가 직접 실행한다(관리자 계정 만들기와 같은 원칙, 9절 12번).
 - 데이터를 고쳐야 할 때는 맥북에서 직접 고치지 않는다. Flyway 마이그레이션이나 관리자 API로 한다.
 
+## 15. 요청 수 제한 (Traefik RateLimit + 앱 IpRateLimiter)
+
+ALB·AWS WAF는 두지 않는다. 서버가 1대라 ALB가 할 일이 없고, WAF는 탄력적 IP·EC2에 직접 붙일 수 없어 ALB나 CloudFront를 같이 들여야 한다(**추정**: AWS 문서 기억, 비용은 다시 조회 필요). Cloudflare 프록시는 결정 S4대로 끈다. 대신 무료인 두 겹으로 봇과 반복 요청을 줄인다.
+
+| 겹 | 위치 | 막는 것 | 상태 |
+|---|---|---|---|
+| 1 | Traefik `RateLimit` 미들웨어 | IP 하나가 `/api` 전체를 짧은 시간에 많이 부르는 것 | 새로 (이 절) |
+| 2 | 앱 `IpRateLimiter`(`room/RoomSupport.kt`) | 경로별 분당 횟수: 방 참가·다시 참가·초안·호스트 초기화·관리자 로그인 | 있음 (**사실**) |
+
+### 15-1. Traefik 미들웨어
+
+```yaml
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: gyeol-api-ratelimit
+spec:
+  rateLimit:
+    average: 20     # IP당 초당 평균 20건
+    period: 1s
+    burst: 100      # 순간 100건까지
+```
+
+- 붙이는 곳: 기본 Ingress의 `/api` 경로만. Helm에서 `/api`를 별도 Ingress로 나누고 주석 `traefik.ingress.kubernetes.io/router.middlewares: <네임스페이스>-gyeol-api-ratelimit@kubernetescrd`를 단다. 웹 정적 파일(`/`)은 가볍고 캐시되므로 제한하지 않는다.
+- 값 근거: 지도를 열면 `map` 1건 + 화면 안 가수 사진(`/api/rooms/{rid}/artists/{id}/image`)이 한꺼번에 나간다. 새벽 우주(행성 37) 휴대폰 맞춤에서 이미지 36장을 받았다(**사실**, I-44 웹 실측). 그래서 순간 허용(burst)은 100으로 넉넉히, 평균은 20으로 둔다. 실제 운영 로그를 보고 조정한다.
+- 기준 IP: 프록시를 끄므로 방문자가 서버에 직접 붙는다. Traefik 기본 기준(연결한 쪽 주소)을 그대로 쓴다. `ipStrategy`는 두지 않는다.
+- 넘으면 Traefik이 429를 돌려준다. 웹은 사진 요청 실패를 1분 기억하고 앨범 표지·장르색으로 대신 보여 주므로(**사실**, I-44 `roomPhoto`) 화면이 깨지지 않는다.
+- Helm 값: `rateLimit.enabled`(기본 false, `values-single.yaml`에서 true), `rateLimit.average`, `rateLimit.burst`. 로컬 k3d에서는 끈 채로 둔다.
+- CRD 이름 `traefik.io/v1alpha1`은 k3s 번들 Traefik v3 기준이다(**확인 필요**, 8절 관리자 허용과 같이 확인).
+
+### 15-2. 앱 쪽 보완 (구현 때 함께)
+
+- 검색 2개(`/api/rooms/{rid}/search`, `/api/tracks/search`)는 외부 API(Last.fm·MusicBrainz)를 부르는데 앱 제한이 없다(**사실**, `limiter.check` 호출 위치 확인). `IpRateLimiter`로 분당 횟수를 건다(예: 분당 30). 외부 API 쪽 차단을 막는 목적이다.
+- `X-Forwarded-For` 위조 확인: 앱은 이 헤더의 첫 값을 IP로 쓴다(**사실**, `RoomSupport.kt`·`AdminSecurity.kt`). 방문자가 이 헤더를 직접 넣어 보내면 앱 제한을 피할 수 있다. Traefik은 신뢰하지 않는 곳에서 온 `X-Forwarded-*`를 지우고 자기 값으로 바꾼다고 알고 있다(**추정**). 첫 배포 뒤 가짜 헤더를 넣은 요청으로 앱이 보는 IP를 확인하고, 안 지워지면 Traefik `forwardedHeaders` 설정이나 앱의 IP 읽는 방법을 고친다.
+
+### 15-3. 더 필요해지면
+
+| 순서 | 방법 | 비용 | 언제 |
+|---|---|---|---|
+| 1 | Cloudflare 프록시 켜기 (S4 다시 결정) | 무료 | 실제 공격이나 봇 트래픽이 로그에 보일 때. 5-1절의 바꿀 것 4가지를 같이 한다 |
+| 2 | ALB + AWS WAF | 월 수십 달러 (**확인 필요**) | 서버를 여러 대로 늘리거나 EKS로 옮길 때 |

@@ -40,7 +40,7 @@
         <mxCell id="c22" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;dashed=1;fontColor=#326CE5;verticalAlign=top;align=left;spacingLeft=8;fontSize=11;arcSize=3;" value="&lt;b&gt;k3s&lt;/b&gt; (k3d 검증 버전 고정, S12) · Helm gyeol: values-single + 서버의 values-prod" vertex="1">
           <mxGeometry height="405" width="490" x="575" y="300" as="geometry" />
         </mxCell>
-        <mxCell id="c23" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E8F0FE;strokeColor=#326CE5;arcSize=8;" value="&lt;b&gt;Traefik&lt;/b&gt; · Let&#39;s Encrypt TLS · /api/admin, /admin 은 관리자 IP만 허용" vertex="1">
+        <mxCell id="c23" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E8F0FE;strokeColor=#326CE5;arcSize=8;" value="&lt;b&gt;Traefik&lt;/b&gt; · Let&#39;s Encrypt TLS · /api/admin, /admin 은 관리자 IP만 허용&lt;br&gt;/api 요청 수 제한: IP당 초당 20 · 순간 100 → 429 (설계 15절)" vertex="1">
           <mxGeometry height="46" width="450" x="595" y="340" as="geometry" />
         </mxCell>
         <mxCell id="c24" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E8F0FE;strokeColor=#326CE5;arcSize=8;" value="&lt;b&gt;web&lt;/b&gt;&lt;br&gt;React 19 · Vite" vertex="1">
