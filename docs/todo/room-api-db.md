@@ -388,3 +388,7 @@
   - worker는 저장할 때, api는 `commonsPhotos`로 응답할 때 정리한다. 이미 저장된 행도 다시 받지 않고 응답에서 정리된다.
   - 실제 저장값 3개("Upload:  dramatized" → "dramatized", "Upload:  K-POPit 티비텐", "Republic of  Korea")를 응답에서 확인했다.
   - 테스트 api `room/CommonsAuthorTest` 1개. api·worker는 09:56:53에 재시작했고, 일괄 수집은 큐에 남은 메시지로 이어진다.
+- 일괄 수집 결과(11-14 11:38:52 큐 비고 처리 중 0):
+  - 활성 지도 판 가수 1,471명 중 미확인 0명이다. COMMONS 874(59%)·NONE 592·YOUTUBE 5다. 표 전체(지도 밖 포함)는 COMMONS 888·NONE 592·YOUTUBE 6이다.
+  - 실패: DLQ 0, MusicBrainz 거절 0. worker ERROR 2건(10:40·11:01)은 fetcher의 Wikimedia 503(UPSTREAM_UNAVAILABLE)이다. 두 메시지 모두 600초 뒤 다시 받아 끝났다.
+  - 방 8(jj7un3uFPx) 지도: 행성 37개 = PHOTO 31·COVER 6, 흐린 행성 6개 = PHOTO 5·NONE 1이다. PHOTO 사진 주소 36개가 모두 200이다(임시 기기 열쇠는 넣었다가 지웠다, 남은 행 0).
