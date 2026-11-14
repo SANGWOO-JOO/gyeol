@@ -74,6 +74,8 @@ data class SongGroup(
 data class MySongView(
     val id: Long, val trackId: Long, val title: String, val artist: String, val coverUrl: String?, val addedAt: Instant, val sharedWith: Int,
     val coverPath: String? = null, val group: SongGroup? = null,
+    /** 발매 연도·앨범(11-14): DB에 있는 값만. 원곡이 처음 실린 공식 음반과 그 연도(없으면 녹음이 처음 나온 해) */
+    val releaseYear: Int? = null, val album: String? = null,
 )
 /**
  * [sort]: recent(기본, 지금과 같음)·genre·artist. genre·artist는 첫 쪽의 [snapshot](그때까지 담은 곡의 마지막 id)을 다음 쪽 요청에 함께 보내면
@@ -296,7 +298,7 @@ class RoomSongService(
         if (sort == "genre" || sort == "artist") return groupedSongs(ctx, cursor, limit, sort, snapshot)
         if (sort != "recent") throw ApiException.validation("sort는 recent·genre·artist예요")
         val rows = songs.mySongs(ctx.member.id, cursor, limit + 1)
-        val page = rows.take(limit).map { MySongView(it.id, it.trackId, it.title, it.artistName, it.coverUrl, it.addedAt, it.sharedWith, covers.path(ctx.room.publicId, it.trackId, it.coverStored)) }
+        val page = rows.take(limit).map { MySongView(it.id, it.trackId, it.title, it.artistName, it.coverUrl, it.addedAt, it.sharedWith, covers.path(ctx.room.publicId, it.trackId, it.coverStored), releaseYear = it.releaseYear, album = it.album) }
         return MySongsPage(page, if (rows.size > limit) page.last().id else null)
     }
 
@@ -347,7 +349,7 @@ class RoomSongService(
                 g.key, if (sort == "genre") "GENRE" else "ARTIST", g.name, counts[g.key]!!, g.galaxyId,
                 g.artistId, g.artistId?.let { _ -> g.name }, g.artistId?.let(faceOf::get),
             )
-            MySongView(it.id, it.trackId, it.title, it.artistName, it.coverUrl, it.addedAt, it.sharedWith, covers.path(rid, it.trackId, it.coverStored), group)
+            MySongView(it.id, it.trackId, it.title, it.artistName, it.coverUrl, it.addedAt, it.sharedWith, covers.path(rid, it.trackId, it.coverStored), group, it.releaseYear, it.album)
         }
         val next = if (start + page.size < ordered.size) page.lastOrNull()?.id else null
         return MySongsPage(items, next, sort, snap)

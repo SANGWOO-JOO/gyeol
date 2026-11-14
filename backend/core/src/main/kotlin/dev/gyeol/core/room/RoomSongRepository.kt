@@ -19,6 +19,8 @@ data class MySong(
     val id: Long, val trackId: Long, val title: String, val artistId: Long, val artistName: String,
     val coverUrl: String?, val addedAt: Instant, val sharedWith: Int,
     val coverStored: Boolean = false,
+    /** 원곡이 처음 실린 공식 음반 이름(track.release_title)과 그 연도(없으면 녹음이 처음 나온 해, artist_recording) */
+    val album: String? = null, val releaseYear: Int? = null,
 )
 
 data class SongRequest(
@@ -90,13 +92,16 @@ class RoomSongRepository(private val jdbc: JdbcClient) {
             """
             SELECT rs.id, rs.track_id, t.title, a.id, a.name, t.cover_url, rs.added_at,
                    (SELECT count(*) FROM room_song o WHERE o.room_id = rs.room_id AND o.track_id = rs.track_id AND o.member_id <> rs.member_id),
-                   t.cover_key IS NOT NULL
+                   t.cover_key IS NOT NULL, t.release_title,
+                   coalesce(substring(t.release_date from '^[0-9]{4}'),
+                            (SELECT substring(ar.first_release_date from '^[0-9]{4}') FROM artist_recording ar
+                             WHERE ar.artist_id = t.artist_id AND ar.recording_mbid = t.recording_mbid))
             FROM room_song rs JOIN track t ON t.id = rs.track_id JOIN artist a ON a.id = rs.artist_id
             WHERE rs.member_id = :m AND rs.id < :before
             ORDER BY rs.id DESC LIMIT :limit
             """.trimIndent(),
         ).param("m", memberId).param("before", beforeId ?: Long.MAX_VALUE).param("limit", limit)
-            .query { rs, _ -> MySong(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getLong(4), rs.getString(5), rs.getString(6), rs.getTimestamp(7).toInstant(), rs.getInt(8), rs.getBoolean(9)) }
+            .query { rs, _ -> MySong(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getLong(4), rs.getString(5), rs.getString(6), rs.getTimestamp(7).toInstant(), rs.getInt(8), rs.getBoolean(9), rs.getString(10), rs.getString(11)?.toIntOrNull()) }
             .list()
 
     // ── 표지 저장본 (I-14) ──

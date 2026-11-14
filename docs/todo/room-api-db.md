@@ -557,3 +557,14 @@
   - 지시는 V34였지만 V33으로 했다. Flyway `outOfOrder`가 꺼져 있어 V34를 먼저 두면 나중에 들어올 V33(I-48)이 검증에서 막히기 때문이다. 그래서 I-48 제목 만료 메모는 V34로 고쳤다.
   - 로컬 적용: 18:35:05 api가 V33을 적용했다. 적용 전·후 대상 0행이고, 가수 조각 전체 텍스트 해시도 같다(0행 변경).
   - 테스트: worker `MapIntegrationTest` 1개(Person 정리·Character "????" 정리·Group 유지·두 번째 0행). worker 90·api 93(건너뜀 1) 통과. 18:35:00 api·worker 재시작.
+- **남은 8명 설명 정리 (11-14, 사용자 승인, 무료):** STUTS·Lil tachi·유라·조정석·ダズビー·KEIJU·kZm·Tani Yuuki의 출생 연도 "활동 시작" 구절을 지웠다(8행).
+  - 절 하나만 빼면 어색한 STUTS·조정석은 그 문장 전체를 지웠다. Lil tachi는 같은 날짜에서 나온 "초기 2000년대의 시대적 감성…" 문장도 지웠다.
+  - 정리 뒤 23명 중 해당 문장은 0개다.
+  - 벡터: 로컬 임베딩 서비스(multilingual-e5-small ONNX, `EMBED_URL` localhost:18084)라 무료다. 설명이 바뀐 23명만 오래된 상태라 `/internal/map/embed`로 23개를 다시 만들었다. llm_call은 1689로 변화 없다.
+
+### 내 노래 발매 연도·앨범 (11-14, 사용자 승인)
+- `MySongView.releaseYear`·`album`을 더했다(recent·genre·artist 모두). DB 값만 쓴다.
+  - album: `track.release_title`(식별 때 고른 원곡이 처음 실린 공식 음반, l1-design 4-3)
+  - releaseYear: `track.release_date` 앞 4자리. 없으면 `artist_recording.first_release_date`(그 녹음이 처음 나온 날, I-30 수집) 앞 4자리. 둘 다 없으면 null
+- 리뷰 방 리뷰A(member 28) 40곡: 앨범 40/40, 연도 39/40. 빠진 1곡은 Her Blue Sky(베스트 앨범, 날짜 없음, 녹음 수집 없음)이다. artist_recording 대체로 더 채워진 곡은 0이다.
+- 테스트: api 1개(원곡 음반·연도, 녹음 첫 해 대체, 둘 다 없으면 null, artist 정렬에도 같은 값). api 94(건너뜀 1)·worker 90 통과. 18:42:56 api·worker 재시작.

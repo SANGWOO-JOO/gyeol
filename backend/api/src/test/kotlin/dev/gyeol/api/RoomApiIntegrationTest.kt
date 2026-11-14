@@ -1564,4 +1564,27 @@ class RoomApiIntegrationTest {
         assertEquals(listOf("J-pop", "K-pop", "Pop", "Singer-songwriter", "R&B"), facts["facts"]["tags"].toList().map { it.asString() }, "세대 표시는 빼고 5개")
         assertTrue(!facts["facts"].toString().contains("1986"), "날짜 없음")
     }
+
+    @Test
+    fun `내 노래 발매 연도·앨범 - 원곡 음반과 그 연도, 날짜가 없으면 녹음이 처음 나온 해, 둘 다 없으면 null`() {
+        val host = newRoom()
+        val a = ArtistInfo(UUID.randomUUID(), "연도가수", "Year", emptyList())
+        val dated = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "연도 노래", a, UUID.randomUUID(), UUID.randomUUID(), "첫 정규", "2024-03-05", "Album"))
+        val recMbid = UUID.randomUUID()
+        val fallback = identify.upsertTrack(TrackInfo(recMbid, "날짜 없는 노래", a, UUID.randomUUID(), UUID.randomUUID(), "베스트", null, "Album"))
+        val none = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "아무것도 없는 노래", a, null, null, null, null, null))
+        val aid = songs.trackArtist(dated)!!
+        jdbc.sql("INSERT INTO artist_recording (artist_id, recording_mbid, title, title_norm, first_release_date) VALUES (:a, :r, '날짜 없는 노래', '날짜없는노래', '2019-07')")
+            .param("a", aid).param("r", recMbid).update()
+        listOf(dated, fallback, none).forEach { assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to it), host.key).status) }
+        val byTitle = call("GET", "/api/rooms/${host.rid}/me/songs?limit=10", key = host.key).body!!["items"].toList().associateBy { it["title"].asString() }
+        assertEquals(2024, byTitle["연도 노래"]!!["releaseYear"].asInt())
+        assertEquals("첫 정규", byTitle["연도 노래"]!!["album"].asString())
+        assertEquals(2019, byTitle["날짜 없는 노래"]!!["releaseYear"].asInt(), "녹음이 처음 나온 해")
+        assertEquals("베스트", byTitle["날짜 없는 노래"]!!["album"].asString())
+        assertTrue(byTitle["아무것도 없는 노래"]!!["releaseYear"].isNull && byTitle["아무것도 없는 노래"]!!["album"].isNull)
+        // 묶어 보기에도 같은 값
+        val artistSort = call("GET", "/api/rooms/${host.rid}/me/songs?sort=artist&limit=10", key = host.key).body!!["items"].toList()
+        assertEquals(2024, artistSort.single { it["title"].asString() == "연도 노래" }["releaseYear"].asInt())
+    }
 }
