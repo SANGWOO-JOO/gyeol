@@ -22,7 +22,7 @@ import java.net.http.HttpResponse
 import java.time.Duration
 
 /** Wikimedia Commons의 가수 사진. 재사용 조건(CC BY·BY-SA)에 따라 저작자·라이선스를 함께 돌려준다 */
-data class ArtistPhoto(val url: String, val pageUrl: String?, val author: String?, val license: String?)
+data class ArtistPhoto(val url: String, val pageUrl: String?, val author: String?, val license: String?, val via: String? = null)
 
 /** 응답 해석만 (외부 호출 없이 시험한다) */
 object ArtistImageParser {
@@ -55,6 +55,34 @@ object ArtistImageParser {
         return scored.filter { it.second == best }.map { it.first }.distinct()
     }
 
+    /** I-50: Wikidata sitelinks 중 위키백과 문서 제목, [WIKIS] 순서 (kowiki → jawiki → enwiki) */
+    fun wikiTitles(entity: JsonNode, qid: String): List<Pair<String, String>> {
+        val links = entity.path("entities").path(qid).path("sitelinks")
+        return WIKIS.mapNotNull { w -> links.path(w).path("title").asString("").ifEmpty { null }?.let { w to it } }
+    }
+
+    /** 위키백과 pageprops의 자유 라이선스 대표 이미지 파일 이름 (page_image_free) */
+    fun pageImageFree(res: JsonNode): String? =
+        res.path("query").path("pages").toList().firstNotNullOfOrNull { it.path("pageprops").path("page_image_free").asString("").ifEmpty { null } }
+
+    /**
+     * I-50 위키 대표 이미지 거르기. 본인 사진이 아니면 이유, 쓸 수 있으면 null.
+     * LOGO: 파일명에 logo·ロゴ·로고, .svg, Commons 분류에 logo. NOT_SELF: 벽화·그래피티·포스터·앨범 커버·서명
+     */
+    fun rejectReason(file: String, info: JsonNode?): String? {
+        val name = file.lowercase()
+        val cats = info?.path("query")?.path("pages")?.toList()?.firstOrNull()?.path("imageinfo")?.toList()?.firstOrNull()
+            ?.path("extmetadata")?.path("Categories")?.path("value")?.asString("")?.lowercase().orEmpty()
+        if (LOGO.containsMatchIn(name) || name.endsWith(".svg") || cats.contains("logo")) return "LOGO"
+        if (NOT_SELF.containsMatchIn(name) || NOT_SELF_CATS.containsMatchIn(cats)) return "NOT_SELF"
+        return null
+    }
+
+    val WIKIS = listOf("kowiki", "jawiki", "enwiki")
+    private val LOGO = Regex("""logo|ロゴ|로고""")
+    private val NOT_SELF = Regex("""graffiti|граффит|mural|벽화|그래피티|グラフィティ|壁画|poster|포스터|ポスター|album[ _-]?cover|cover[ _-]?art|앨범[ _]?커버|ジャケット|signature|autograph|서명|署名""")
+    private val NOT_SELF_CATS = Regex("""graffiti|murals|posters|album covers|signatures|autographs""")
+
     /** 녹음 검색 결과에 [title]과 같은 곡이 있는지 */
     fun hasRecording(search: JsonNode, title: String): Boolean =
         search.path("recordings").toList().any { TitleMatch.sameTitle(it.path("title").asString(""), title) }
@@ -80,6 +108,7 @@ object ArtistImageParser {
 
 /**
  * 가수 사진 (docs/todo/artist-images.md): MusicBrainz → Wikidata(P18) → Wikimedia Commons.
+ * P18이 없으면 위키백과 ko → ja → en 문서의 자유 라이선스 대표 이미지(Commons 파일, I-50)
  * MusicBrainz 호출은 식별과 같은 속도 제한을 쓰고, Wikidata·Commons는 따로 천천히 부른다.
  */
 @Component
@@ -87,6 +116,7 @@ class ArtistImageClient(private val props: FetcherProperties, private val musicB
     private val gate = RateGate(Duration.ofMillis(500), Duration.ofSeconds(60))
     private val http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(10)).build()
     private val json = JsonMapper.builder().build()
+    private val log = org.slf4j.LoggerFactory.getLogger(javaClass)
 
     /**
      * 가수 기록이 없는 Topic 채널 이름으로 MusicBrainz 가수를 찾는다. 확실하지 않으면 null.
@@ -111,13 +141,47 @@ class ArtistImageClient(private val props: FetcherProperties, private val musicB
         val artist = musicBrainz.fetch("/artist/$mbid", mapOf("inc" to "url-rels"))
         val qid = ArtistImageParser.wikidataId(artist) ?: return null
         val entity = getJson("https://www.wikidata.org/wiki/Special:EntityData/$qid.json") ?: return null
-        val file = ArtistImageParser.imageFile(entity, qid) ?: return null
+        val file = ArtistImageParser.imageFile(entity, qid) ?: return wikiImage(mbid, entity, qid)
+        return photoOf(file)?.copy(via = "P18")
+    }
+
+    /**
+     * I-50 2단계: P18이 없으면 위키백과(ko → ja → en) 문서의 자유 라이선스 대표 이미지.
+     * Commons에 있는 파일만 쓰고(로컬 파일은 imageinfo가 없어 빠진다), 로고·본인이 아닌 그림은 거르고 다음 위키를 본다
+     */
+    private fun wikiImage(mbid: String, entity: JsonNode, qid: String): ArtistPhoto? {
+        val seen = mutableSetOf<String>() // 위키마다 같은 파일이 흔하다: 한 번 본 파일은 다시 조회하지 않는다
+        for ((wiki, page) in ArtistImageParser.wikiTitles(entity, qid)) {
+            val lang = wiki.removeSuffix("wiki")
+            val t = URLEncoder.encode(page, Charsets.UTF_8)
+            val res = getJson("https://$lang.wikipedia.org/w/api.php?action=query&format=json&prop=pageprops&ppprop=page_image_free&redirects=1&titles=$t") ?: continue
+            val file = ArtistImageParser.pageImageFree(res) ?: continue
+            if (!seen.add(file)) continue
+            // 파일명만으로 걸리면 Commons를 부르지 않는다
+            val first = if (ArtistImageParser.rejectReason(file, null) == null) info(file, SHORT_SIDE) ?: continue else null
+            val reason = ArtistImageParser.rejectReason(file, first)
+            if (reason != null) {
+                log.info("가수 사진 위키 대표 이미지 거름: mbid={} wiki={} reason={} file={}", mbid, wiki, reason, file)
+                continue
+            }
+            val photo = photoFrom(file, first!!) ?: continue
+            log.info("가수 사진 위키 대표 이미지: mbid={} wiki={} file={}", mbid, wiki, file)
+            return photo.copy(via = wiki)
+        }
+        return null
+    }
+
+    private fun info(file: String, width: Int): JsonNode? {
         val title = URLEncoder.encode("File:$file", Charsets.UTF_8)
-        fun info(width: Int) = getJson("https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url%7Csize%7Cextmetadata&iiurlwidth=$width&titles=$title")
-        val first = info(SHORT_SIDE) ?: return null
+        return getJson("https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url%7Csize%7Cextmetadata&iiurlwidth=$width&titles=$title")
+    }
+
+    private fun photoOf(file: String): ArtistPhoto? = info(file, SHORT_SIDE)?.let { photoFrom(file, it) }
+
+    private fun photoFrom(file: String, first: JsonNode): ArtistPhoto? {
         val (w, h) = ArtistImageParser.size(first) ?: return ArtistImageParser.photo(first)
         val width = thumbWidthOf(w, h)
-        return ArtistImageParser.photo(if (width == SHORT_SIDE) first else info(width) ?: first)
+        return ArtistImageParser.photo(if (width == SHORT_SIDE) first else info(file, width) ?: first)
     }
 
     /** Commons 이미지 파일만 내려받는다 (worker가 S3에 저장) */

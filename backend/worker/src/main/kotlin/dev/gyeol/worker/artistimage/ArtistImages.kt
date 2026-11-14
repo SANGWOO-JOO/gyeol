@@ -106,7 +106,8 @@ class ArtistImageListener(
 
 /**
  * 지도 가수 얼굴 일괄 채우기 (I-44, 로컬 전용 `gyeol.worker.map.admin-endpoint=true`).
- * 대상: 활성 지도 판 가수 중 사진을 확인한 적 없는 가수 + Commons 행은 있는데 S3 파일이 없는 가수(로컬 LocalStack 초기화 등).
+ * 대상: 활성 지도 판 가수 중 사진을 확인한 적 없는 가수 + Commons 행은 있는데 S3 파일이 없는 가수(로컬 LocalStack 초기화 등)
+ * + `retryNone=true`면 NONE 가수(I-50, 찾는 경로가 늘었을 때).
  * 10명씩 commonsOnly 메시지로 artist-image 큐에 넣는다. 처리는 큐 listener가 한 번에 한 메시지, 가수 사이 [WorkerProperties.ArtistImageProps.bulkPause]
  */
 @org.springframework.web.bind.annotation.RestController
@@ -121,15 +122,20 @@ class ArtistImageBulkController(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @org.springframework.web.bind.annotation.PostMapping("/internal/artist-image/map-fill")
-    fun mapFill(@org.springframework.web.bind.annotation.RequestParam(defaultValue = "5000") limit: Int): Map<String, Int> {
+    fun mapFill(
+        @org.springframework.web.bind.annotation.RequestParam(defaultValue = "5000") limit: Int,
+        @org.springframework.web.bind.annotation.RequestParam(defaultValue = "false") retryNone: Boolean,
+    ): Map<String, Int> {
         val fresh = repo.mapTargets(limit)
         val missing = repo.mapCommonsTargets().filter { (_, key) -> !exists(key) }.map { it.first }
-        val all = (fresh + missing).take(limit)
+        // I-50: 사진 찾는 경로가 늘었을 때 NONE으로 확인된 가수도 다시 찾는다
+        val none = if (retryNone) repo.mapNoneTargets(limit) else emptyList()
+        val all = (fresh + missing + none).distinctBy { it.artistId }.take(limit)
         all.chunked(10).forEach { items ->
             sqs.send { it.queue(props.artistImage.queue).payload(json.writeValueAsString(ArtistImageMessage(items = items, commonsOnly = true))) }
         }
-        log.info("지도 가수 얼굴 일괄: 새로 {}명, 파일 없는 Commons {}명, 큐에 {}명", fresh.size, missing.size, all.size)
-        return mapOf("unchecked" to fresh.size, "missingFile" to missing.size, "queued" to all.size)
+        log.info("지도 가수 얼굴 일괄: 새로 {}명, 파일 없는 Commons {}명, 다시 찾는 NONE {}명, 큐에 {}명", fresh.size, missing.size, none.size, all.size)
+        return mapOf("unchecked" to fresh.size, "missingFile" to missing.size, "retryNone" to none.size, "queued" to all.size)
     }
 
     private fun exists(key: String): Boolean = try {

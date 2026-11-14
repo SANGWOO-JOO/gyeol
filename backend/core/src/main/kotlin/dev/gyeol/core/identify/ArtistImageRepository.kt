@@ -124,6 +124,19 @@ class ArtistImageRepository(private val jdbc: JdbcClient) {
             """.trimIndent(),
         ).param("l", limit).query { rs, _ -> ArtistImageTarget(rs.getLong(1), rs.getString(2), null) }.list()
 
+    /** I-50: 활성 지도 판 가수 중 사진이 없다고 확인된(NONE) 가수. 새 경로(위키 대표 이미지)로 다시 찾을 때 쓴다 */
+    fun mapNoneTargets(limit: Int): List<ArtistImageTarget> =
+        jdbc.sql(
+            """
+            SELECT a.id, a.mbid::text FROM artist_position p
+            JOIN map_version v ON v.id = p.map_version AND v.active
+            JOIN artist a ON a.id = p.artist_id
+            JOIN artist_image ai ON ai.artist_id = a.id AND ai.source = 'NONE'
+            WHERE a.mbid IS NOT NULL
+            ORDER BY a.id LIMIT :l
+            """.trimIndent(),
+        ).param("l", limit).query { rs, _ -> ArtistImageTarget(rs.getLong(1), rs.getString(2), null) }.list()
+
     /** 활성 지도 판 가수 중 Commons 행이 있는 가수와 그 S3 키 (파일이 남아 있는지 worker가 확인한다) */
     fun mapCommonsTargets(): List<Pair<ArtistImageTarget, String>> =
         jdbc.sql(

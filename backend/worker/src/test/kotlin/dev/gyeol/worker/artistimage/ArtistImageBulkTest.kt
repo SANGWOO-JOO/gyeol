@@ -7,6 +7,7 @@ import dev.gyeol.core.identify.ChannelImageTarget
 import dev.gyeol.worker.WorkerProperties
 import dev.gyeol.worker.identify.FetcherClient
 import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
@@ -55,5 +56,19 @@ class ArtistImageBulkTest {
         verify(repo).save(3, ArtistImage("NONE"))
         verify(repo).saveChannel("Someone - Topic", null, ArtistImage("NONE"))
         verify(fetcher, never()).channelImage(anyString())
+    }
+
+    @Test
+    fun `I-50 map-fill retryNone - NONE 가수도 큐에 넣고, 겹치면 한 번만`() {
+        val repo = mock(ArtistImageRepository::class.java)
+        val sqs = mock(io.awspring.cloud.sqs.operations.SqsTemplate::class.java)
+        `when`(repo.mapTargets(5000)).thenReturn(listOf(ArtistImageTarget(1, "m1", null)))
+        `when`(repo.mapCommonsTargets()).thenReturn(emptyList())
+        `when`(repo.mapNoneTargets(5000)).thenReturn((2L..12L).map { ArtistImageTarget(it, "m$it", null) } + ArtistImageTarget(1, "m1", null))
+        val c = ArtistImageBulkController(repo, sqs, json, mock(S3Client::class.java), props)
+        assertEquals(mapOf("unchecked" to 1, "missingFile" to 0, "retryNone" to 12, "queued" to 12), c.mapFill(5000, retryNone = true))
+        verify(sqs, org.mockito.Mockito.times(2)).send(org.mockito.ArgumentMatchers.any<java.util.function.Consumer<io.awspring.cloud.sqs.operations.SqsSendOptions<Any>>>())
+        val off = ArtistImageBulkController(repo, mock(io.awspring.cloud.sqs.operations.SqsTemplate::class.java), json, mock(S3Client::class.java), props)
+        assertEquals(1, off.mapFill(5000, retryNone = false)["queued"])
     }
 }

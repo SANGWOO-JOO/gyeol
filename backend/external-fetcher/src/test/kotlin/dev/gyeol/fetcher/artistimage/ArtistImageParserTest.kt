@@ -62,4 +62,36 @@ class ArtistImageParserTest {
         assertNull(ArtistImageParser.imageFile(json.readTree("""{"entities":{"Q1":{"claims":{}}}}"""), "Q1"))
         assertNull(ArtistImageParser.photo(json.readTree("""{"query":{"pages":{"-1":{"missing":""}}}}""")))
     }
+
+    @Test
+    fun `I-50 위키 대표 이미지 - sitelinks는 ko·ja·en 순서, pageprops의 page_image_free`() {
+        val entity = json.readTree("""{"entities":{"Q1":{"sitelinks":{"enwiki":{"title":"Hum (band)"},"jawiki":{"title":"ハム (バンド)"},"frwiki":{"title":"Hum"}}}}}""")
+        assertEquals(listOf("jawiki" to "ハム (バンド)", "enwiki" to "Hum (band)"), ArtistImageParser.wikiTitles(entity, "Q1"))
+        assertEquals(emptyList(), ArtistImageParser.wikiTitles(json.readTree("""{"entities":{"Q2":{}}}"""), "Q2"))
+        val res = json.readTree("""{"query":{"pages":{"1578200":{"title":"Hum (band)","pageprops":{"page_image_free":"Hum_2026.png"}}}}}""")
+        assertEquals("Hum_2026.png", ArtistImageParser.pageImageFree(res))
+        assertNull(ArtistImageParser.pageImageFree(json.readTree("""{"query":{"pages":{"1":{"title":"x"}}}}""")))
+    }
+
+    @Test
+    fun `I-50 거르기 - 로고(파일명·svg·분류)와 본인이 아닌 그림(벽화·그래피티·포스터·앨범 커버·서명)`() {
+        fun info(cats: String) = json.readTree("""{"query":{"pages":{"1":{"imageinfo":[{"extmetadata":{"Categories":{"value":"$cats"}}}]}}}}""")
+        val none = info("Musicians from Japan")
+        // 관리 세션 표본 (11-14)
+        assertEquals("LOGO", ArtistImageParser.rejectReason("Maisondes_PNG_logo.png", none))
+        assertEquals("LOGO", ArtistImageParser.rejectReason("ILiFE!_Logo.png", none))
+        assertEquals("LOGO", ArtistImageParser.rejectReason("Yorushika_logo.svg", none))
+        assertEquals("LOGO", ArtistImageParser.rejectReason("Logo_of_Iyowa.webp", none))
+        assertEquals("LOGO", ArtistImageParser.rejectReason("Band_mark.png", info("PD textlogo|SVG logos of Japan")))
+        assertEquals("LOGO", ArtistImageParser.rejectReason("밴드_로고.png", none))
+        assertEquals("NOT_SELF", ArtistImageParser.rejectReason("Граффитти_Jeff_Buckley._Revisited._Россия,_Октябрьский,_2015.jpg", none))
+        assertEquals("NOT_SELF", ArtistImageParser.rejectReason("Wall_in_Seoul.jpg", info("Murals in Seoul")))
+        assertEquals("NOT_SELF", ArtistImageParser.rejectReason("X_album_cover.jpg", none))
+        assertEquals("NOT_SELF", ArtistImageParser.rejectReason("X_signature.png", none))
+        assertEquals("NOT_SELF", ArtistImageParser.rejectReason("Concert_poster_2019.jpg", none))
+        // 본인 사진
+        assertNull(ArtistImageParser.rejectReason("Southern_All_Stars,_2023.png", none))
+        assertNull(ArtistImageParser.rejectReason("That_Handsome_Devil_Performing_in_Ottawa.jpg", none))
+        assertNull(ArtistImageParser.rejectReason("Hum_2026.png", null))
+    }
 }

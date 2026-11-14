@@ -417,3 +417,15 @@
 - `V30__drop_youtube_artist_images.sql`: YOUTUBE 행을 지운다(artist_image 6·channel_image 26). NONE으로 바꾸지 않고 미확인으로 둔 이유는, NONE이면 30일 재확인 기한까지 Commons를 다시 보지 않기 때문이다. 다음 세션 계획·지도 일괄 채우기에서 Commons만 다시 찾는다. CHECK 제약의 'YOUTUBE'는 그대로 둔다.
 - 테스트: worker `ArtistImageBulkTest` 보통 메시지 테스트를 I-45로 바꿨다(가수·채널 NONE, channelImage 안 부름). api `SessionApiIntegrationTest` 가수 순위 테스트에 YOUTUBE 행이 있어도 imageSource·imageUrl이 없음을 더했다.
 - 결과: api 79개(건너뜀 1)·worker 79개 통과. 12:21:06 api·worker 재시작 때 V30이 적용됐다. 남은 행은 artist_image COMMONS 888·NONE 592, channel_image COMMONS 73·NONE 1이다.
+
+### I-50 Commons 사진 2단계 경로 (11-14, 사용자 승인)
+- fetcher `ArtistImageClient.commons`: P18이 없으면 Wikidata sitelinks의 kowiki → jawiki → enwiki 문서에서 pageprops `page_image_free`를 본다. 그 파일이 Commons에 있으면 기존 imageinfo·extmetadata 경로(작성자·라이선스·pageUrl, S3 저장)를 그대로 쓴다. source는 COMMONS이고, 응답에 `via`(P18·kowiki…)를 더했다.
+- 거르기(`ArtistImageParser.rejectReason`):
+  - LOGO: 파일명 logo·ロゴ·로고, .svg, Commons 분류에 logo.
+  - NOT_SELF: 그래피티(러시아어 포함)·벽화·포스터·앨범 커버·서명.
+  - 걸리면 다음 위키를 본다. 한 번 본 파일은 다시 조회하지 않고, 파일명만으로 걸리면 Commons를 부르지 않는다. 거른 파일은 fetcher 로그 "위키 대표 이미지 거름"에 남는다.
+- worker `map-fill?retryNone=true`: 활성 지도 판의 NONE 가수도 다시 찾는다(`ArtistImageRepository.mapNoneTargets`).
+- 테스트: fetcher `ArtistImageParserTest` 2개(위키 제목·page_image_free, 관리 세션 표본 파일명 거르기), worker `ArtistImageBulkTest` 1개(retryNone·중복 제거). fetcher 55·worker 80·api 79(건너뜀 1) 통과.
+- 일괄(12:31~13:10, 597명): COMMONS 874 → 910(+36: enwiki 19·kowiki 10·jawiki 7), NONE 561, 미확인 0. DLQ 0, 오류 0.
+  - 거른 가수 32명: LOGO 30(실제 로고 21·.svg 서명 4·자리표시 그림 5), NOT_SELF 2(벽화 1·서명 1).
+- 사용자 결정 대기: 로고 사용 여부. 지금은 전부 뺀다.
