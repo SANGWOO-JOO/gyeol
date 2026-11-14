@@ -347,6 +347,7 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
   - `ADMIN_SECURE_COOKIE=true`, `ROOM_SECURE_COOKIE=true`
 - base: `bedrock_models`에 이미지 모델·리전(7절), `web_origins`에 `https://ourgyeol.com`(업로드 버킷 CORS).
 - release.yml: deploy 작업(OIDC → SSM `gyeol-deploy <태그>` → 헬스 체크), rollback(`workflow_dispatch`).
+- 도구: `tools/db-tunnel.sh`(14-3, ClusterIP 조회 + 포트 포워딩, 로컬 포트 25432).
 - 문서: `single-server.md`의 "맥북에서 빌드해 서버 k3s에 직접 넣는다"는 ghcr로 바뀜.
 
 ## 13. 기록
@@ -354,3 +355,71 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 | 날짜 | 내용 |
 |---|---|
 | 11-14 | 초안 (갈래 1). AWS 호출 없음, 가격은 11-10 조회값 + 확인 필요 표시 |
+| 11-14 | 14절 운영 DB 접속(SSM 포트 포워딩, 읽기 전용 계정) 추가 |
+
+## 14. 운영 DB 접속 (맥북 → SSM 포트 포워딩)
+
+PostgreSQL은 클러스터 안 서비스 `gyeol-postgres`(ClusterIP, 5432)라 밖에서 바로 닿지 않는다(**사실**, `templates/postgres.yaml`). 보안 그룹도 80·443만 연다(2-4). 5432를 열지 않고 SSM 포트 포워딩으로 맥북 로컬 포트를 서버 안 DB에 잇는다.
+
+### 14-1. 방식 비교
+
+| 방식 | 내용 | 판단 |
+|---|---|---|
+| **SSM 포트 포워딩 (추천)** | 서버의 SSM 에이전트가 `gyeol-postgres` ClusterIP:5432로 대신 연결 | 포트를 열지 않는다. 접근은 IAM으로 통제하고 세션 기록이 남는다 |
+| SSM 터널 + kubectl | k3s API(6443)를 터널로 잇고 맥북에서 `kubectl port-forward` | 된다. kubeconfig를 맥북으로 옮겨야 해서 한 단계 더 |
+| 5432를 집 IP에만 열기 | 보안 그룹 + NodePort | 쓰지 않는다. DB가 인터넷에 드러나고, 집 IP가 바뀌면 끊긴다 |
+
+- 서버는 k3s 노드라 ClusterIP로 갈 수 있다. 그래서 호스트의 SSM 에이전트가 원격 호스트로 ClusterIP를 쓸 수 있다(**추정**: kube-proxy iptables 규칙. 구현 뒤 실제로 확인).
+- 필요한 권한: 서버 역할 `AmazonSSMManagedInstanceCore`(7절, 이미 계획), 맥북 사용자 `ssm:StartSession`(지금 Admin이라 있음).
+- 비용: Session Manager 자체는 추가 요금이 없다고 알고 있다(**확인 필요**).
+
+### 14-2. 맥북 준비 (한 번)
+
+```bash
+brew install --cask session-manager-plugin
+```
+
+- 로컬 compose DB가 맥북 `15432`를 쓰므로(`values-local.yaml`), 운영 터널은 **`25432`**를 쓴다. 둘을 헷갈리지 않게 포트로 나눈다.
+
+### 14-3. 접속 절차
+
+1. ClusterIP 조회 (서비스를 지웠다 다시 만들면 바뀌므로 매번 조회)
+
+```bash
+aws ssm send-command --instance-ids <인스턴스ID> --document-name AWS-RunShellScript --parameters 'commands=["k3s kubectl get svc gyeol-postgres -A -o jsonpath={.items[0].spec.clusterIP}"]' --query Command.CommandId --output text
+```
+
+```bash
+aws ssm get-command-invocation --instance-id <인스턴스ID> --command-id <위 CommandId> --query StandardOutputContent --output text
+```
+
+2. 터널 열기 (창을 열어 둔 동안 유지)
+
+```bash
+aws ssm start-session --target <인스턴스ID> --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters '{"host":["<ClusterIP>"],"portNumber":["5432"],"localPortNumber":["25432"]}'
+```
+
+3. DB 도구(DBeaver·DataGrip·psql)로 `localhost:25432`, DB `gyeol`, 사용자는 아래 읽기 전용 계정 `gyeol_ro`.
+
+- 인스턴스 ID는 single 출력(`outputs.tf`)에 있다.
+- 1·2를 묶은 스크립트 `tools/db-tunnel.sh`를 구현 때 만든다(12절). 인스턴스 ID는 태그 `Name=gyeol-single`로 찾는다.
+
+### 14-4. 읽기 전용 계정 (추천)
+
+운영 DB에 맥북으로 붙을 때 실수로 지우거나 고치지 않게, 조회용 계정을 따로 둔다. 앱 계정 `gyeol`(`values.yaml` `db.user`)은 맥북에서 쓰지 않는다.
+
+- 비밀번호: Parameter Store `/gyeol/prod/DB_RO_PASSWORD`(SecureString, 사용자가 직접 넣음, 4절과 같은 방식)
+- 만들기: 첫 배포 뒤 SSM 세션에서 한 번 (`k3s kubectl exec -it gyeol-postgres-0 -- psql -U gyeol -d gyeol`)
+
+```sql
+CREATE ROLE gyeol_ro LOGIN PASSWORD '<DB_RO_PASSWORD 값>';
+GRANT CONNECT ON DATABASE gyeol TO gyeol_ro;
+GRANT USAGE ON SCHEMA public TO gyeol_ro;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO gyeol_ro;
+ALTER DEFAULT PRIVILEGES FOR ROLE gyeol IN SCHEMA public GRANT SELECT ON TABLES TO gyeol_ro;
+```
+
+- 마지막 줄은 이후 Flyway가 만드는 새 표에도 SELECT를 준다.
+- 비밀번호가 대화 기록에 남지 않게 SQL은 사용자가 직접 실행한다(관리자 계정 만들기와 같은 원칙, 9절 12번).
+- 데이터를 고쳐야 할 때는 맥북에서 직접 고치지 않는다. Flyway 마이그레이션이나 관리자 API로 한다.
+
