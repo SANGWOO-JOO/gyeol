@@ -3,26 +3,25 @@
 .bannerBlur { position: absolute; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); object-fit: cover; filter: blur(24px) brightness(.55) saturate(1.2); }
 .bannerBlurFallback { position: absolute; inset: 0; }
 /* 원본: 잘리지 않게 정사각 틀 안 contain, 왼쪽에 (이름·장르는 그 오른쪽) */
-.bannerArt {
-  position: absolute; left: 20px; top: 10%; height: 80%; aspect-ratio: 1; border-radius: 18px; overflow: hidden; z-index: 1;
-  display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 28px rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 255, 255, .12);
-  transition: opacity .2s, transform .2s;
-}
-.bannerArt img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.bannerArt span { font-family: 'Gowun Batang', serif; font-size: 56px; font-weight: 700; color: rgba(255, 255, 255, .75); }
+/* 원형 얼굴 + 우리 방 고리 (지도 행성 언어). PC 112px, 휴대폰 96px, 고리는 그 바깥 */
+.faceWrap { position: absolute; left: 22px; top: 50%; z-index: 1; width: 132px; height: 132px; transform: translateY(-50%); transform-origin: left center; transition: transform .2s ease; }
+.ring { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 0 6px rgba(255, 227, 184, .28)); }
+.face { position: absolute; inset: 10px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+.face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; display: block; }
+.face span { font-size: 44px; font-weight: 700; color: rgba(255, 255, 255, .85); }
+.faceCredit { position: absolute; right: 12px; bottom: 12px; z-index: 2; }
+.stars { position: absolute; inset: 0; width: 100%; height: 100%; }
 .bannerShade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20, 18, 37, .1) 0%, rgba(20, 18, 37, .35) 70%, var(--banner-end, #1e1b36) 100%); }
-.bannerCredit { position: absolute; left: 12px; top: 12px; z-index: 2; }
-.bannerCredit > span { position: static; }
-.genreChip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: rgba(20, 18, 37, .55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); font-size: 12px; color: #f5f0ff; }
-.genreChip i { width: 8px; height: 8px; border-radius: 50%; }
+.genreChip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; box-sizing: border-box; padding: 3px 10px; white-space: nowrap; border-radius: 999px; background: rgba(20, 18, 37, .55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); font-size: 12px; color: #f5f0ff; }
+.genreChip i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.genreChip span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* 우리 방 숫자 알약: 아바타 점 + 이름 + 수, 같이 담은 몫은 금빛 */
+.pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; background: rgba(255, 255, 255, .12); font-size: 12px; font-weight: 600; color: #f5f0ff; white-space: nowrap; }
+.pill i { width: 7px; height: 7px; border-radius: 50%; }
+.pillGold { background: rgba(255, 227, 184, .2); color: #ffe3b8; }
+.pillGold i { background: #ffe3b8; }
 
-.summary { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 18px; background: radial-gradient(120% 120% at 0% 0%, #2a2455 0%, var(--r-surface) 70%); }
-.summaryBar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; gap: 2px; background: #141225; }
-.summaryBar i { display: block; height: 100%; }
-.summaryText { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: var(--r-text-2); }
-.summaryText b { color: var(--r-text); font-weight: 700; }
-.summaryText span { display: inline-flex; align-items: center; gap: 5px; }
-.summaryText i { width: 8px; height: 8px; border-radius: 50%; }
 
 .sectionTitle { display: flex; justify-content: space-between; align-items: baseline; margin: 0; font-size: 15px; font-weight: 700; }
 .sectionTitle span { font-size: 12px; font-weight: 400; color: var(--r-text-2); }
@@ -54,4 +53,4 @@
 .nearFace { width: 52px; height: 52px; border-radius: 50%; border: 1.5px solid #e6dcff; box-sizing: border-box; background: var(--r-chip); display: flex; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; }
 .nearGhost .nearFace { border-color: rgba(230, 220, 255, .45); }
 .notYet { font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #2e2a55; color: var(--r-text-2); }
-@media (prefers-reduced-motion: reduce) { .bannerArt { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .faceWrap { transition: none; } }

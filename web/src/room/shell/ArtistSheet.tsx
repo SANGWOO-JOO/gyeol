@@ -78,7 +78,11 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
   const songs = a?.songs ?? planet?.songs ?? []
   const sum = roomSummary(songs, memberOrder)
   // 담은 사람이 한 명(같이 담은 곡 없음)이면 막대 없이 글자만
-  const single = sum.shared === 0 && sum.solo.length === 1 ? sum.solo[0] : null
+  // 우리 방 몫: 얼굴 둘레 고리 조각(사람 색, 같이 담은 몫은 금빛) + 이름 아래 숫자 알약
+  const ringParts = [
+    ...sum.solo.map(x => ({ color: memberColor(members.get(x.memberId)?.colorIdx ?? 0).bg, count: x.count })),
+    ...(sum.shared > 0 ? [{ color: '#FFE3B8', count: sum.shared }] : []),
+  ]
   const gColor = genreColor(galaxyName, planet?.galaxyId ?? null)
   // 배너 그림: 판 응답의 얼굴(PHOTO 사진 → COVER) → 지도 얼굴 규칙(방 곡 표지) → 장르색 + 이니셜
   const face = a?.face ?? planet?.face ?? null
@@ -92,33 +96,25 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
     <Sheet
       title={name}
       onClose={onClose}
-      banner={<Banner roomId={roomId} name={name} sources={fc.kind === 'genre' ? [] : fc.sources} color={gColor} photo={fc.kind === 'photo'} credit={credit ? { text: credit, pageUrl: a?.photo?.pageUrl } : null} />}
-      sub={galaxyName ? <span className={ak.genreChip}><i style={{ background: gColor }} aria-hidden="true" />{galaxyName}</span> : undefined}
+      banner={<Banner roomId={roomId} name={name} sources={fc.kind === 'genre' ? [] : fc.sources} color={gColor} photo={fc.kind === 'photo'} credit={credit ? { text: credit, pageUrl: a?.photo?.pageUrl } : null} ring={ringParts} />}
+      sub={<>
+        {galaxyName && <span className={ak.genreChip} title={galaxyName}><i style={{ background: gColor }} aria-hidden="true" /><span>{galaxyName}</span></span>}
+        {a && sum.total > 0 && (
+          <span className={ak.pills} aria-label="우리 방에서 이 가수">
+            {sum.solo.map(x => {
+              const m = members.get(x.memberId)
+              return <span key={x.memberId} className={ak.pill}><i style={{ background: memberColor(m?.colorIdx ?? 0).bg }} aria-hidden="true" />{x.memberId === meId ? '나' : m?.nickname} {x.count}</span>
+            })}
+            {sum.shared > 0 && <span className={`${ak.pill} ${ak.pillGold}`}><i aria-hidden="true" />같이 {sum.shared}</span>}
+          </span>
+        )}
+      </>}
     >
       {!a && !failed && <p className={sh.center} role="status"><Spinner size={14} /> 불러오는 중…</p>}
       {failed && <p className={sh.center} role="alert">가수 정보를 불러오지 못했어요.</p>}
 
       {a && (
         <>
-          {/* 우리 방에서 이 가수: 사람 색 막대(같이 담은 곡은 금빛) + 글자 */}
-          <section className={ak.summary} aria-label="우리 방에서 이 가수">
-            {single ? (
-              <div className={ak.summaryText}>
-                <span><i style={{ background: memberColor(members.get(single.memberId)?.colorIdx ?? 0).bg }} aria-hidden="true" />{single.memberId === meId ? '나' : members.get(single.memberId)?.nickname} · <b>{single.count}</b>곡</span>
-              </div>
-            ) : <>
-            <div className={ak.summaryBar} aria-hidden="true">
-              {sum.solo.map(x => <i key={x.memberId} style={{ flex: x.count, background: memberColor(members.get(x.memberId)?.colorIdx ?? 0).bg }} />)}
-              {sum.shared > 0 && <i style={{ flex: sum.shared, background: '#FFE3B8' }} />}
-            </div>
-            <div className={ak.summaryText}>
-              {sum.solo.map(x => (
-                <span key={x.memberId}><i style={{ background: memberColor(members.get(x.memberId)?.colorIdx ?? 0).bg }} aria-hidden="true" />{x.memberId === meId ? '나' : members.get(x.memberId)?.nickname} <b>{x.count}</b></span>
-              ))}
-              {sum.shared > 0 && <span><i style={{ background: '#FFE3B8' }} aria-hidden="true" />같이 <b>{sum.shared}</b></span>}
-            </div>
-            </>}
-          </section>
 
           <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <h3 className={ak.sectionTitle}>담긴 노래 <span>{a.songs.length}곡 · {people.size}명</span></h3>
@@ -200,24 +196,52 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
   )
 }
 
-/** 배너 그림: 후보를 차례로(사진 → 표지), 모두 실패하면 장르색 그라데이션 + 큰 이니셜. 아래로 어두워지는 막 */
-function Banner({ roomId, name, sources, color, photo, credit }: { roomId: string; name: string; sources: import('../images').ImgSource[]; color: string; photo: boolean; credit: { text: string; pageUrl?: string | null } | null }) {
+/** 배너 뒤 우주 점 (정적, 장식) */
+const STARS = [[8, 18, 1.2], [22, 72, .8], [37, 30, 1], [55, 12, .7], [63, 64, 1.3], [71, 38, .8], [84, 20, 1], [92, 58, .7], [48, 84, .9], [15, 46, .6], [78, 82, .8], [96, 32, 1.1]]
+
+/**
+ * 가수 판 배너 (11-14 3차): 흐린 그림 배경 + 옅은 별 점, 왼쪽에 원형 얼굴(지도 행성처럼 cover·위 기준).
+ * 얼굴 둘레 고리 = 우리 방 몫(사람 색 조각, 같이 담은 몫은 금빛). 사진 출처 ⓘ는 원 오른쪽 아래
+ */
+function Banner({ roomId, name, sources, color, photo, credit, ring }: {
+  roomId: string; name: string; sources: import('../images').ImgSource[]; color: string; photo: boolean
+  credit: { text: string; pageUrl?: string | null } | null; ring: { color: string; count: number }[]
+}) {
   const { src, fail } = useImageChain(roomId, sources)
   const [loaded, setLoaded] = useState<string | null>(null)
+  const total = ring.reduce((t, x) => t + x.count, 0)
+  const R = 54, C = 2 * Math.PI * R, gapLen = ring.length > 1 ? 3 : 0
+  let acc = 0
   return (
     <>
-      {/* 배경: 같은 그림을 크게 흐리게(없으면 장르색), 위에 원본을 잘리지 않게(contain) 둥근 사각형으로 */}
       <div className={ak.banner} aria-hidden="true">
         {src
           ? <img className={ak.bannerBlur} src={src} alt="" />
           : <div className={ak.bannerBlurFallback} style={{ background: `radial-gradient(120% 120% at 20% 20%, ${color}, #241f47 75%)` }} />}
+        <svg className={ak.stars} viewBox="0 0 100 100" preserveAspectRatio="none">
+          {STARS.map(([x, y, r], i) => <circle key={i} cx={x} cy={y} r={r * .35} fill="#fff" opacity={.35 + (i % 3) * .15} />)}
+        </svg>
         <div className={ak.bannerShade} />
-        <div className={ak.bannerArt} style={src ? undefined : { background: `radial-gradient(120% 120% at 30% 20%, ${color}, #2e2760 80%)` }}>
+      </div>
+      <div className={ak.faceWrap}>
+        {/* 고리: 우리 방 몫 (장식, 숫자는 이름 아래 알약이 읽힌다) */}
+        {total > 0 && (
+          <svg className={ak.ring} viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r={R} fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="5" />
+            {ring.map((x, i) => {
+              const len = (x.count / total) * C
+              const el = <circle key={i} cx="60" cy="60" r={R} fill="none" stroke={x.color} strokeWidth="5" strokeLinecap="round"
+                strokeDasharray={`${Math.max(0.1, len - gapLen)} ${C}`} strokeDashoffset={-acc} transform="rotate(-90 60 60)" />
+              acc += len
+              return el
+            })}
+          </svg>
+        )}
+        <div className={ak.face} aria-hidden="true" style={src ? undefined : { background: `radial-gradient(120% 120% at 30% 20%, ${color}, #2e2760 80%)` }}>
           {src ? <img src={src} alt="" onLoad={() => setLoaded(src)} onError={fail} /> : <span>{Array.from(name)[0] ?? ''}</span>}
         </div>
+        {photo && credit && src && loaded === src && <div className={ak.faceCredit}><CreditButton text={credit.text} pageUrl={credit.pageUrl} /></div>}
       </div>
-      {/* 사진 출처(CC BY): 사진이 실제로 뜬 뒤에만 배너 왼쪽 위 ⓘ */}
-      {photo && credit && src && loaded === src && <div className={ak.bannerCredit}><CreditButton text={credit.text} pageUrl={credit.pageUrl} /></div>}
     </>
   )
 }
