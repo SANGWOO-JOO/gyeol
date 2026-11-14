@@ -184,8 +184,8 @@
         <mxCell id="c70" edge="1" parent="1" source="c48" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#FFFFFF;strokeColor=#545B64;dashed=1;exitX=0.5;exitY=0;" target="c22" value="이미지 pull">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="c80" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#F3E8FD;strokeColor=#8C4FFF;arcSize=8;" value="&lt;b&gt;운영자 맥북&lt;/b&gt;&lt;br&gt;DB 도구 → localhost:25432&lt;br&gt;읽기 전용 계정 gyeol_ro" vertex="1">
-          <mxGeometry height="64" width="190" x="150" y="740" as="geometry" />
+        <mxCell id="c80" parent="1" style="sketch=0;outlineConnect=0;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.client;" value="&lt;b&gt;운영자 맥북&lt;/b&gt;&lt;br&gt;DB 도구 → localhost:25432&lt;br&gt;읽기 전용 계정 gyeol_ro" vertex="1">
+          <mxGeometry height="56" width="56" x="217" y="728" as="geometry" />
         </mxCell>
         <mxCell id="c81" edge="1" parent="1" source="c80" target="c21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#FFFFFF;strokeColor=#8C4FFF;fontColor=#6B2FD6;dashed=1;exitX=1;exitY=0.5;entryX=0;entryY=0.95;" value="SSM 포트 포워딩 → gyeol-postgres:5432&lt;br&gt;(5432는 열지 않음, 설계 14절)">
           <mxGeometry relative="1" as="geometry" />
