@@ -608,3 +608,15 @@
   - api 쿠키 Max-Age 단언 1줄
   - 결과: worker 103·api 99(건너뜀 1) 통과. 01:26:00 api·worker 재시작.
 - 로컬 영향: 지금 숨길 방 0개(리뷰 방 9n4jTVwPmV는 ACTIVE 그대로), 90일 지난 메일 기록 0·관리자 IP 0. 시험 방은 테스트 DB(Testcontainers)에서 만들고 지웠다.
+
+### I-66 판정 경로 별칭을 파생 입력에서 빼기·I-68 감사 기록 IP 90일 (11-15, 사용자 승인)
+- **I-66:** 곡 설명 입력 이름(`DescriptorRepository.target`)과 지식 조회 검색어(`KnowledgeRepository.trackRefs`의 display_title·display_artist)의 별칭 최빈값에서 `category_checked_at IS NOT NULL`(YouTube 판정 경로) 별칭을 뺐다. 후보가 없으면 MusicBrainz 곡명·가수명을 쓴다.
+  - `track_vector`의 입력은 곡 설명(요약·장르·분위기·보컬, `VectorRepository.descriptorText`)뿐이라 별칭 표기가 직접 들어가지 않는다. 대신 설명을 거쳐 간접으로 들어간다.
+  - 로컬 영향(바꾸기 전 셈): 판정 경로 별칭이 붙은 곡 21개. 그중 설명 입력 이름이 바뀌는 곡 설명 3행·벡터 3행이고, 3행 모두 model fake다. Bedrock 설명 13행은 해당 없음. 다시 만들지 않았다.
+  - 지식 조회(Enrich) 검색어 제외는 지시 밖이지만 같은 별칭 표기가 Last.fm 검색어로 나가 근거 청크가 되므로 함께 막았다(판단).
+- **I-68:** `RoomRepository.clearOldAuditIps`가 90일 지난 감사 기록의 `detail`에서 `ip` 키만 지운다(행은 1년). `CleanupService` 7번 흐름에 넣었다(`oldIps`에 합산). 로컬 대상 0.
+- **Bedrock 지역(조회만, 호출 없음, 11-15):**
+  - ap-northeast-2에서 Haiku 4.5 프로필은 `global.anthropic.claude-haiku-4-5-20251001-v1:0` 하나뿐이다. apac.* 프로필은 Claude 3·3.5만 있다(ap-northeast-1·2·3, ap-south-1, ap-southeast-1·2).
+  - 다른 출발 리전에서 Haiku 4.5 지역 프로필: ap-northeast-1 `jp.*`(도쿄·오사카), ap-southeast-2 `au.*`(시드니·멜버른).
+  - 선물 그림 `stability.stable-image-core-v1:1`은 us-west-2 ON_DEMAND만이고 지역 프로필이 없다(us.* 는 다른 stability 모델만). ap-northeast-2에는 stability 모델이 없다.
+- 테스트: worker `YoutubeDerivedExpiryTest` I-66 1개, `CleanupIntegrationTest` I-68 1개. worker 105·api 99(건너뜀 1) 통과. api·worker 재시작.

@@ -19,7 +19,7 @@ data class CleanupResult(
     val files: Int, val listens: Int, val sessions: Int, val videoChecks: Int = 0, val rooms: Int = 0, val drafts: Int = 0, val apiDerived: Int = 0,
     /** I-56: 이번에 숨긴 쓰지 않는 방 수 */
     val unusedRooms: Int = 0,
-    /** I-57: 지운 메일 발송 기록 + IP를 지운 관리자 세션 수 */
+    /** I-57·I-68: 지운 메일 발송 기록 + IP를 지운 관리자 세션 + IP를 지운 감사 기록 수 */
     val oldIps: Int = 0,
 )
 
@@ -33,7 +33,7 @@ data class CleanupResult(
  * 5. 음악 방: 숨긴 지 7일 지난 방 완전 삭제(참가자·노래·방장 이메일·선물 캐릭터 연쇄, 캐릭터 그림은 S3에서 먼저, 감사 기록은 IP·닉네임만 지우고 남김),
  *    인증 안 끝난 방 만들기 내용(1시간), 1년 지난 감사 기록
  * 6. 쓰지 않는 방(I-56): 마지막 사용 1년 뒤 숨김(감사 기록 SYSTEM ROOM_EXPIRE_HIDE) → 5번 흐름으로 7일 뒤 완전 삭제
- * 7. IP(I-57): 메일 발송 기록 90일 뒤 삭제, 관리자 세션 IP 90일 뒤 지움
+ * 7. IP(I-57·I-68): 메일 발송 기록 90일 뒤 삭제, 관리자 세션 IP·감사 기록 detail의 ip 90일 뒤 지움(감사 기록 행은 1년)
  * 순서가 중요하다: 세션을 먼저 지우면 S3 키를 잃어 파일이 고아로 남는다.
  * 여러 번 돌거나 워커 여러 대가 동시에 돌아도 결과가 같다 (S3 삭제는 없는 키도 성공).
  */
@@ -75,8 +75,9 @@ class CleanupService(
         val ipBefore = now.minus(props.room.ipRetention)
         val mails = drafts.deleteOldMailLogs(ipBefore)
         val adminIps = admins.clearOldSessionIps(ipBefore)
-        if (mails + adminIps > 0) log.info("90일 지난 IP 정리: 메일 발송 기록 {}건 삭제, 관리자 세션 IP {}건", mails, adminIps)
-        val result = CleanupResult(files, listens, sessions, checks, purgedRooms, purgedDrafts, derived, expiredRooms, mails + adminIps)
+        val auditIps = rooms.clearOldAuditIps(ipBefore) // I-68: 감사 기록은 1년 보관, 그 안의 IP만 90일
+        if (mails + adminIps + auditIps > 0) log.info("90일 지난 IP 정리: 메일 발송 기록 {}건 삭제, 관리자 세션 IP {}건, 감사 기록 IP {}건", mails, adminIps, auditIps)
+        val result = CleanupResult(files, listens, sessions, checks, purgedRooms, purgedDrafts, derived, expiredRooms, mails + adminIps + auditIps)
         log.info("정리 완료: 원본 파일 {}개, 청취 기록 {}건, 세션 {}개, 음악 판정 {}건, 방 {}개, 방 만들기 {}건, {}ms", files, listens, sessions, checks, purgedRooms, purgedDrafts, (System.nanoTime() - started) / 1_000_000)
         return result
     }

@@ -261,4 +261,24 @@ class CleanupIntegrationTest {
         jdbc.sql("DELETE FROM mail_send_log").update()
         jdbc.sql("DELETE FROM admin_user WHERE id = :a").param("a", admin).update()
     }
+
+    @Test
+    fun `I-68 90일 지난 감사 기록은 detail의 ip만 지우고 행과 다른 칸은 남긴다`() {
+        val now = Instant.now()
+        val old = jdbc.sql("INSERT INTO audit_log (actor_type, action, detail, created_at) VALUES ('ADMIN', 'ADMIN_LOGIN_FAIL', '{\"ip\":\"5.5.5.5\",\"step\":\"password\"}'::jsonb, :c) RETURNING id")
+            .param("c", ts(now.minus(Duration.ofDays(91)))).query(Long::class.java).single()
+        val fresh = jdbc.sql("INSERT INTO audit_log (actor_type, action, detail, created_at) VALUES ('HOST', 'HOST_RESET_SENT', '{\"ip\":\"6.6.6.6\"}'::jsonb, :c) RETURNING id")
+            .param("c", ts(now.minus(Duration.ofDays(10)))).query(Long::class.java).single()
+
+        assertTrue(cleanup.run(now).oldIps >= 1)
+
+        fun detail(id: Long) = jdbc.sql("SELECT detail::text FROM audit_log WHERE id = :i").param("i", id).query(String::class.java).single()
+        assertEquals("""{"step": "password"}""", detail(old))
+        assertTrue(detail(fresh).contains("6.6.6.6"), "90일 안이면 그대로")
+        assertEquals(0, rooms_clearAgain(now), "두 번째는 바꿀 행이 없다")
+        jdbc.sql("DELETE FROM audit_log WHERE id IN (:i)").param("i", listOf(old, fresh)).update()
+    }
+
+    @Autowired lateinit var roomRepo: dev.gyeol.core.room.RoomRepository
+    private fun rooms_clearAgain(now: Instant) = roomRepo.clearOldAuditIps(now.minus(Duration.ofDays(90)))
 }

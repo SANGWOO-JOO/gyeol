@@ -210,6 +210,14 @@ class RoomRepository(private val jdbc: JdbcClient) {
             """.trimIndent(),
         ).param("b", Timestamp.from(unusedBefore)).query { rs, _ -> rs.getLong(1) to rs.getTimestamp(2).toInstant() }.list()
 
+    /**
+     * I-68: [before]보다 오래된 감사 기록의 detail에서 ip 키만 지운다 (HOST_RESET_SENT·HOST_PIN_RESET·ADMIN_LOGIN_FAIL 등). 행은 1년 보관 그대로.
+     * 바뀐 행 수
+     */
+    fun clearOldAuditIps(before: Instant): Int =
+        jdbc.sql("UPDATE audit_log SET detail = detail - 'ip' WHERE created_at < :b AND detail ->> 'ip' IS NOT NULL")
+            .param("b", Timestamp.from(before)).update()
+
     fun deleteOldAudit(before: Instant): Int =
         jdbc.sql("DELETE FROM audit_log WHERE created_at < :b").param("b", Timestamp.from(before)).update()
 }

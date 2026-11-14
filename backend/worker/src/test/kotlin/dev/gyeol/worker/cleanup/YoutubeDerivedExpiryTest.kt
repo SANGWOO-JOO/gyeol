@@ -242,4 +242,29 @@ class YoutubeDerivedExpiryTest {
         // 나머지 채우기 문장도 오류 없이 돈다 (두 번 돌려도 같음)
         repeat(2) { sql.forEach { s -> jdbc.sql(s).update() } }
     }
+
+    @Autowired lateinit var descriptors: dev.gyeol.core.knowledge.DescriptorRepository
+    @Autowired lateinit var knowledge: dev.gyeol.core.knowledge.KnowledgeRepository
+
+    @Test
+    fun `I-66 곡 설명·지식 조회 입력 이름에서 판정 경로 별칭은 빼고, 남는 후보가 없으면 MusicBrainz 이름`() {
+        val a = ArtistInfo(UUID.randomUUID(), "i66가수", "i66", emptyList())
+        val both = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "i66 MB곡", a, null, null, null, null, null))
+        val judgedOnly = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "i66 MB곡2", a, null, null, null, null, null))
+        val t = now.minus(Duration.ofDays(1))
+        // 판정 경로 별칭 2개(최빈값이 될 표기) + 판정 없는 별칭 1개
+        identify.saveAlias("i48 j1|방송", both, AliasMethod.LLM, Query("판정가수", "판정표기", false), categoryCheckedAt = t)
+        identify.saveAlias("i48 j2|방송", both, AliasMethod.LLM, Query("판정가수", "판정표기", false), categoryCheckedAt = t)
+        identify.saveAlias("i48 u1|i66가수 - topic", both, AliasMethod.RULE, Query("보통가수", "보통표기", false))
+        identify.saveAlias("i48 j3|방송", judgedOnly, AliasMethod.LLM, Query("판정가수", "판정표기2", false), categoryCheckedAt = t)
+
+        val d = descriptors.target(both)!!
+        assertEquals("보통표기" to "보통가수", d.title to d.artist, "판정 경로 별칭은 최빈값 후보에서 뺀다")
+        val d2 = descriptors.target(judgedOnly)!!
+        assertEquals("i66 MB곡2" to "i66가수", d2.title to d2.artist, "남는 후보가 없으면 MusicBrainz 이름")
+        val refs = knowledge.trackRefs(judgedOnly)!!
+        assertNull(refs.displayTitle, "지식 조회 검색어에도 쓰지 않는다")
+        assertNull(refs.displayArtist)
+        assertEquals("보통표기", knowledge.trackRefs(both)!!.displayTitle)
+    }
 }

@@ -14,13 +14,15 @@ data class DescribeTarget(val trackId: Long, val title: String, val artist: Stri
 class DescriptorRepository(private val jdbc: JdbcClient) {
 
     /**
-     * 곡 설명 근거: 곡 > 작품 > 음반 > 가수 순으로 최대 [limit]개. 같은 대상에서는 한국어 > 영어 > 일본어, MusicBrainz 문장도 포함
+     * 곡 설명 근거: 곡 > 작품 > 음반 > 가수 순으로 최대 [limit]개. 같은 대상에서는 한국어 > 영어 > 일본어, MusicBrainz 문장도 포함.
+     * 이름은 사용자가 본 표기(별칭 최빈값)를 쓰되, YouTube 카테고리 판정을 거쳐 들어온 별칭(category_checked_at 있음)은 빼고
+     * 후보가 없으면 MusicBrainz 곡명·가수명을 쓴다 (I-66, YouTube API 정책 III.E.4.h: API 데이터로 파생 데이터를 만들지 않는다)
      */
     fun target(trackId: Long, limit: Int = 8): DescribeTarget? {
         val head = jdbc.sql(
             """
-            SELECT t.id, coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_title) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED'), t.title) AS title,
-                   coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED'), a.name) AS artist,
+            SELECT t.id, coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_title) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED' AND ta.category_checked_at IS NULL), t.title) AS title,
+                   coalesce((SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED' AND ta.category_checked_at IS NULL), a.name) AS artist,
                    t.release_date
             FROM track t JOIN artist a ON a.id = t.artist_id WHERE t.id = :id
             """.trimIndent(),

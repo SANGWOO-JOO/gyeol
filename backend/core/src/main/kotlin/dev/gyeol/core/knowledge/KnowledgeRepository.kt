@@ -87,8 +87,9 @@ class KnowledgeRepository(private val jdbc: JdbcClient) {
         jdbc.sql(
             """
             SELECT t.id, t.recording_mbid, t.release_group_mbid, a.mbid AS artist_mbid, a.name AS artist_name, t.title, t.release_title, t.work_mbids,
-                   (SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED') AS display_artist,
-                   (SELECT mode() WITHIN GROUP (ORDER BY ta.query_title) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED') AS display_title
+                   -- I-66: YouTube 판정 경로 별칭은 지식 조회(Last.fm 검색어)에도 쓰지 않는다
+                   (SELECT mode() WITHIN GROUP (ORDER BY ta.query_artist) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED' AND ta.category_checked_at IS NULL) AS display_artist,
+                   (SELECT mode() WITHIN GROUP (ORDER BY ta.query_title) FROM title_alias ta WHERE ta.track_id = t.id AND ta.status = 'MATCHED' AND ta.category_checked_at IS NULL) AS display_title
             FROM track t JOIN artist a ON a.id = t.artist_id WHERE t.id = :id
             """.trimIndent(),
         ).param("id", trackId).query { rs, _ ->
