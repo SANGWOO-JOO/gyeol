@@ -65,6 +65,16 @@ class LastFmClientTest {
     }
 
     @Test
+    fun `방 검색 더보기 - limit 50이면 Last_fm에 50개를 요청하고, 컨트롤러는 51을 거절한다`() {
+        client().search("뉴진스 Hype Boy", 50)
+        assertTrue("limit=50" in queries.single(), queries.single())
+        val controller = dev.gyeol.fetcher.SearchController(client(), org.mockito.Mockito.mock(dev.gyeol.fetcher.musicbrainz.MusicBrainzClient::class.java))
+        assertEquals(dev.gyeol.fetcher.SearchController.LASTFM_MAX, 50)
+        assertFailsWith<IllegalArgumentException> { controller.lastFm("뉴진스 Hype Boy", 51) }
+        assertFailsWith<IllegalArgumentException> { controller.musicBrainz("뉴진스 Hype Boy", 21) }
+    }
+
+    @Test
     fun `다시 정렬해 원곡을 1위로 올리고 같은 곡은 합친다`() {
         val items = client().search("뉴진스 Hype Boy", 5).items
         // 검색어의 한글 이름과 맞는 "NewJeans (뉴진스)" 표기가 1위, 같은 곡인 "NewJeans" 항목과 합쳐진다

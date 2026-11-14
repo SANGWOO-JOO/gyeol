@@ -3,6 +3,7 @@ package dev.gyeol.api.room
 import dev.gyeol.api.config.GyeolProperties
 import dev.gyeol.api.search.TrackItem
 import dev.gyeol.api.search.TrackSearchController
+import dev.gyeol.api.search.TrackSearchResponse
 import dev.gyeol.api.web.ApiException
 import dev.gyeol.core.room.GiftRepository
 import dev.gyeol.core.room.MapSong
@@ -50,7 +51,11 @@ data class RoomSearchItem(val item: TrackItem, val mine: Boolean, val sameSong: 
  * 가수 카드 (I-30 ①): 검색어가 가수와 맞으면 결과 맨 위에 하나. artistId가 없으면 우리 DB에 아직 없는 가수(Last.fm 이름만, 인기순만 열 수 있음)
  */
 data class ArtistCard(val artistId: Long?, val name: String, val aliases: List<String>, val songCountInRoom: Int, val onMap: Boolean)
-data class RoomSearchResponse(val items: List<RoomSearchItem>, val source: String, val artist: ArtistCard? = null)
+/**
+ * 더보기: [page] 1~5, 한 쪽 10곡. [hasMore]는 다음 쪽이 있을 수 있는지 (1쪽은 10곡이 꽉 찼으면 true, 2쪽 이후는 이어 붙인 목록 기준).
+ * 가수 카드([artist])는 1쪽에만
+ */
+data class RoomSearchResponse(val items: List<RoomSearchItem>, val source: String, val artist: ArtistCard? = null, val page: Int = 1, val hasMore: Boolean = false)
 
 data class MySongView(val id: Long, val trackId: Long, val title: String, val artist: String, val coverUrl: String?, val addedAt: Instant, val sharedWith: Int, val coverPath: String? = null)
 data class MySongsPage(val items: List<MySongView>, val nextCursor: Long?)
@@ -86,6 +91,9 @@ const val MAP_FORMAT = "v2"
 
 /** 흐린 행성 수 (I-40): 전체 상한, 행성 하나당 상한 (행성 1개면 3명) */
 private const val GHOSTS_TOTAL = 6
+/** 방 검색 더보기: 한 쪽 10곡, 5쪽(50곡)까지. 50은 Last.fm track.search가 한 번에 주는 수 안 (11-14 확인) */
+const val SEARCH_PAGE_SIZE = 10
+const val SEARCH_PAGES = 5
 private const val GHOSTS_PER_PLANET_MAX = 3
 
 @Service
@@ -105,8 +113,23 @@ class RoomSongService(
 ) {
     private val p get() = props.room
 
-    fun search(ctx: RoomContext, q: String?): RoomSearchResponse {
-        val r = search.search(q, 10)
+    fun search(ctx: RoomContext, q: String?, page: Int = 1): RoomSearchResponse {
+        if (page !in 1..SEARCH_PAGES) throw ApiException.validation("page는 1~${SEARCH_PAGES}이어야 해요")
+        // 1쪽은 지금 검색 그대로. 2쪽 이후는 1쪽을 다시 만들고(Last.fm은 캐시) 50곡 목록을 뒤에 이어 붙인 뒤,
+        // 같은 곡 합치기 규칙(dedupe)을 전체에 한 번 더 적용해 쪽 사이 중복을 막는다
+        val first = search.search(q, SEARCH_PAGE_SIZE)
+        if (page == 1) {
+            val res = decorate(ctx, first.items, first.source)
+            return res.copy(artist = artistCard(ctx, q.orEmpty(), first.items), page = 1, hasMore = first.items.size >= SEARCH_PAGE_SIZE)
+        }
+        val more = search.find(q, SEARCH_PAGE_SIZE * SEARCH_PAGES)
+        val all = merger.dedupe(first.items + more.items).take(SEARCH_PAGE_SIZE * SEARCH_PAGES)
+        val slice = all.drop((page - 1) * SEARCH_PAGE_SIZE).take(SEARCH_PAGE_SIZE)
+        return decorate(ctx, slice, more.source).copy(page = page, hasMore = page < SEARCH_PAGES && all.size > page * SEARCH_PAGE_SIZE)
+    }
+
+    private fun decorate(ctx: RoomContext, found: List<TrackItem>, source: String): RoomSearchResponse {
+        val r = TrackSearchResponse(found, source)
         val names = rooms.members(ctx.room.id).associate { it.id to it.nickname }
         val byTrack = songs.whoHasTracks(ctx.room.id, r.items.mapNotNull { it.trackId })
         val byArtist = songs.roomArtistNames(ctx.room.id)
@@ -120,7 +143,7 @@ class RoomSongService(
                 artistOwners.filter { it != me }.mapNotNull(names::get),
             )
         }
-        return RoomSearchResponse(items, r.source, artistCard(ctx, q.orEmpty(), r.items))
+        return RoomSearchResponse(items, r.source)
     }
 
     /**
@@ -296,7 +319,8 @@ class RoomSongService(
 class RoomSongController(private val service: RoomSongService, private val faces: ArtistFaces, private val songs: dev.gyeol.core.room.RoomSongRepository) {
 
     @GetMapping("/api/rooms/{rid}/search")
-    fun search(@PathVariable rid: String, @RoomMember ctx: RoomContext, @RequestParam q: String?): RoomSearchResponse = service.search(ctx, q)
+    fun search(@PathVariable rid: String, @RoomMember ctx: RoomContext, @RequestParam q: String?, @RequestParam(defaultValue = "1") page: Int): RoomSearchResponse =
+        service.search(ctx, q, page)
 
     @PostMapping("/api/rooms/{rid}/songs")
     fun add(@PathVariable rid: String, @RoomMember ctx: RoomContext, @RequestBody body: AddSongRequest): ResponseEntity<AddSongResponse> {

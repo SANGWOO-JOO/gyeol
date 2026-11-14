@@ -102,6 +102,12 @@ class RoomApiIntegrationTest {
                             """{"title":"Every Moment Of You","artist":"성시경","mbid":null,"listeners":6,"releaseYear":null},""" +
                             """{"title":"너의 모든 순간","artist":"Sung Si Kyung","mbid":null,"listeners":5,"releaseYear":null},""" +
                             """{"title":"너의 모든 순간","artist":"성시경(Sungsikyung)의 킬링보이스를 라이브로!","mbid":null,"listeners":4,"releaseYear":null}],"source":"lastfm","cached":false}"""
+                    } else if (q.contains("더보기시험")) {
+                        // 더보기: 서로 다른 곡 35개 중 limit만큼 (Last.fm처럼 limit이 커도 앞부분 순서는 같다). 첫 곡은 DB 곡과 같은 곡
+                        val n = Regex("""limit=(\d+)""").find(q)!!.groupValues[1].toInt()
+                        val items = (listOf("""{"title":"더보기시험 DB 0","artist":"더보기DB가수","mbid":null,"listeners":999,"releaseYear":null}""") +
+                            (1 until 35).map { """{"title":"더보기시험 원격 $it","artist":"원격가수 $it","mbid":null,"listeners":${500 - it},"releaseYear":null}""" }).take(n)
+                        """{"items":[${items.joinToString(",")}],"source":"lastfm","cached":false}"""
                     } else if (noisy) {
                         """{"items":[{"title":"Pretty Girl","artist":"Clairo • Lossless","mbid":null,"listeners":5,"releaseYear":null},""" +
                             """{"title":"Pretty Girl","artist":"Clairo","mbid":"0b0b0b0b-0000-0000-0000-000000000001","listeners":100,"releaseYear":null},""" +
@@ -1229,5 +1235,45 @@ class RoomApiIntegrationTest {
         // 상자가 지워지면 gift도 없음
         jdbc.sql("DELETE FROM gift_box WHERE id = :b").param("b", boxId).update()
         assertTrue(call("GET", path, key = host.key).body!!["gift"].isNull)
+    }
+
+    @Test
+    fun `방 검색 더보기 - 쪽마다 10곡, 쪽 사이 중복 없음, 마지막 쪽 hasMore=false, 1쪽은 그대로, 가수 카드는 1쪽에만`() {
+        val host = newRoom()
+        // DB 곡 3개는 한 가수 (track()은 부를 때마다 새 가수를 만든다)
+        val dbArtist = ArtistInfo(UUID.randomUUID(), "더보기DB가수", "더보기DB가수", emptyList())
+        repeat(3) { identify.upsertTrack(TrackInfo(UUID.randomUUID(), "더보기시험 DB $it", dbArtist, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single")) }
+        val base = "/api/rooms/${host.rid}/search?q=%EB%8D%94%EB%B3%B4%EA%B8%B0%EC%8B%9C%ED%97%98"
+        val plain = call("GET", base, key = host.key).body!!
+        val p1 = call("GET", "$base&page=1", key = host.key).body!!
+        assertEquals(plain.toString(), p1.toString(), "page를 빼면 1쪽과 같다")
+        assertEquals(10, p1["items"].size())
+        assertTrue(p1["hasMore"].asBoolean())
+        assertEquals(1, p1["page"].asInt())
+
+        fun keyOf(n: JsonNode) = n["item"]["trackId"].takeUnless { it.isNull }?.let { "id:${it.asLong()}" }
+            ?: "${n["item"]["title"].asString()}|${n["item"]["artist"].asString()}"
+        val pages = mutableListOf(p1)
+        while (pages.last()["hasMore"].asBoolean()) {
+            val next = call("GET", "$base&page=${pages.size + 1}", key = host.key).body!!
+            assertEquals(pages.size + 1, next["page"].asInt())
+            assertTrue(next["artist"].isNull, "가수 카드는 1쪽에만")
+            pages.add(next)
+        }
+        assertEquals(4, pages.size, "DB 3곡 + Last.fm 35곡(1곡은 DB와 같음) = 37곡 → 4쪽")
+        pages.dropLast(1).forEach { assertEquals(10, it["items"].size()) }
+        assertEquals(7, pages.last()["items"].size())
+        assertTrue(!pages.last()["hasMore"].asBoolean())
+        val keys = pages.flatMap { it["items"].toList() }.map(::keyOf)
+        assertEquals(keys.size, keys.toSet().size, "쪽 사이 중복 없음: $keys")
+        assertEquals(1, keys.count { it.startsWith("id:") && pages.flatMap { p -> p["items"].toList() }.any { n -> keyOf(n) == it && n["item"]["title"].asString() == "더보기시험 DB 0" } }, "Last.fm의 같은 곡은 DB 곡 하나로")
+
+        assertEquals(400, call("GET", "$base&page=0", key = host.key).status)
+        assertEquals(400, call("GET", "$base&page=6", key = host.key).status)
+        val p5 = call("GET", "$base&page=5", key = host.key).body!!
+        assertEquals(0, p5["items"].size())
+        assertTrue(!p5["hasMore"].asBoolean(), "5쪽은 늘 hasMore=false")
+        // 10곡이 안 되는 검색은 1쪽 hasMore=false
+        assertTrue(!call("GET", "/api/rooms/${host.rid}/search?q=%EC%83%88%20%EB%85%B8%EB%9E%98", key = host.key).body!!["hasMore"].asBoolean())
     }
 }

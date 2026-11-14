@@ -52,9 +52,15 @@ class TrackSearchController(props: GyeolProperties, private val db: TrackSearchR
 
     @GetMapping("/api/tracks/search")
     fun search(@RequestParam q: String?, @RequestParam(defaultValue = "10") limit: Int): TrackSearchResponse {
+        if (limit !in 1..20) throw ApiException.validation("limit은 1~20이어야 합니다")
+        return find(q, limit)
+    }
+
+    /** 검색 본체. 방 검색 더보기(2~5쪽)는 [limit] 50으로 부른다 (fetcher Last.fm 상한도 50) */
+    fun find(q: String?, limit: Int): TrackSearchResponse {
         val query = q?.trim().orEmpty()
         if (query.length !in 2..100) throw ApiException.validation("검색어는 2~100자여야 합니다")
-        if (limit !in 1..20) throw ApiException.validation("limit은 1~20이어야 합니다")
+        require(limit in 1..MAX_LIMIT)
 
         // 확실한 DB 결과는 앞에, 조각 유사도로만 걸린 약한 결과는 Last.fm 뒤에 (DB에 없는 곡을 같은 가수의 다른 곡이 가로채지 않게)
         val hits = db.search(query, limit)
@@ -81,6 +87,8 @@ class TrackSearchController(props: GyeolProperties, private val db: TrackSearchR
     }
 
     companion object {
+        const val MAX_LIMIT = 50
+
         /** "Clairo • Lossless", "가수 • Recommended for you" 처럼 스트리밍 앱 문구가 붙은 가수명 (11-13 갈래 A 발견) */
         private val ARTIST_NOISE = Regex("""\s+•\s+.*$""")
 

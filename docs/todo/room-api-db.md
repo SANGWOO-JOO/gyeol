@@ -465,3 +465,11 @@
 - 한 번만 알림: boxId가 상자마다 하나이고 같은 요청을 여러 번 받아도 같으므로, 화면은 본 boxId를 기억해 한 번만 띄운다(201과 202 결과에 같은 상자가 함께 나오지 않는다. 담기 한 번에 상자는 최대 1개).
 - 테스트: worker `RoomSongIntegrationTest`(50곡째 READY·요청 표시·재처리 그대로, 100곡째 WAITING, 상자 없는 요청 null), api `RoomApiIntegrationTest`(I-51 모양·같은 boxId·생긴 순간 상태·삭제 시 null, 기존 흐름 null). worker 83·api 82(건너뜀 1)·fetcher 52 통과. 16:32:49 api·worker 재시작.
 - 참고: I-48 4-2를 구현하게 되면 그 마이그레이션은 V32가 된다.
+
+### 방 노래 검색 더보기 (11-14, 사용자 승인)
+- `GET /api/rooms/{rid}/search?q=…&page=1~5`(기본 1), 한 쪽 10곡, 최대 50곡. 응답에 `page`·`hasMore`를 더했다. 가수 카드(`artist`)는 1쪽에만.
+- 1쪽은 지금 검색 그대로(limit 10). `hasMore`는 10곡이 꽉 찼으면 true다. Last.fm을 더 부르지 않으려고 추정으로 둔다. 그래서 드물게 2쪽이 비어 있을 수 있다.
+- 2쪽 이후: 1쪽을 다시 만들고(Last.fm은 `q|10` 캐시), `TrackSearchController.find(q, 50)` 목록을 뒤에 붙인다. 기존 `TrackMerger.dedupe`를 전체에 한 번 더 적용해 쪽 사이 중복을 막고 쪽으로 자른다. 합치기 규칙은 그대로다.
+- fetcher: `/internal/lastfm/search` limit 상한 20 → 50(`SearchController.LASTFM_MAX`). Last.fm에 보내는 limit은 `max(30, limit)`. 11-14 무료 호출 1번으로 track.search limit=50이 50개를 주는 것을 확인했다(itemsPerPage 50).
+- Last.fm 추가 호출: 검색어마다 10분에 최대 1번(2쪽을 처음 열 때, 캐시 `q|50`). 3~5쪽은 0번.
+- 테스트: api `RoomApiIntegrationTest` 더보기 1개(4쪽, 중복 없음, 마지막 쪽 hasMore=false, 1쪽 = page 없는 응답, page 0·6은 400, 5쪽은 빈 목록에 false), fetcher `LastFmClientTest` 1개(limit=50 요청, 51 거절). fetcher 53·worker 83·api 83(건너뜀 1) 통과. 17:08:51 api·fetcher 재시작.

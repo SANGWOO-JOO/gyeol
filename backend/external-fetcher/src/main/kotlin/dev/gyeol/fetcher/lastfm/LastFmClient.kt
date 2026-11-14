@@ -52,7 +52,7 @@ class LastFmClient(private val props: FetcherProperties) {
                         .queryParam("track", query.trim())
                         .queryParam("api_key", props.lastfm.apiKey)
                         .queryParam("format", "json")
-                        .queryParam("limit", FETCH_SIZE)
+                        .queryParam("limit", maxOf(FETCH_SIZE, limit))
                         .build()
                 }
                 .retrieve()

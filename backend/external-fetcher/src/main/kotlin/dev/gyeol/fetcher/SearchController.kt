@@ -36,7 +36,8 @@ class SearchController(
     /** A 입구 즉시 검색 (Last.fm + 다시 정렬) */
     @GetMapping("/internal/lastfm/search")
     fun lastFm(@RequestParam q: String, @RequestParam(defaultValue = "10") limit: Int): SearchResult {
-        val (query, n) = validate(q, limit)
+        // 방 검색 더보기(2~5쪽)는 50개 목록을 한 번에 받는다 (Last.fm track.search는 한 번에 50개를 준다, 11-14 확인)
+        val (query, n) = validate(q, limit, LASTFM_MAX)
         return lastFm.search(query, n)
     }
 
@@ -94,10 +95,14 @@ class SearchController(
         return mapOf("items" to items, "total" to (top?.path("@attr")?.path("total")?.asString("")?.toLongOrNull() ?: 0L))
     }
 
-    private fun validate(q: String, limit: Int): Pair<String, Int> {
+    private fun validate(q: String, limit: Int, max: Int = 20): Pair<String, Int> {
         val query = q.trim()
         require(query.length in 2..100) { "검색어는 2~100자여야 합니다" }
-        require(limit in 1..20) { "limit은 1~20이어야 합니다" }
+        require(limit in 1..max) { "limit은 1~${max}이어야 합니다" }
         return query to limit
+    }
+
+    companion object {
+        const val LASTFM_MAX = 50
     }
 }
