@@ -40,29 +40,29 @@
         <mxCell id="c22" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;dashed=1;fontColor=#326CE5;verticalAlign=top;align=left;spacingLeft=8;fontSize=11;arcSize=3;" value="&lt;b&gt;k3s&lt;/b&gt; (k3d 검증 버전 고정, S12) · Helm gyeol: values-single + 서버의 values-prod" vertex="1">
           <mxGeometry height="405" width="490" x="575" y="300" as="geometry" />
         </mxCell>
-        <mxCell id="c23" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E8F0FE;strokeColor=#326CE5;arcSize=8;" value="&lt;b&gt;Traefik&lt;/b&gt; · Let&#39;s Encrypt TLS · /api/admin, /admin 은 관리자 IP만 허용&lt;br&gt;/api 요청 수 제한: IP당 초당 20 · 순간 100 → 429 (설계 15절)" vertex="1">
-          <mxGeometry height="46" width="450" x="595" y="340" as="geometry" />
+        <mxCell id="c23" parent="1" style="sketch=0;html=1;dashed=0;whiteSpace=nowrap;strokeColor=#ffffff;aspect=fixed;pointerEvents=1;shape=mxgraph.kubernetes.icon;fontSize=11;labelPosition=right;verticalLabelPosition=middle;align=left;verticalAlign=middle;spacingLeft=6;fillColor=#326CE5;prIcon=ing;" value="&lt;b&gt;Traefik&lt;/b&gt; · Let&#39;s Encrypt TLS · /api/admin, /admin 은 관리자 IP만 허용&lt;br&gt;/api 요청 수 제한: IP당 초당 20 · 순간 100 → 429 (설계 15절)" vertex="1">
+          <mxGeometry height="44" width="44" x="600" y="341" as="geometry" />
         </mxCell>
-        <mxCell id="c24" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E8F0FE;strokeColor=#326CE5;arcSize=8;" value="&lt;b&gt;web&lt;/b&gt;&lt;br&gt;React 19 · Vite" vertex="1">
-          <mxGeometry height="52" width="102" x="595" y="410" as="geometry" />
+        <mxCell id="c24" parent="1" style="sketch=0;html=1;dashed=0;whiteSpace=nowrap;strokeColor=#ffffff;aspect=fixed;pointerEvents=1;shape=mxgraph.kubernetes.icon;fontSize=11;verticalLabelPosition=bottom;verticalAlign=top;align=center;spacingTop=-2;fillColor=#326CE5;prIcon=deploy;" value="&lt;b&gt;web&lt;/b&gt;&lt;br&gt;React 19 · Vite" vertex="1">
+          <mxGeometry height="40" width="40" x="626" y="404" as="geometry" />
         </mxCell>
-        <mxCell id="c25" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E8F0FE;strokeColor=#326CE5;arcSize=8;" value="&lt;b&gt;api&lt;/b&gt;&lt;br&gt;Spring Boot" vertex="1">
-          <mxGeometry height="52" width="102" x="711" y="410" as="geometry" />
+        <mxCell id="c25" parent="1" style="sketch=0;html=1;dashed=0;whiteSpace=nowrap;strokeColor=#ffffff;aspect=fixed;pointerEvents=1;shape=mxgraph.kubernetes.icon;fontSize=11;verticalLabelPosition=bottom;verticalAlign=top;align=center;spacingTop=-2;fillColor=#326CE5;prIcon=deploy;" value="&lt;b&gt;api&lt;/b&gt;&lt;br&gt;Spring Boot" vertex="1">
+          <mxGeometry height="40" width="40" x="742" y="404" as="geometry" />
         </mxCell>
-        <mxCell id="c26" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E8F0FE;strokeColor=#326CE5;arcSize=8;" value="&lt;b&gt;worker&lt;/b&gt;&lt;br&gt;SQS 소비 · room" vertex="1">
-          <mxGeometry height="52" width="102" x="827" y="410" as="geometry" />
+        <mxCell id="c26" parent="1" style="sketch=0;html=1;dashed=0;whiteSpace=nowrap;strokeColor=#ffffff;aspect=fixed;pointerEvents=1;shape=mxgraph.kubernetes.icon;fontSize=11;verticalLabelPosition=bottom;verticalAlign=top;align=center;spacingTop=-2;fillColor=#326CE5;prIcon=deploy;" value="&lt;b&gt;worker&lt;/b&gt;&lt;br&gt;SQS 소비 · room" vertex="1">
+          <mxGeometry height="40" width="40" x="858" y="404" as="geometry" />
         </mxCell>
-        <mxCell id="c27" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E8F0FE;strokeColor=#326CE5;arcSize=8;" value="&lt;b&gt;fetcher&lt;/b&gt;&lt;br&gt;외부 API 호출" vertex="1">
-          <mxGeometry height="52" width="102" x="943" y="410" as="geometry" />
+        <mxCell id="c27" parent="1" style="sketch=0;html=1;dashed=0;whiteSpace=nowrap;strokeColor=#ffffff;aspect=fixed;pointerEvents=1;shape=mxgraph.kubernetes.icon;fontSize=11;verticalLabelPosition=bottom;verticalAlign=top;align=center;spacingTop=-2;fillColor=#326CE5;prIcon=deploy;" value="&lt;b&gt;fetcher&lt;/b&gt;&lt;br&gt;외부 API 호출" vertex="1">
+          <mxGeometry height="40" width="40" x="974" y="404" as="geometry" />
         </mxCell>
-        <mxCell id="c28" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E8F0FE;strokeColor=#326CE5;arcSize=8;" value="&lt;b&gt;embed&lt;/b&gt;&lt;br&gt;임베딩" vertex="1">
-          <mxGeometry height="52" width="102" x="595" y="485" as="geometry" />
+        <mxCell id="c28" parent="1" style="sketch=0;html=1;dashed=0;whiteSpace=nowrap;strokeColor=#ffffff;aspect=fixed;pointerEvents=1;shape=mxgraph.kubernetes.icon;fontSize=11;verticalLabelPosition=bottom;verticalAlign=top;align=center;spacingTop=-2;fillColor=#326CE5;prIcon=deploy;" value="&lt;b&gt;embed&lt;/b&gt;&lt;br&gt;임베딩" vertex="1">
+          <mxGeometry height="40" width="40" x="626" y="481" as="geometry" />
         </mxCell>
-        <mxCell id="c29" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E6F4EA;strokeColor=#1E8E3E;arcSize=8;" value="&lt;b&gt;PostgreSQL + pgvector&lt;/b&gt;&lt;br&gt;StatefulSet · local-path (EBS)" vertex="1">
-          <mxGeometry height="52" width="218" x="711" y="485" as="geometry" />
+        <mxCell id="c29" parent="1" style="sketch=0;html=1;dashed=0;whiteSpace=nowrap;strokeColor=#ffffff;aspect=fixed;pointerEvents=1;shape=mxgraph.kubernetes.icon;fontSize=11;verticalLabelPosition=bottom;verticalAlign=top;align=center;spacingTop=-2;fillColor=#1E8E3E;prIcon=sts;" value="&lt;b&gt;PostgreSQL + pgvector&lt;/b&gt;&lt;br&gt;StatefulSet · local-path (EBS)" vertex="1">
+          <mxGeometry height="40" width="40" x="800" y="481" as="geometry" />
         </mxCell>
-        <mxCell id="c30" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#E6F4EA;strokeColor=#1E8E3E;arcSize=8;" value="&lt;b&gt;백업 CronJob&lt;/b&gt;&lt;br&gt;매일 pg_dump" vertex="1">
-          <mxGeometry height="52" width="102" x="943" y="485" as="geometry" />
+        <mxCell id="c30" parent="1" style="sketch=0;html=1;dashed=0;whiteSpace=nowrap;strokeColor=#ffffff;aspect=fixed;pointerEvents=1;shape=mxgraph.kubernetes.icon;fontSize=11;verticalLabelPosition=bottom;verticalAlign=top;align=center;spacingTop=-2;fillColor=#1E8E3E;prIcon=cronjob;" value="&lt;b&gt;백업 CronJob&lt;/b&gt;&lt;br&gt;매일 pg_dump" vertex="1">
+          <mxGeometry height="40" width="40" x="974" y="481" as="geometry" />
         </mxCell>
         <mxCell id="c31" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#FFFFFF;strokeColor=#D86613;arcSize=8;align=left;spacingLeft=8;" value="&lt;b&gt;배포 스크립트&lt;/b&gt; (user-data가 설치, SSM으로 실행)&lt;br&gt;① Parameter Store → k8s Secret (결정 S5)&lt;br&gt;② pg_dump 백업 → ③ 태그 차트 압축본 받기 (결정 S9)&lt;br&gt;④ helm upgrade → ⑤ rollout 대기 → ⑥ 헬스 체크" vertex="1">
           <mxGeometry height="120" width="450" x="595" y="565" as="geometry" />
