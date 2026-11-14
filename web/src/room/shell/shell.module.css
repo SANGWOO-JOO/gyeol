@@ -386,14 +386,6 @@
 }
 .creditPop a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
-/* 검색 목록 끝 가수 노래 전체 보기 (가수 카드의 "노래 전체 보기 ›"와 같은 표현) */
-.artistMoreButton {
-  display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 48px; padding: 0 16px; border-radius: 16px;
-  border: 0; background: var(--r-surface); color: var(--r-accent-strong); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: background .15s;
-}
-.artistMoreButton small { font-size: 12px; font-weight: 400; color: var(--r-text-2); }
-.artistMoreButton:hover { background: var(--r-field); }
-.artistMoreButton:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
 
 /* 검색 더보기 */
 .searchMore {

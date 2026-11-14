@@ -1,0 +1,28 @@
+/* 노래 전체 보기 버튼 (11-14): 놀이터 A안 CTA처럼 장르색 → 보라 그라데이션과 은은한 빛 */
+.btn {
+  position: relative; display: flex; align-items: center; gap: 14px; width: 100%; min-height: 72px; padding: 12px 14px 12px 16px; box-sizing: border-box;
+  border: 0; border-radius: 22px; color: #fff; font: inherit; text-align: left; cursor: pointer; overflow: hidden;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--g) 70%, #2e2760) 0%, #4a3f9a 55%, #6d5bd0 100%);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--g) 28%, transparent), inset 0 0 0 1px rgba(255, 255, 255, .14);
+}
+.btn::before { content: ''; position: absolute; inset: 0; background: radial-gradient(80% 120% at 0% 0%, rgba(255, 255, 255, .22), transparent 60%); pointer-events: none; }
+.btn:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 3px; }
+.fan { position: relative; flex: none; width: 74px; height: 48px; }
+.card {
+  position: absolute; top: 2px; left: 0; width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: #2e2760;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .35), 0 0 0 1px rgba(255, 255, 255, .25); transition: transform .2s ease;
+}
+.fan > :nth-child(1) { z-index: 3; transform: rotate(-8deg); }
+.fan > :nth-child(2) { z-index: 2; transform: translateX(14px) rotate(2deg); }
+.fan > :nth-child(3) { z-index: 1; transform: translateX(28px) rotate(11deg); }
+.btn:hover .fan > :nth-child(1) { transform: translateX(-3px) rotate(-14deg); }
+.btn:hover .fan > :nth-child(2) { transform: translateX(16px) rotate(0deg) translateY(-3px); }
+.btn:hover .fan > :nth-child(3) { transform: translateX(34px) rotate(16deg); }
+.text { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.text strong { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.text small { font-size: 12px; color: rgba(255, 255, 255, .78); }
+.arrow { position: relative; flex: none; width: 34px; height: 34px; border-radius: 50%; background: rgba(255, 255, 255, .18); display: flex; align-items: center; justify-content: center; transition: background .15s; }
+.btn:hover .arrow { background: rgba(255, 255, 255, .3); }
+@media (prefers-reduced-motion: reduce) { .card, .arrow { transition: none; } .btn:hover .fan > * { transform: none; } .btn:hover .fan > :nth-child(2) { transform: translateX(14px) rotate(2deg); } .btn:hover .fan > :nth-child(3) { transform: translateX(28px) rotate(11deg); } .btn:hover .fan > :nth-child(1) { transform: rotate(-8deg); } }
+.fan[data-n='1'] { width: 48px; }
+.fan[data-n='2'] { width: 62px; }

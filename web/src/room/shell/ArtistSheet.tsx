@@ -6,19 +6,22 @@ import { Spinner } from '../components/RoomPage'
 import { Sheet } from './Sheet'
 import { CreditButton } from './ArtistFace'
 import { CoverImg } from './CoverImg'
+import { AllSongsButton } from './AllSongsButton'
 import { Avatar } from '../components/Avatar'
 import { sourcesOf, useImageChain } from '../images'
 import { genreColor, photoCreditText, planetFace } from '../galaxy/faces'
 import { roomSummary, sharedFirst } from './artistSheetLogic'
 import ak from './artistSheet.module.css'
 import type { ToastData } from './Toast'
-import s from '../room.module.css'
 import sh from './shell.module.css'
 
 /**
  * 4′ 가수(행성)를 눌렀을 때: 방에 담긴 이 가수 노래(같이 담음 금빛, 내 노래 ✕), 근거로 쓴 설명과 출처,
  * 비슷한 아티스트(우리 우주에 없는 가수는 금빛 "함께 들어 볼 아티스트"), 노래 전체 보기(I-30 4′2 → 가수 화면).
  */
+/** 비슷한 아티스트는 처음 8명, 나머지는 더 보기 */
+const NEAR_MAX = 8
+
 export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onSearch, onChanged, onError, show, onSelectArtist, onOpenSongs }: {
   roomId: string
   artistId: number
@@ -36,6 +39,7 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
 }) {
   const [a, setA] = useState<ArtistView | null>(null)
   const [open, setOpen] = useState(false)
+  const [nearAll, setNearAll] = useState(false)
   const [failed, setFailed] = useState(false)
   // 내 노래 ✕에 필요한 담은 곡 id (지도·가수 응답에는 trackId만 있다)
   const [mySongIds, setMySongIds] = useState<Map<number, number>>(new Map())
@@ -163,7 +167,7 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
             <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <h3 className={ak.sectionTitle}>비슷한 아티스트</h3>
               <div className={ak.nearby}>
-                {a.nearby.map(n => {
+                {(nearAll ? a.nearby : a.nearby.slice(0, NEAR_MAX)).map(n => {
                   const f = n.inRoom ? planets.get(n.artistId) : undefined
                   const nf = n.inRoom && f ? planetFace(f) : null
                   const g = ghosts.get(n.artistId)
@@ -182,13 +186,14 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
                   )
                 })}
               </div>
+              {a.nearby.length > NEAR_MAX && (
+                <button type="button" className={ak.more} aria-expanded={nearAll} onClick={() => setNearAll(v => !v)}>{nearAll ? '접기' : `더 보기 (${a.nearby.length - NEAR_MAX})`}</button>
+              )}
             </section>
           )}
 
-          <button type="button" className={s.primary} style={{ height: 54, fontSize: 16, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4 }} onClick={() => onOpenSongs(a.artistId, a.name)}>
-            노래 전체 보기
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
-          </button>
+          <AllSongsButton roomId={roomId} name={a.name} covers={a.songs} color={gColor}
+            sub={`인기순 · 최신순 · ${a.songs.length}곡+`} ariaLabel="노래 전체 보기" onClick={() => onOpenSongs(a.artistId, a.name)} />
         </>
       )}
     </Sheet>
