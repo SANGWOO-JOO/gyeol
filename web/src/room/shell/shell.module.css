@@ -362,7 +362,7 @@
 .sortSticky { position: sticky; top: var(--sort-top, 104px); z-index: 3; margin: 0 -4px; padding: 4px; background: var(--r-bg); }
 .sidePanel .sortSticky { --sort-top: 46px; background: #1e1b36; }
 /* I-44 4-n4 머리 사진 · 출처 줄 */
-.facePhoto { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.facePhoto { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; border-radius: 50%; display: block; } /* 세로 인물 사진: 얼굴이 위쪽 */
 .photoCredit { align-self: flex-start; font-size: 11px; line-height: 1.5; color: #a39cc0; text-decoration: underline; text-underline-offset: 2px; }
 a.photoCredit:hover { color: var(--r-text); }
 a.photoCredit:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; border-radius: 4px; }

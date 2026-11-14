@@ -425,7 +425,8 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
 function FaceImage({ roomId, sources, r, className, placeholder }: { roomId: string; sources: ImgSource[]; r: number; className: string; placeholder?: ReactNode }) {
   const { src, fail } = useImageChain(roomId, sources)
   if (!src) return <>{placeholder}</>
-  return <image className={className} href={src} onError={fail} x={-r} y={-r} width={2 * r} height={2 * r} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
+  // 세로로 긴 인물 사진은 얼굴이 위쪽에 있어 위 기준으로 자른다 (정사각형 표지는 결과가 같다)
+  return <image className={className} href={src} onError={fail} x={-r} y={-r} width={2 * r} height={2 * r} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMin slice" />
 }
 
 /** I-44 ④·I-14 위성 표지: 저장본 → 외부 표지, 모두 실패하면(또는 받는 중엔) 지금의 점 위성 */
