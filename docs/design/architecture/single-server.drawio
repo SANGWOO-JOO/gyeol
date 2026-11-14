@@ -4,8 +4,8 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="c11" parent="1" style="text;html=1;fontSize=16;align=left;verticalAlign=middle;" value="&lt;b&gt;결(gyeol) 운영 아키텍처: 단일 서버 k3s&lt;/b&gt;  (2026-11-14 결정 S1~결정 S12, docs/todo/single-server-terraform.md)" vertex="1">
-          <mxGeometry height="30" width="1000" x="40" y="10" as="geometry" />
+        <mxCell id="c11" parent="1" style="text;html=1;fontSize=16;align=left;verticalAlign=middle;" value="&lt;b&gt;④ 배포·운영 상세: 단일 서버 k3s&lt;/b&gt;  네트워크 · IAM · 비밀값 · 배포 · 모니터링 · 비용 상한 (설계 결정 S1~S12, docs/todo/single-server-terraform.md) · k3s 안 구성은 ②, RAG 흐름은 ③ 페이지" vertex="1">
+          <mxGeometry height="30" width="1700" x="40" y="10" as="geometry" />
         </mxCell>
         <mxCell id="c12" parent="1" style="sketch=0;outlineConnect=0;gradientColor=none;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;aspect=fixed;pointerEvents=1;fillColor=#00A4A6;shape=mxgraph.aws4.users;" value="사용자&lt;br&gt;(웹·휴대폰)" vertex="1">
           <mxGeometry height="56" width="56" x="52" y="332" as="geometry" />
@@ -139,10 +139,10 @@
         <mxCell id="c55" edge="1" parent="1" source="c20" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#FFFFFF;strokeColor=#545B64;" target="c23" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="c56" edge="1" parent="1" source="c23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#FFFFFF;strokeColor=#545B64;" target="c24" value="/">
+        <mxCell id="c56" edge="1" parent="1" source="c23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#FFFFFF;strokeColor=#545B64;" target="c24" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="c57" edge="1" parent="1" source="c23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#FFFFFF;strokeColor=#545B64;" target="c25" value="/api">
+        <mxCell id="c57" edge="1" parent="1" source="c23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#FFFFFF;strokeColor=#545B64;" target="c25" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="c58" edge="1" parent="1" source="c25" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#FFFFFF;strokeColor=#545B64;" target="c29" value="">
@@ -192,21 +192,6 @@
         </mxCell>
         <mxCell id="c82" edge="1" parent="1" source="c31" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=default;strokeColor=#D86613;fontColor=#D86613;exitX=0.5;exitY=0;entryX=0.06;entryY=1;" target="c22" value="helm upgrade · kubectl">
           <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="c83" edge="1" parent="1" source="c27" target="c26" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=12;fontStyle=1;labelBackgroundColor=default;strokeColor=#01A88D;fontColor=#01A88D;dashed=1;strokeWidth=2;exitX=0;exitY=0.3;entryX=1;entryY=0.3;" value="①">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="c84" edge="1" parent="1" source="c26" target="c38" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=12;fontStyle=1;labelBackgroundColor=default;strokeColor=#01A88D;fontColor=#01A88D;dashed=1;strokeWidth=2;exitX=1;exitY=0.7;entryX=0;entryY=0.7;" value="②">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="c85" edge="1" parent="1" source="c26" target="c28" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=12;fontStyle=1;labelBackgroundColor=default;strokeColor=#01A88D;fontColor=#01A88D;dashed=1;strokeWidth=2;exitX=0.5;exitY=1;entryX=1;entryY=0.2;" value="③">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="c86" edge="1" parent="1" source="c28" target="c29" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=12;fontStyle=1;labelBackgroundColor=default;strokeColor=#01A88D;fontColor=#01A88D;dashed=1;strokeWidth=2;exitX=1;exitY=0.6;entryX=0;entryY=0.6;" value="④">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="c87" parent="1" style="text;html=1;fontSize=10;fontStyle=1;align=left;whiteSpace=nowrap;verticalAlign=middle;fontColor=#01A88D;" value="청록 점선 = RAG 흐름&amp;nbsp;&amp;nbsp;① 근거 자료 (fetcher → worker)&amp;nbsp;&amp;nbsp;② 근거 안에서 곡 설명·추천 이유 생성 (Bedrock)&lt;br&gt;③ 설명 → 임베딩 (embed)&amp;nbsp;&amp;nbsp;④ pgvector 저장·이웃 검색 (PostgreSQL)" vertex="1">
-          <mxGeometry height="26" width="480" x="580" y="590" as="geometry" />
         </mxCell>
         <mxCell id="c88" parent="1" style="image;aspect=fixed;html=1;imageAspect=0;imageBackground=#FFFFFF;imageBorder=#DDDDDD;spacing=4;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=10;whiteSpace=nowrap;image=data:image/svg+xml,PHN2ZyBmaWxsPSIjMDAwMDAwIiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+V2lraXBlZGlhPC90aXRsZT48cGF0aCBkPSJNMTIuMDkgMTMuMTE5Yy0uOTM2IDEuOTMyLTIuMjE3IDQuNTQ4LTIuODUzIDUuNzI4LS42MTYgMS4wNzQtMS4xMjcuOTMxLTEuNTMyLjAyOS0xLjQwNi0zLjMyMS00LjI5My05LjE0NC01LjY1MS0xMi40MDktLjI1MS0uNjAxLS40NDEtLjk4Ny0uNjE5LTEuMTM5LS4xODEtLjE1LS41NTQtLjI0LTEuMTIyLS4yNzFDLjEwMyA1LjAzMyAwIDQuOTgyIDAgNC44OTh2LS40NTVsLjA1Mi0uMDQ1Yy45MjQtLjAwNSA1LjQwMSAwIDUuNDAxIDBsLjA1MS4wNDV2LjQzNGMwIC4xMTktLjA3NS4xNzYtLjIyNS4xNzZsLS41NjQuMDMxYy0uNDg1LjAyOS0uNzI3LjE2NC0uNzI3LjQzNiAwIC4xMzUuMDUzLjMzLjE2Ni42MDEgMS4wODIgMi42NDYgNC44MTggMTAuNTIxIDQuODE4IDEwLjUyMWwuMTM2LjA0NiAyLjQxMS00LjgxLS40ODItMS4wNjctMS42NTgtMy4yNjRzLS4zMTgtLjY1NC0uNDI4LS44NzJjLS43MjgtMS40NDMtLjcxMi0xLjUxOC0xLjQ0Ny0xLjYxNy0uMjA3LS4wMjMtLjMxMy0uMDUtLjMxMy0uMTQ5di0uNDY4bC4wNi0uMDQ1aDQuMjkybC4xMTMuMDM3di40NTFjMCAuMTA1LS4wNzYuMTUtLjIyNy4xNWwtLjMwOC4wNDdjLS43OTIuMDYxLS42NjEuMzgxLS4xMzYgMS40MjJsMS41ODIgMy4yNTIgMS43NTgtMy41MDRjLjI5My0uNjQuMjMzLS44MDEuMTExLS45NDctLjA3LS4wODQtLjMwNS0uMjItLjgxMi0uMjRsLS4yMDEtLjAyMWMtLjA1MiAwLS4wOTgtLjAxNS0uMTQ1LS4wNTEtLjA0NS0uMDMxLS4wNjctLjA3Ni0uMDY3LS4xMjl2LS40MjdsLjA2MS0uMDQ1YzEuMjQ3LS4wMDggNC4wNDMgMCA0LjA0MyAwbC4wNTkuMDQ1di40MzZjMCAuMTIxLS4wNTkuMTc4LS4xOTMuMTc4LS42NDYuMDMtLjc4Mi4wOTUtMS4wMjMuNDM5LS4xMi4xODYtLjM3NS41ODktLjY0NiAxLjAzOWwtMi4zMDEgNC4yNzMtLjA2NS4xMzUgMi43OTIgNS43MTIuMTcuMDQ4IDQuMzk2LTEwLjQzOGMuMTU0LS40MjIuMTI5LS43MjItLjA2NC0uODk1LS4xOTctLjE3Mi0uMzQ2LS4yNzMtLjg1Ny0uMjk1bC0uNDItLjAxNmMtLjA2MSAwLS4xMDUtLjAxNC0uMTUyLS4wNDUtLjA0My0uMDI5LS4wNzItLjA3NS0uMDcyLS4xMTl2LS40MzZsLjA1OS0uMDQ1aDQuOTYxbC4wNDEuMDQ1di40MzdjMCAuMTE5LS4wNzQuMTgtLjIwOS4xOC0uNjQ4LjAzLTEuMTI3LjE4LTEuNDQzLjQyMS0uMzE0LjI1NS0uNTU3LjYxNi0uNzM2IDEuMDY3IDAgMC00LjA0MyA5LjI1OC01LjQyNiAxMi4zMzktLjUyNSAxLjAwNy0xLjA1My45MTctMS41MDMtLjAzMS0uNTcxLTEuMTcxLTEuNzczLTMuNzg2LTIuNjQ2LTUuNzFsLjA1My0uMDM2eiIvPjwvc3ZnPg==;" value="&lt;b&gt;위키백과&lt;/b&gt;&lt;br&gt;RAG 근거" vertex="1">
           <mxGeometry height="36" width="36" x="1222" y="1028" as="geometry" />
