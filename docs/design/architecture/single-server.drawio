@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net">
   <diagram id="gyeol-single" name="단일 서버 아키텍처">
-    <mxGraphModel dx="1839" dy="1075" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1760" pageHeight="1080" math="0" shadow="0">
+    <mxGraphModel dx="1456" dy="617" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1760" pageHeight="1080" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -118,7 +118,7 @@
         <mxCell id="c48" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#FFFFFF;strokeColor=#24292F;arcSize=8;" value="&lt;b&gt;ghcr.io&lt;/b&gt;&lt;br&gt;sangwoo-joo/gyeol-&amp;lt;name&amp;gt;&lt;br&gt;공개 이미지 (토큰 없이 pull)" vertex="1">
           <mxGeometry height="120" width="220" x="900" y="900" as="geometry" />
         </mxCell>
-        <mxCell id="c49" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#FFFFFF;strokeColor=#999999;arcSize=8;verticalAlign=top;spacingTop=8;" value="&lt;b&gt;외부 API&lt;/b&gt; (fetcher가 호출)&lt;br&gt;&lt;br&gt;MusicBrainz (녹음·발매) · Last.fm (인기순)&lt;br&gt;Wikimedia Commons (가수 사진) · Cover Art Archive (앨범 표지)&lt;br&gt;YouTube (청취 분석, I-45 배포 전 결정)" vertex="1">
+        <mxCell id="c49" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fontSize=11;fillColor=#FFFFFF;strokeColor=#999999;arcSize=8;verticalAlign=top;spacingTop=8;" value="&lt;b&gt;외부 API&lt;/b&gt; (fetcher가 호출)&lt;br&gt;&lt;br&gt;위키백과 · Last.fm · MusicBrainz (RAG 근거 자료)&lt;br&gt;MusicBrainz (녹음·발매) · Last.fm (인기순)&lt;br&gt;Wikimedia Commons (가수 사진) · Cover Art Archive (앨범 표지)&lt;br&gt;YouTube (청취 분석, I-45 배포 전 결정)" vertex="1">
           <mxGeometry height="190" width="540" x="1180" y="860" as="geometry" />
         </mxCell>
         <mxCell id="c50" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;fontSize=11;arcSize=4;" value="&lt;b&gt;Terraform 스택&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&#39;background:#FFF2CC&#39;&gt;&amp;nbsp;single&amp;nbsp;&lt;/span&gt; EC2 · EIP · 보안 그룹 · 서버/배포 역할 · Bedrock 예산 조치 (설계만)&lt;br&gt;&lt;br&gt;&lt;span style=&#39;background:#DAE8FC&#39;&gt;&amp;nbsp;base&amp;nbsp;&lt;/span&gt; SQS · S3 · 앱 IAM 정책 · 예산 알림 · SES (코드만, apply 전)&lt;br&gt;&lt;br&gt;&lt;span style=&#39;background:#E1D5E7&#39;&gt;&amp;nbsp;bootstrap&amp;nbsp;&lt;/span&gt; 상태 버킷 (만들어짐)&lt;br&gt;&lt;br&gt;비밀값은 Terraform에 넣지 않음" vertex="1">
@@ -187,11 +187,26 @@
         <mxCell id="c80" parent="1" style="sketch=0;outlineConnect=0;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.client;" value="&lt;b&gt;운영자 맥북&lt;/b&gt;&lt;br&gt;DB 도구 → localhost:25432&lt;br&gt;읽기 전용 계정 gyeol_ro" vertex="1">
           <mxGeometry height="56" width="56" x="217" y="728" as="geometry" />
         </mxCell>
-        <mxCell id="c81" edge="1" parent="1" source="c80" target="c21" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#FFFFFF;strokeColor=#8C4FFF;fontColor=#6B2FD6;dashed=1;exitX=1;exitY=0.5;entryX=0;entryY=0.95;" value="SSM 포트 포워딩 → gyeol-postgres:5432&lt;br&gt;(5432는 열지 않음, 설계 14절)">
+        <mxCell id="c81" edge="1" parent="1" source="c80" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#FFFFFF;strokeColor=#8C4FFF;fontColor=#6B2FD6;dashed=1;exitX=1;exitY=0.5;entryX=0;entryY=0.95;" target="c21" value="SSM 포트 포워딩 → gyeol-postgres:5432&lt;br&gt;(5432는 열지 않음, 설계 14절)">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="c82" edge="1" parent="1" source="c31" target="c22" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=default;strokeColor=#D86613;fontColor=#D86613;exitX=0.5;exitY=0;entryX=0.06;entryY=1;" value="helm upgrade · kubectl">
+        <mxCell id="c82" edge="1" parent="1" source="c31" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=default;strokeColor=#D86613;fontColor=#D86613;exitX=0.5;exitY=0;entryX=0.06;entryY=1;" target="c22" value="helm upgrade · kubectl">
           <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c83" edge="1" parent="1" source="c27" target="c26" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=10;fontStyle=1;labelBackgroundColor=default;strokeColor=#01A88D;fontColor=#01A88D;dashed=1;strokeWidth=2;exitX=0;exitY=0.3;entryX=1;entryY=0.3;" value="RAG ① 근거 자료">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c84" edge="1" parent="1" source="c26" target="c38" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=10;fontStyle=1;labelBackgroundColor=default;strokeColor=#01A88D;fontColor=#01A88D;dashed=1;strokeWidth=2;exitX=1;exitY=0.7;entryX=0;entryY=0.7;" value="RAG ② 근거 안에서 곡 설명·추천 이유">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c85" edge="1" parent="1" source="c26" target="c28" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=10;fontStyle=1;labelBackgroundColor=default;strokeColor=#01A88D;fontColor=#01A88D;dashed=1;strokeWidth=2;exitX=0.5;exitY=1;entryX=1;entryY=0.2;" value="RAG ③ 설명 → 임베딩">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c86" edge="1" parent="1" source="c28" target="c29" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;fontSize=10;fontStyle=1;labelBackgroundColor=default;strokeColor=#01A88D;fontColor=#01A88D;dashed=1;strokeWidth=2;exitX=1;exitY=0.6;entryX=0;entryY=0.6;" value="RAG ④ pgvector 저장·이웃 검색">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c87" parent="1" style="text;html=1;fontSize=10;fontStyle=1;align=right;verticalAlign=middle;fontColor=#01A88D;" value="청록 점선 = RAG 흐름: ① 근거 → ② 생성(Bedrock) → ③ 임베딩(embed) → ④ 벡터 검색(pgvector)" vertex="1">
+          <mxGeometry height="16" width="470" x="590" y="592" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
