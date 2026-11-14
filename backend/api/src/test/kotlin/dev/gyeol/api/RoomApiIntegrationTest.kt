@@ -444,6 +444,11 @@ class RoomApiIntegrationTest {
         assertEquals("자리 있는 노래", detail["songs"][0]["title"].asString())
         assertEquals(ghostArtist, detail["nearby"][0]["artistId"].asLong())
         assertTrue(!detail["nearby"][0]["inRoom"].asBoolean())
+        // 비슷한 아티스트 장르색·얼굴 (11-14): 사진·저장 표지가 없으면 NONE, 외부 호출 없음
+        assertEquals(galaxy, detail["nearby"][0]["galaxyId"].asLong())
+        assertEquals("NONE", detail["nearby"][0]["face"]["kind"].asString())
+        assertEquals("TEXT", detail["descriptionKind"].asString())
+        assertTrue(detail["facts"].isNull)
         assertTrue(call("GET", "/api/rooms/${host.rid}/artists/$newArtist", key = host.key).body!!["preparing"].asBoolean())
         jdbc.sql("UPDATE map_version SET active = false").update()
     }
@@ -1517,7 +1522,7 @@ class RoomApiIntegrationTest {
     }
 
     @Test
-    fun `한 글자 검색 - 한글·한자·가나 한 글자는 허용하고 그 이름의 우리 가수를 카드와 앞자리로, 라틴 한 글자는 400, 곡 고르기 입구는 그대로`() {
+    fun `한 글자 검색 - 한글·한자·가나 한 글자는 허용하고 그 이름의 우리 가수를 카드와 앞자리로, 라틴 한 글자는 400, 곡 고르기 입구도 같은 규칙`() {
         val host = newRoom()
         val rain = ArtistInfo(UUID.randomUUID(), "RAIN한글자", "RAIN", listOf("비", "Rain"))
         val other = ArtistInfo(UUID.randomUUID(), "다른가수한글자", "Other", emptyList())
@@ -1535,6 +1540,28 @@ class RoomApiIntegrationTest {
         assertEquals(400, search("7").status)
         assertEquals(200, search("별").status, "DB에 없는 한 글자도 200")
         assertEquals(200, search(" 비 ").status, "앞뒤 공백은 뺀다")
-        assertEquals(400, call("GET", "/api/tracks/search?q=" + java.net.URLEncoder.encode("비", "UTF-8")).status, "곡 고르기 입구는 2~100자 그대로")
+        // 곡 고르기 입구도 한 글자 허용 (11-14)
+        assertEquals(200, call("GET", "/api/tracks/search?q=" + java.net.URLEncoder.encode("비", "UTF-8")).status)
+        assertEquals(200, call("GET", "/api/tracks/search?q=" + java.net.URLEncoder.encode("별", "UTF-8")).status)
+        assertEquals(400, call("GET", "/api/tracks/search?q=a").status)
+    }
+
+    @Test
+    fun `가수 판 설명 종류 - MusicBrainz 사실 줄이면 FACTS와 나라·태그(날짜 없음), 설명이 없으면 null`() {
+        val host = newRoom()
+        val a = ArtistInfo(UUID.randomUUID(), "사실가수", "Facts", emptyList())
+        val t = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "사실 노래", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
+        val aid = songs.trackArtist(t)!!
+        val board = "/api/rooms/${host.rid}/artists/$aid"
+        val none = call("GET", board, key = host.key).body!!
+        assertTrue(none["descriptionKind"].isNull)
+        jdbc.sql("INSERT INTO artist_profile (artist_id) VALUES (:a) ON CONFLICT DO NOTHING").param("a", aid).update()
+        maps.saveDescription(aid, "가수 'BoA' (MusicBrainz): 유형 Person; 지역 South Korea; 활동 시작 1986-11-05; 장르·태그 j-pop, k-pop, pop, singer-songwriter, 1st gen, r&b, dance", emptyList(), "fake")
+        val facts = call("GET", board, key = host.key).body!!
+        assertEquals("FACTS", facts["descriptionKind"].asString())
+        assertTrue(facts["description"].asString().startsWith("가수 'BoA'"), "description 문자열은 그대로")
+        assertEquals("한국", facts["facts"]["area"].asString())
+        assertEquals(listOf("J-pop", "K-pop", "Pop", "Singer-songwriter", "R&B"), facts["facts"]["tags"].toList().map { it.asString() }, "세대 표시는 빼고 5개")
+        assertTrue(!facts["facts"].toString().contains("1986"), "날짜 없음")
     }
 }

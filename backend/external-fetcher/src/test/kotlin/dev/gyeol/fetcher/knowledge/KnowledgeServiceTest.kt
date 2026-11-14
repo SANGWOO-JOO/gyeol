@@ -16,7 +16,8 @@ class KnowledgeServiceTest {
     private val mbResponses = mapOf(
         "/recording/r" to node(mapOf("relations" to listOf(rel("arranger", "김희원"), mapOf("type" to "performance", "work" to mapOf("id" to "w1"))), "tags" to listOf(mapOf("name" to "ballad", "count" to 3)))),
         "/work/w1" to node(mapOf("relations" to listOf(rel("composer", "김희원"), rel("lyricist", "IU"), wikidata))),
-        "/artist/a" to node(mapOf("name" to "IU", "type" to "Person", "area" to mapOf("name" to "South Korea"), "genres" to listOf(mapOf("name" to "k-pop")), "relations" to listOf(wikidata))),
+        "/artist/a" to node(mapOf("name" to "IU", "type" to "Person", "area" to mapOf("name" to "South Korea"), "life-span" to mapOf("begin" to "1993-05-16"), "genres" to listOf(mapOf("name" to "k-pop")), "relations" to listOf(wikidata))),
+        "/artist/grp" to node(mapOf("name" to "DAVICHI", "type" to "Group", "life-span" to mapOf("begin" to "2008"), "relations" to emptyList<Any>())),
         "/release-group/g" to node(mapOf("title" to "밤편지", "primary-type" to "Single", "first-release-date" to "2017-03-24", "relations" to emptyList<Any>())),
     )
     private val lastfmCalls = mutableListOf<Pair<String, Map<String, String>>>()
@@ -57,6 +58,12 @@ class KnowledgeServiceTest {
         val lastfm = r.chunks.single { it.source == "LASTFM" }
         assertEquals("Last.fm 태그: k-pop. IU is a singer.", lastfm.text)
         assertEquals("https://www.last.fm/music/IU", lastfm.url)
+    }
+
+    @Test
+    fun `가수 begin - 사람은 출생일이라 넣지 않고, 그룹은 결성이라 활동 시작으로 (11-14)`() {
+        // IU(Person, begin 1993-05-16)의 줄은 위 테스트에서 날짜 없이 확인한다
+        assertEquals("가수 'DAVICHI' (MusicBrainz): 유형 Group; 활동 시작 2008.", service.artist("grp", null).chunks.first().text)
     }
 
     @Test

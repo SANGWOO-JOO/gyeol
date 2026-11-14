@@ -526,3 +526,19 @@
   - "별": 200, 카드 없음(Last.fm 결과가 여러 가수의 "별"이라 가수가 한 명으로 모이지 않음), 미리 준비 맡기지 않음.
   - "a": 400.
 - 테스트: api 1개("비" 200 + 카드 + 그 가수 곡 앞, "a"·"7" 400, "별" 200, 앞뒤 공백, 곡 고르기 입구 "비" 400), fetcher 테스트에 한 글자 3줄. fetcher 53·worker 88·api 92(건너뜀 1) 통과. 18:07:16 세 모듈 재시작.
+
+### 가수 판 설명 구분·비슷한 아티스트 얼굴·곡 고르기 한 글자 (11-14, 사용자 승인)
+- **사실 줄이 생기는 곳:** fetcher `knowledge/KnowledgeService.artist()`가 MusicBrainz `/artist/{mbid}`로 `mbSentence`를 만든다. "가수 'X' (MusicBrainz): 유형 …; 지역 …; 활동 시작 …; 장르·태그 …." 이 줄은 `knowledge_chunk`(source MUSICBRAINZ)에 저장된다.
+  - 이 줄이 설명이 되는 경우: `MapLlm` fake(`LLM_MODE=fake`)의 `describeArtist`가 첫 근거 조각을 120자로 잘라 그대로 설명으로 저장한다(model "fake"). 로컬 15명이 이렇다. Bedrock 설명(1,457명)에는 이 모양이 없다.
+- **응답:** `ArtistView.descriptionKind`는 `TEXT` | `FACTS` | null(설명 없음)이다. FACTS일 때 `facts = {area?, tags?}`를 준다.
+  - area: 영어 나라 이름 → 한국어(South Korea → "한국", 나라가 아니면 null). tags: 상위 5개, 숫자가 든 세대 표시는 빼고 K-pop·R&B처럼 표기를 정리한다. 날짜는 넣지 않는다.
+  - 사실은 저장된 MusicBrainz 조각(잘리지 않은 줄)에서 뽑고, 조각이 없으면 설명 문자열에서 뽑는다. `description` 문자열은 그대로다.
+- **생일 문제:** MusicBrainz `life-span.begin`은 Person이면 출생일, Group이면 결성일이다. 이제 Person·Character는 begin을 넣지 않는다(fetcher 수정, 새로 받는 조각부터).
+  - 이미 저장된 조각은 그대로다: 로컬 가수 조각 1,478개 중 681개에 "유형 Person … 활동 시작 {생일}"이 있다.
+  - 이 조각이 `MapLlm.describeArtist`(Bedrock)의 근거 입력에 그대로 들어가므로, 기존 LLM 설명 입력에도 같은 잘못된 표시가 들어갔다. 다시 생성(유료)은 하지 않았다. 저장 조각을 SQL로 고치는 방안(무료)은 보고만 했다.
+- **비슷한 아티스트(nearby):** 항목마다 `galaxyId`와 `face`(사진 → DB 저장 표지 → NONE, 외부 호출 없음).
+- **곡 고르기 입구 `/api/tracks/search`:** 한글·한자·가나 한 글자 허용("비"·"별" 200, "a" 400). 웹 `web/src/pages/Pick.tsx:24`·`:76`의 `length < 2` 검사는 웹 세션이 고친다.
+- 테스트
+  - api: 판 FACTS 1개, nearby galaxyId·face와 TEXT 단언, 한 글자 테스트에서 곡 고르기 입구 200·400
+  - fetcher: Group begin은 "활동 시작", Person은 넣지 않음
+  - 결과: fetcher 54·worker 88·api 93(건너뜀 1) 통과. 18:13:48 api·fetcher 재시작.

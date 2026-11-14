@@ -99,9 +99,14 @@ data class ArtistView(
     val songs: List<MapSongView>, val nearby: List<NearbyView>, val preparing: Boolean,
     /** I-44: 지도와 같은 얼굴, 사진은 Commons일 때만(저작자 표시) */
     val face: Face? = null, val photo: PhotoView? = null,
+    /** 설명 종류(11-14): TEXT(LLM 설명) · FACTS(설명이 없어 MusicBrainz 사실 줄). 설명이 없으면 null. description 문자열은 그대로 */
+    val descriptionKind: String? = null,
+    /** FACTS일 때 표시용 사실 (나라·장르 태그, 날짜 없음) */
+    val facts: FactsView? = null,
 )
 data class EvidenceView(val id: Long, val source: String, val url: String)
-data class NearbyView(val artistId: Long, val name: String, val inRoom: Boolean)
+/** galaxyId·face(11-14): 비슷한 아티스트 장르색과 얼굴(사진 → DB 저장 표지 → NONE, 외부 호출 없음) */
+data class NearbyView(val artistId: Long, val name: String, val inRoom: Boolean, val galaxyId: Long? = null, val face: Face? = null)
 data class MapSongView(val trackId: Long, val title: String, val coverUrl: String?, val memberIds: List<Long>, val coverPath: String? = null)
 
 /**
@@ -411,7 +416,11 @@ class RoomSongService(
         val placed = version != null && maps.positions(version, listOf(artistId)).isNotEmpty()
         // 설명 없는 가수는 원문 벡터끼리 비교 (MapRepository.nearestPlaced)
         val nearby = if (!placed) emptyList() else maps.placeVector(artistId)?.let { (v, byRaw) ->
-            maps.nearestPlaced(version!!, v, 5, listOf(artistId), byRaw).map { NearbyView(it.artistId, it.name, it.artistId in roomArtists) }
+            val near = maps.nearestPlaced(version!!, v, 5, listOf(artistId), byRaw)
+            val nearFaces = faces.faces(ctx.room.publicId, near.associate { n ->
+                n.artistId to (n.galaxyId to songs.artistStoredCoverTrack(n.artistId)?.let { covers.path(ctx.room.publicId, it, true) })
+            })
+            near.map { NearbyView(it.artistId, it.name, it.artistId in roomArtists, it.galaxyId, nearFaces[it.artistId]) }
         }.orEmpty()
         val galaxy = version?.let { maps.positions(it, listOf(artistId))[artistId]?.galaxyId }
         val songViews = roomSongs.map { it.view(ctx.room.publicId) }
@@ -419,9 +428,15 @@ class RoomSongService(
         val cover = songViews.firstNotNullOfOrNull { it.coverPath ?: it.coverUrl }
             ?: songs.artistStoredCoverTrack(artistId)?.let { covers.path(ctx.room.publicId, it, true) }
         val face = faces.faces(ctx.room.publicId, mapOf(artistId to (galaxy to cover)))[artistId]
+        // 설명 종류: 사실 줄이면 FACTS, 사실은 저장된 MusicBrainz 근거 줄(설명보다 길이 제한이 없음)에서 나라·태그만 뽑는다
+        val kind = d.description?.let { if (ArtistFacts.isFacts(it)) "FACTS" else "TEXT" }
+        val facts = if (kind != "FACTS") null else {
+            val chunk = prepares.artistMbid(artistId)?.let { m -> maps.chunks(m).firstOrNull { it.source == "MUSICBRAINZ" && ArtistFacts.isFacts(it.text) }?.text }
+            ArtistFacts.parse(chunk ?: d.description)
+        }
         return ArtistView(
             d.artistId, d.name, d.description, evidence, songViews, nearby, !placed,
-            face, faces.photo(ctx.room.publicId, artistId),
+            face, faces.photo(ctx.room.publicId, artistId), kind, facts,
         )
     }
 

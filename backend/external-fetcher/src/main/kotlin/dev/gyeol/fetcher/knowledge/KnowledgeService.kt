@@ -69,7 +69,9 @@ class KnowledgeService(
         val facts = listOfNotNull(
             a.path("type").asString("").ifEmpty { null }?.let { "유형 $it" },
             a.path("area").path("name").asString("").ifEmpty { null }?.let { "지역 $it" },
-            a.path("life-span").path("begin").asString("").ifEmpty { null }?.let { "활동 시작 $it" },
+            // MusicBrainz begin은 Person이면 출생일, Group이면 결성일이다. 사람의 생일을 "활동 시작"으로 쓰지 않고 넣지도 않는다 (11-14)
+            a.path("life-span").path("begin").asString("").ifEmpty { null }
+                ?.takeIf { a.path("type").asString("") != "Person" && a.path("type").asString("") != "Character" }?.let { "활동 시작 $it" },
         )
         val chunks = mutableListOf<ChunkOut>()
         mbSentence("가수 '${a.path("name").asString(name.orEmpty())}'", emptyList(), tagNames(a), facts)?.let { chunks += ChunkOut("MUSICBRAINZ", "ko", "https://musicbrainz.org/artist/$mbid", "CC0", it) }
