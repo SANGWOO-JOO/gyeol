@@ -72,6 +72,10 @@ class LastFmClientTest {
         assertEquals(dev.gyeol.fetcher.SearchController.LASTFM_MAX, 50)
         assertFailsWith<IllegalArgumentException> { controller.lastFm("뉴진스 Hype Boy", 51) }
         assertFailsWith<IllegalArgumentException> { controller.musicBrainz("뉴진스 Hype Boy", 21) }
+        // 한 글자 검색: Last.fm 검색만 한글·한자·가나 한 글자를 받는다 (방 검색의 "비"), 라틴 한 글자와 MusicBrainz 검색은 그대로 거절
+        controller.lastFm("비", 10)
+        assertFailsWith<IllegalArgumentException> { controller.lastFm("a", 10) }
+        assertFailsWith<IllegalArgumentException> { controller.musicBrainz("비", 10) }
     }
 
     @Test

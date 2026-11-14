@@ -4,6 +4,14 @@ import java.text.Normalizer
 
 /** 곡 검색용 문자열 (L2-4). 색인과 검색어에 같은 규칙을 쓴다 */
 object SearchText {
+    private val CJK = setOf(Character.UnicodeScript.HANGUL, Character.UnicodeScript.HAN, Character.UnicodeScript.HIRAGANA, Character.UnicodeScript.KATAKANA)
+
+    /** 한 글자 검색 허용 대상: 공백을 뺀 검색어가 한글·한자·히라가나·가타카나 한 글자 ("비", "별"). 라틴·숫자·기호 한 글자는 아니다 (11-14) */
+    fun isSingleCjk(q: String): Boolean {
+        val t = q.trim()
+        return t.codePointCount(0, t.length) == 1 && Character.UnicodeScript.of(t.codePointAt(0)) in CJK
+    }
+
     private val STRIP = Regex("""[\s\p{Punct}·•′'"「」『』【】♪…–—~～()（）\[\]]+""")
     private const val CHOSUNG = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
     private val JAMO_ONLY = Regex("""^[ㄱ-ㅎ]+$""")

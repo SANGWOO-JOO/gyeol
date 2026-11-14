@@ -1515,4 +1515,26 @@ class RoomApiIntegrationTest {
         assertEquals(400, call("GET", "$base?sort=popular", key = host.key).status)
         jdbc.sql("UPDATE map_version SET active = false WHERE id = :v").param("v", version).update()
     }
+
+    @Test
+    fun `한 글자 검색 - 한글·한자·가나 한 글자는 허용하고 그 이름의 우리 가수를 카드와 앞자리로, 라틴 한 글자는 400, 곡 고르기 입구는 그대로`() {
+        val host = newRoom()
+        val rain = ArtistInfo(UUID.randomUUID(), "RAIN한글자", "RAIN", listOf("비", "Rain"))
+        val other = ArtistInfo(UUID.randomUUID(), "다른가수한글자", "Other", emptyList())
+        listOf("Rainism", "Hip Song").forEach { identify.upsertTrack(TrackInfo(UUID.randomUUID(), it, rain, UUID.randomUUID(), UUID.randomUUID(), "음반", "2008-01-01", "Single")) }
+        identify.upsertTrack(TrackInfo(UUID.randomUUID(), "비 오는 날", other, UUID.randomUUID(), UUID.randomUUID(), "음반", "2010-01-01", "Single"))
+        val rainId = jdbc.sql("SELECT id FROM artist WHERE mbid = :m").param("m", rain.mbid).query(Long::class.java).single()
+        fun search(q: String) = call("GET", "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode(q, "UTF-8"), key = host.key)
+
+        val bi = search("비")
+        assertEquals(200, bi.status)
+        assertEquals(rainId, bi.body!!["artist"]["artistId"].asLong(), "이름·별칭이 정확히 '비'인 우리 가수가 카드")
+        val ids = bi.body["items"].toList().map { it["item"]["artistId"].takeUnless { n -> n.isNull }?.asLong() }
+        assertEquals(listOf(rainId, rainId), ids.take(2), "그 가수 곡을 앞에: $ids")
+        assertEquals(400, search("a").status)
+        assertEquals(400, search("7").status)
+        assertEquals(200, search("별").status, "DB에 없는 한 글자도 200")
+        assertEquals(200, search(" 비 ").status, "앞뒤 공백은 뺀다")
+        assertEquals(400, call("GET", "/api/tracks/search?q=" + java.net.URLEncoder.encode("비", "UTF-8")).status, "곡 고르기 입구는 2~100자 그대로")
+    }
 }

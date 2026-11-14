@@ -57,9 +57,11 @@ class TrackSearchController(props: GyeolProperties, private val db: TrackSearchR
     }
 
     /** 검색 본체. 방 검색 더보기(2~5쪽)는 [limit] 50으로 부른다 (fetcher Last.fm 상한도 50) */
-    fun find(q: String?, limit: Int): TrackSearchResponse {
+    fun find(q: String?, limit: Int, allowSingleCjk: Boolean = false): TrackSearchResponse {
         val query = q?.trim().orEmpty()
-        if (query.length !in 2..100) throw ApiException.validation("검색어는 2~100자여야 합니다")
+        // 방 검색만 한글·한자·가나 한 글자를 허용한다("비" 같은 가수). 곡 고르기 입구(/api/tracks/search)는 2~100자 그대로
+        val single = allowSingleCjk && SearchText.isSingleCjk(query)
+        if (!single && query.length !in 2..100) throw ApiException.validation("검색어는 2~100자여야 합니다")
         require(limit in 1..MAX_LIMIT)
 
         // 확실한 DB 결과는 앞에, 조각 유사도로만 걸린 약한 결과는 Last.fm 뒤에 (DB에 없는 곡을 같은 가수의 다른 곡이 가로채지 않게)

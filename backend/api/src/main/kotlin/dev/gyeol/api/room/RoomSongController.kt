@@ -143,15 +143,19 @@ class RoomSongService(
         if (page !in 1..SEARCH_PAGES) throw ApiException.validation("page는 1~${SEARCH_PAGES}이어야 해요")
         // 1쪽은 지금 검색 그대로. 2쪽 이후는 1쪽을 다시 만들고(Last.fm은 캐시) 50곡 목록을 뒤에 이어 붙인 뒤,
         // 같은 곡 합치기 규칙(dedupe)을 전체에 한 번 더 적용해 쪽 사이 중복을 막는다
-        val first = search.search(q, SEARCH_PAGE_SIZE)
+        // 한 글자(한글·한자·가나) 검색 허용 (11-14). 결과가 넓으므로 이름·별칭이 정확히 그 글자인 우리 가수의 곡을 앞에 둔다
+        val single = dev.gyeol.core.identify.SearchText.isSingleCjk(q.orEmpty())
+        val boost = if (!single) null else merger.resolveArtists(listOf(q!!.trim()))[dev.gyeol.core.identify.SearchText.norm(q)]?.id
+        fun boosted(items: List<TrackItem>) = if (boost == null) items else items.sortedBy { if (it.artistId == boost) 0 else 1 }
+        val first = search.find(q, SEARCH_PAGE_SIZE, allowSingleCjk = true).let { it.copy(items = boosted(it.items)) }
         if (page == 1) {
             val res = decorate(ctx, first.items, first.source)
             val card = artistCard(ctx, q.orEmpty(), first.items)
             card?.let { prepareIfNeeded(ctx, it) }
             return res.copy(artist = card, page = 1, hasMore = first.items.size >= SEARCH_PAGE_SIZE)
         }
-        val more = search.find(q, SEARCH_PAGE_SIZE * SEARCH_PAGES)
-        val all = merger.dedupe(first.items + more.items).take(SEARCH_PAGE_SIZE * SEARCH_PAGES)
+        val more = search.find(q, SEARCH_PAGE_SIZE * SEARCH_PAGES, allowSingleCjk = true)
+        val all = merger.dedupe(first.items + boosted(more.items)).take(SEARCH_PAGE_SIZE * SEARCH_PAGES)
         val slice = all.drop((page - 1) * SEARCH_PAGE_SIZE).take(SEARCH_PAGE_SIZE)
         return decorate(ctx, slice, more.source).copy(page = page, hasMore = page < SEARCH_PAGES && all.size > page * SEARCH_PAGE_SIZE)
     }
@@ -201,7 +205,7 @@ class RoomSongService(
      */
     private fun artistCard(ctx: RoomContext, q: String, items: List<TrackItem>): ArtistCard? {
         val qn = dev.gyeol.core.identify.SearchText.norm(q)
-        if (qn.length < 2 || items.isEmpty()) return null
+        if ((qn.length < 2 && !dev.gyeol.core.identify.SearchText.isSingleCjk(q)) || items.isEmpty()) return null
         val half = (items.size + 1) / 2
         fun names(a: dev.gyeol.core.identify.ArtistNames) = listOf(a.name) + a.aliases
         val exact = merger.resolveArtists(listOf(q))[qn]
