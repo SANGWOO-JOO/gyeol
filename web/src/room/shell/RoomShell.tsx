@@ -22,6 +22,7 @@ import { Toast, type ToastData } from './Toast'
 import { SheetModeContext } from './Sheet'
 import { useWide } from './useWide'
 import { HeadMenu } from './HeadMenu'
+import lst from '../galaxy/list.module.css'
 import { PeopleIcon, PlayIcon, RecordIcon, RoomPlanet, ScopeIcon } from './RoomIcons'
 import { memberColor } from '../roomApi'
 import { expandsPanel, readCollapsed, writeCollapsed } from './panelPref'
@@ -300,6 +301,10 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
     ...(isHost ? [{ label: '방 설정', onSelect: () => { refreshSummary(); setSheet({ kind: 'settings' }) } }] : []),
     { label: '내 정보', onSelect: () => setSheet({ kind: 'me' }) },
   ]
+  // 건너뛰기 링크: 문서 맨 앞, 첫 Tab에서만 보인다(고정 위치). 지도 대신 목록으로
+  const skipLink = map && map.planets.length > 0 && !listView && (
+    <button type="button" className={lst.skip} onClick={() => { setListView(true); if (!wide) setTab('map') }}>지도 대신 목록으로 보기</button>
+  )
   const galaxy = map
     ? <GalaxyView map={map} roomId={roomId} fresh={fresh} asList={listView} onAsList={setListView} meId={me?.member.id ?? -1} fill={wide} selectedId={wide && sheet?.kind === 'artist' ? sheet.id : null} onAddFirst={goSearch}
       focusId={wide ? focusId : null} onFocus={wide ? onFocus : undefined} onClearFocus={clearFocus} onSelectArtist={id => setSheet({ kind: 'artist', id })}
@@ -367,6 +372,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
     return (
       <AvatarRoom.Provider value={roomId}>
       <div className={sh.wideShell}>
+        {skipLink}
         <header className={sh.wideHeader}>
           <Link to="/" aria-label="첫 화면"><Wordmark size={22} /></Link>
           <RoomPlanet colors={members.map(m => memberColor(m.colorIdx).bg)} />
@@ -445,6 +451,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   return (
     <AvatarRoom.Provider value={roomId}>
     <div className={sh.shell}>
+      {skipLink}
       <header className={sh.header}>
         <div className={sh.headRow}>
           <Link to="/" aria-label="첫 화면"><Wordmark size={20} /></Link>

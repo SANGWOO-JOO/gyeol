@@ -4,7 +4,6 @@ import { memberColor, SHARED_GOLD } from '../roomApi'
 import { GalaxyMap } from './GalaxyMap'
 import type { Fresh } from './fresh'
 import g from './galaxy.module.css'
-import lst from './list.module.css'
 import { GalaxyList } from './GalaxyList'
 import s from '../room.module.css'
 
@@ -47,12 +46,10 @@ export function GalaxyView({ map, roomId, meId, onSelectArtist, onSelectGhost, o
   const asList = asListProp ?? asListOwn
   const setAsList = (v: boolean) => (onAsList ? onAsList(v) : setAsListOwn(v))
   if (map.planets.length === 0) return <div className={fill ? g.fillCenter : undefined}><EmptyGalaxy onAddFirst={onAddFirst} /></div>
-  // 지도 위 "목록으로 보기" 칩은 없앴다(11-14): 키보드 첫 Tab에서만 보이는 건너뛰기 링크 + 머리 ⋯ 메뉴
-  const skip = <button type="button" className={lst.skip} onClick={() => setAsList(true)}>지도 대신 목록으로 보기</button>
+  // 지도 위 "목록으로 보기" 칩은 없앴다(11-14): 페이지 첫 Tab의 건너뛰기 링크(RoomShell) + 머리 ⋯ 메뉴
   if (!asList) {
     return (
       <section aria-label="우리 음악 은하" className={fill ? g.fillMap : undefined} style={fill ? undefined : { display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {skip}
         {/* PC: 지도 위에 얹힌 유리 띠 자리(맞춤·구역 이름이 피한다) */}
         {fill && <div data-map-overlay="top" aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 68, pointerEvents: 'none' }} />}
         <GalaxyMap map={map} meId={meId} roomId={roomId} onSelectArtist={onSelectArtist} onSelectGhost={onSelectGhost} fresh={fresh} selectedId={selectedId}

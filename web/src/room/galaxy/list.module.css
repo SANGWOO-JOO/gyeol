@@ -35,7 +35,7 @@
 .expand { flex: none; width: 44px; height: 44px; margin-right: 4px; border: 0; border-radius: 50%; background: none; color: var(--r-text-2); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .expand:hover { background: rgba(255, 255, 255, .06); color: var(--r-text); }
 .songs { margin: 0 10px 10px; background: rgba(0, 0, 0, .18); }
-/* 지도 첫 Tab: 건너뛰기 링크(평소 숨김, 키보드 포커스 때만 보임) */
-.skip { position: absolute; left: 16px; top: 80px; z-index: 7; padding: 10px 14px; border-radius: 12px; border: 0; background: #e6dcff; color: #16132b; font: inherit; font-weight: 700; cursor: pointer; transform: translateY(-200%); opacity: 0; }
+/* 페이지 첫 Tab: 건너뛰기 링크(평소 숨김, 키보드 포커스 때만 보임) */
+.skip { position: fixed; left: 16px; top: 12px; z-index: 50; padding: 10px 14px; border-radius: 12px; border: 0; background: #e6dcff; color: #16132b; font: inherit; font-weight: 700; cursor: pointer; transform: translateY(-200%); opacity: 0; }
 .skip:focus-visible { transform: none; opacity: 1; outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .skip { transition: transform .15s, opacity .15s; } }
