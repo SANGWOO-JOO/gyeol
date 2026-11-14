@@ -313,7 +313,10 @@ class RoomSongService(
         }.orEmpty()
         val galaxy = version?.let { maps.positions(it, listOf(artistId))[artistId]?.galaxyId }
         val songViews = roomSongs.map { it.view(ctx.room.publicId) }
-        val face = faces.faces(ctx.room.publicId, mapOf(artistId to (galaxy to songViews.firstNotNullOfOrNull { it.coverPath ?: it.coverUrl })))[artistId]
+        // 가수 판도 검색 카드처럼 방 곡이 없으면 DB 저장 표지로 (지도 응답의 행성 얼굴은 그대로, 11-14)
+        val cover = songViews.firstNotNullOfOrNull { it.coverPath ?: it.coverUrl }
+            ?: songs.artistStoredCoverTrack(artistId)?.let { covers.path(ctx.room.publicId, it, true) }
+        val face = faces.faces(ctx.room.publicId, mapOf(artistId to (galaxy to cover)))[artistId]
         return ArtistView(
             d.artistId, d.name, d.description, evidence, songViews, nearby, !placed,
             face, faces.photo(ctx.room.publicId, artistId),

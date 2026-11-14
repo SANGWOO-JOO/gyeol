@@ -1346,4 +1346,20 @@ class RoomApiIntegrationTest {
         assertEquals("COVER", cover["face"]["kind"].asString())
         assertEquals("https://coverartarchive.org/release/x/front-250", cover["face"]["url"].asString())
     }
+
+    @Test
+    fun `가수 판 대체 얼굴 - 방에 곡이 없으면 DB 저장 표지로 COVER, 지도 응답에는 영향 없음`() {
+        val host = newRoom()
+        val a = ArtistInfo(UUID.randomUUID(), "판표지가수", "Board Cover", emptyList())
+        val t = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "판 노래", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
+        val aid = songs.trackArtist(t)!!
+        val board = "/api/rooms/${host.rid}/artists/$aid"
+        assertEquals("NONE", call("GET", board, key = host.key).body!!["face"]["kind"].asString(), "저장본이 없으면 NONE")
+        jdbc.sql("UPDATE track SET cover_key = 'covers/board' WHERE id = :t").param("t", t).update()
+        val face = call("GET", board, key = host.key).body!!["face"]
+        assertEquals("COVER", face["kind"].asString())
+        assertEquals("/api/rooms/${host.rid}/covers/$t", face["url"].asString())
+        // 방에 곡이 없으니 지도에는 이 가수 행성이 없다 (지도 얼굴 계산은 그대로)
+        assertTrue(call("GET", "/api/rooms/${host.rid}/map", key = host.key).body!!["planets"].toList().none { it["artistId"].asLong() == aid })
+    }
 }
