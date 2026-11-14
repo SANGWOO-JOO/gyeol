@@ -50,7 +50,7 @@ class VideoCheckController(
         if (ids.size > MAX) throw ApiException.validation("영상 ID는 ${MAX}개 이하여야 합니다")
         if (!ids.all { idPattern.matches(it) }) throw ApiException.validation("영상 ID 형식이 올바르지 않습니다")
 
-        val cached = cache.fresh(ids, Instant.now().minus(RETENTION))
+        val cached = cache.fresh(ids, Instant.now().minus(VideoCheckRepository.RETENTION))
         val missing = ids.filter { it !in cached }
         val fetched = if (missing.isEmpty()) emptyMap() else try {
             val r = fetcher.post().uri("/internal/youtube/categories").body(mapOf("videoIds" to missing)).retrieve().body(JsonNode::class.java)
@@ -68,7 +68,5 @@ class VideoCheckController(
     companion object {
         const val MAX = 1000
         const val MUSIC = "10"
-        /** YouTube API 정책: 받은 데이터는 30일 안에 갱신하거나 지운다 */
-        val RETENTION: Duration = Duration.ofDays(30)
     }
 }

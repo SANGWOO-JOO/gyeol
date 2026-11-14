@@ -40,7 +40,6 @@ class ArtistImageBulkTest {
 
         verify(repo).save(1, ArtistImage("COMMONS", s3Key = "artists/1", pageUrl = "https://commons.wikimedia.org/wiki/File:x.jpg", author = "작가", license = "CC BY 4.0"))
         verify(repo).save(2, ArtistImage("NONE"))
-        verify(fetcher, never()).channelImage(anyString())
     }
 
     @Test
@@ -55,7 +54,6 @@ class ArtistImageBulkTest {
         )
         verify(repo).save(3, ArtistImage("NONE"))
         verify(repo).saveChannel("Someone - Topic", null, ArtistImage("NONE"))
-        verify(fetcher, never()).channelImage(anyString())
     }
 
     @Test

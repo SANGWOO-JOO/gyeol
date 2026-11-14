@@ -56,14 +56,6 @@ class FetcherClient(props: WorkerProperties) {
     fun artistFile(url: String): ResponseEntity<ByteArray> =
         http.get().uri { b -> b.path("/internal/artist-image/file").queryParam("url", url).build() }.retrieve().toEntity(ByteArray::class.java)
 
-    /** YouTube 채널 프로필 이미지 주소. 없으면 null */
-    fun channelImage(videoId: String): String? = try {
-        http.get().uri { b -> b.path("/internal/youtube/channel-image").queryParam("videoId", videoId).build() }.retrieve()
-            .body(JsonNode::class.java)?.path("url")?.asString("")?.ifEmpty { null }
-    } catch (e: HttpClientErrorException.NotFound) {
-        null
-    }
-
     /** 표지 이미지 내려받기. 없으면 예외(404) */
     fun coverImage(url: String): ResponseEntity<ByteArray> =
         http.get().uri { b -> b.path("/internal/coverart/image").queryParam("url", url).build() }.retrieve().toEntity(ByteArray::class.java)

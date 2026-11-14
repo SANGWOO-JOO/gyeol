@@ -7,6 +7,7 @@ import dev.gyeol.core.session.Entry
 import dev.gyeol.core.session.SessionRepository
 import dev.gyeol.core.session.Tokens
 import dev.gyeol.core.upload.UploadRepository
+import dev.gyeol.core.video.VideoCheckRepository
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -159,11 +160,27 @@ class CleanupIntegrationTest {
     }
 
     @Test
-    fun `음악 판정 캐시는 30일이 지나면 지운다 (YouTube API 정책)`() {
+    fun `음악 판정 캐시는 보관 기간이 지나면 지운다 (YouTube API 정책)`() {
         jdbc.sql("INSERT INTO video_check (video_id, category_id, checked_at) VALUES ('old-video-1', '10', :t), ('new-video-1', '10', :n)")
             .param("t", Timestamp.from(t0)).param("n", Timestamp.from(t0.plus(Duration.ofDays(20)))).update()
         assertEquals(1, cleanup.run(t0.plus(Duration.ofDays(31))).videoChecks)
         assertEquals(listOf("new-video-1"), jdbc.sql("SELECT video_id FROM video_check").query { rs, _ -> rs.getString(1) }.list())
+        jdbc.sql("DELETE FROM video_check").update()
+    }
+
+    @Test
+    fun `음악 판정 캐시 29일 경계 - 조회와 정리가 같은 기준이라 정리가 하루 늦어도 30일을 넘지 않는다 (I-48)`() {
+        val now = t0.plus(Duration.ofDays(40))
+        val edge = now.minus(VideoCheckRepository.RETENTION)
+        assertEquals(Duration.ofDays(29), VideoCheckRepository.RETENTION)
+        jdbc.sql("INSERT INTO video_check (video_id, category_id, checked_at) VALUES ('edge-old-1', '10', :o), ('edge-new-1', '10', :n)")
+            .param("o", Timestamp.from(edge.minusSeconds(60))).param("n", Timestamp.from(edge.plusSeconds(60))).update()
+        val repo = VideoCheckRepository(jdbc)
+        // 조회: 29일이 막 지난 행은 쓰지 않는다 (다시 묻는다)
+        assertEquals(setOf("edge-new-1"), repo.fresh(listOf("edge-old-1", "edge-new-1"), edge).keys)
+        // 정리: 같은 기준으로 29일이 막 지난 행만 지운다
+        assertEquals(1, cleanup.run(now).videoChecks)
+        assertEquals(listOf("edge-new-1"), jdbc.sql("SELECT video_id FROM video_check").query { rs, _ -> rs.getString(1) }.list())
         jdbc.sql("DELETE FROM video_check").update()
     }
 

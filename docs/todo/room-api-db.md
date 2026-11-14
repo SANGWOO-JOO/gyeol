@@ -450,3 +450,10 @@
   - 표지 저장본 수를 더한 이유는 표지 저장이 map_rev를 올리지 않아 coverPath가 바뀌어도 304가 났기 때문이다.
   - ETag를 쓰는 다른 응답은 없다.
   - 테스트: api `RoomApiIntegrationTest` 1개. api 81(건너뜀 1)·worker 81 통과. api 14:10:02 재시작.
+
+### I-48 YouTube 데이터 보관 기간: 29일 기준·채널 프로필 코드 삭제 (11-14, 사용자 승인)
+- 점검 결과: YouTube API 값을 저장하는 곳은 `video_check`(영상 ID → categoryId) 하나다. 정리 작업이 하루 한 번(04:00)이라 30일 기준이면 행이 최대 약 31일 남았다.
+- 4-1: 조회(`VideoCheckController`)와 정리(`CleanupService`)의 기준을 core `VideoCheckRepository.RETENTION` = **29일** 하나로 합쳤다. 정리가 하루 늦어도 30일을 넘지 않는다. 테스트: worker `CleanupIntegrationTest` 29일 경계 1개(조회·정리 둘 다).
+- 4-3: 쓰이지 않는 채널 프로필 호출을 지웠다. fetcher `YouTubeClient.channelImage()`·`GET /internal/youtube/channel-image`·`DefaultAvatar.kt`(+`DefaultAvatarTest` 3개), worker `FetcherClient.channelImage()`(+`ArtistImageBulkTest`의 never 검증 2줄). 이제 YouTube API 호출은 videos.list categoryId 하나뿐이다. CHECK 제약의 'YOUTUBE' 값은 그대로 뒀다.
+- 4-2(판정을 거친 제목의 전역 테이블 보관, III.E.4.h)는 관리 세션이 정책 원문을 확인한 뒤 정한다.
+- 테스트: fetcher 52(전 55, DefaultAvatarTest 3개 삭제)·worker 82·api 81(건너뜀 1) 통과. 15:54:01 fetcher·worker·api 재시작.

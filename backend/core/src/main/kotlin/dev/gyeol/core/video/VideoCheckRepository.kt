@@ -3,11 +3,12 @@ package dev.gyeol.core.video
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.stereotype.Repository
 import java.sql.Timestamp
+import java.time.Duration
 import java.time.Instant
 
 /**
  * 일반 영상 음악 판정 캐시 (L2-3b). 영상 ID → YouTube categoryId (10 = Music).
- * YouTube API 정책상 30일 안에 갱신하거나 지워야 하므로, [fresh]는 30일 안의 기록만 보고 정리 작업이 오래된 기록을 지운다.
+ * YouTube API 정책상 30일 안에 갱신하거나 지워야 하므로, [fresh]는 [RETENTION] 안의 기록만 보고 정리 작업이 오래된 기록을 지운다.
  */
 @Repository
 class VideoCheckRepository(private val jdbc: JdbcClient) {
@@ -34,4 +35,12 @@ class VideoCheckRepository(private val jdbc: JdbcClient) {
 
     fun deleteOlderThan(before: Instant): Int =
         jdbc.sql("DELETE FROM video_check WHERE checked_at < :b").param("b", Timestamp.from(before)).update()
+
+    companion object {
+        /**
+         * 판정 결과 보관 기간 (조회·정리 공용). YouTube API 정책(III.E.4)은 30일 안에 갱신하거나 지우라고 한다.
+         * 정리 작업은 하루 한 번(04:00) 돌므로 30일로 두면 행이 최대 약 31일 남는다. 하루 여유를 둬 29일로 한다 (I-48, 11-14)
+         */
+        val RETENTION: Duration = Duration.ofDays(29)
+    }
 }

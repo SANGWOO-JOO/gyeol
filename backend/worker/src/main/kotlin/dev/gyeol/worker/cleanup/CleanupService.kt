@@ -21,7 +21,7 @@ data class CleanupResult(val files: Int, val listens: Int, val sessions: Int, va
  * 1. S3 원본 파일: 업로드 후 7일 또는 세션 만료 → 지우고 file_deleted_at 표시
  * 2. 청취 기록: listen_event.expires_at(7일) 지남
  * 3. 세션: expires_at(30일) 지남, 원본 파일을 다 지운 세션만 (연쇄 삭제)
- * 4. 일반 영상 음악 판정 캐시: 30일 지남 (YouTube API 정책)
+ * 4. 일반 영상 음악 판정 캐시: [VideoCheckRepository.RETENTION](29일) 지남 (YouTube API 정책 30일, 하루 한 번 정리라 하루 여유)
  * 5. 음악 방: 숨긴 지 7일 지난 방 완전 삭제(참가자·노래·방장 이메일·선물 캐릭터 연쇄, 캐릭터 그림은 S3에서 먼저, 감사 기록은 IP·닉네임만 지우고 남김),
  *    인증 안 끝난 방 만들기 내용(1시간), 1년 지난 감사 기록
  * 순서가 중요하다: 세션을 먼저 지우면 S3 키를 잃어 파일이 고아로 남는다.
@@ -46,8 +46,8 @@ class CleanupService(
         val files = deleteFiles(now)
         val listens = repeatUntilDone { listens.deleteExpired(now, BATCH) }
         val sessions = repeatUntilDone { sessions.deleteExpired(now, BATCH) }
-        // YouTube API 정책: 판정 결과(카테고리)는 30일 안에 지운다 (L2-3b)
-        val checks = videoChecks.deleteOlderThan(now.minus(java.time.Duration.ofDays(30)))
+        // YouTube API 정책: 판정 결과(카테고리)는 30일 안에 지운다 (L2-3b). 기준은 조회와 같은 29일 (I-48)
+        val checks = videoChecks.deleteOlderThan(now.minus(VideoCheckRepository.RETENTION))
         // 음악 방: 방장·관리자가 지운 방은 7일 뒤 완전 삭제 (11-13 결정 2)
         // 캐릭터 그림(S3)을 먼저 지운다. 하나라도 실패하면 이번에는 방을 지우지 않는다 (키를 잃으면 그림이 고아로 남음)
         val purgedRooms = if (deleteCharacterImages(now)) rooms.purgeHidden(now) else 0
