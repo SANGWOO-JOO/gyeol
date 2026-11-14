@@ -384,3 +384,7 @@
 - 테스트:
   - api `RoomApiIntegrationTest` I-44 1개. 덤으로 "담기" 테스트의 SQS 찾기를 여러 번 받게 고쳤고, I-40·I-44 끝에 활성 판을 끈다. api 70개 통과.
   - worker `ArtistImageBulkTest` 2개(commonsOnly는 YouTube 안 부름·없으면 NONE, 보통 메시지는 기존대로). worker 79개 통과.
+- 작성자 정리(11-14, 관리 세션 요청): core `identify/CommonsAuthor.clean`을 새로 만들었다. HTML 태그·엔티티, 앞의 칸 이름("Upload:"·"Photo:"·"Uploaded by:" 등), 연속 공백을 지운다.
+  - worker는 저장할 때, api는 `commonsPhotos`로 응답할 때 정리한다. 이미 저장된 행도 다시 받지 않고 응답에서 정리된다.
+  - 실제 저장값 3개("Upload:  dramatized" → "dramatized", "Upload:  K-POPit 티비텐", "Republic of  Korea")를 응답에서 확인했다.
+  - 테스트 api `room/CommonsAuthorTest` 1개. api·worker는 09:56:53에 재시작했고, 일괄 수집은 큐에 남은 메시지로 이어진다.

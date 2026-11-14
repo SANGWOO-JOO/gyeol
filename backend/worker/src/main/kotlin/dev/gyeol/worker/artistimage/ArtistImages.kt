@@ -102,7 +102,7 @@ class ArtistImageListener(
         val k = key()
         s3.putObject({ it.bucket(props.cover.bucket).key(k).contentType(file.headers.contentType?.toString() ?: "image/jpeg") }, RequestBody.fromBytes(file.body ?: error("사진 응답이 비어 있습니다")))
         fun text(f: String) = photo.path(f).asString("").ifEmpty { null }
-        return ArtistImage("COMMONS", s3Key = k, pageUrl = text("pageUrl"), author = text("author"), license = text("license"))
+        return ArtistImage("COMMONS", s3Key = k, pageUrl = text("pageUrl"), author = dev.gyeol.core.identify.CommonsAuthor.clean(text("author")), license = text("license"))
     }
 
     // 기본 프로필(채널 이름 첫 글자 그림)은 fetcher가 이미지 내용으로 걸러 없음으로 돌려준다 (DefaultAvatar)

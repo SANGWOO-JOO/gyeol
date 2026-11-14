@@ -99,7 +99,7 @@ class ArtistImageRepository(private val jdbc: JdbcClient) {
         if (artistIds.isEmpty()) return emptyMap()
         return jdbc.sql("SELECT artist_id, s3_key, author, license, page_url FROM artist_image WHERE artist_id = ANY (:ids) AND source = 'COMMONS' AND s3_key IS NOT NULL")
             .param("ids", artistIds.toTypedArray())
-            .query { rs, _ -> CommonsPhoto(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5)) }
+            .query { rs, _ -> CommonsPhoto(rs.getLong(1), rs.getString(2), CommonsAuthor.clean(rs.getString(3)), rs.getString(4), rs.getString(5)) } // 이미 저장된 행도 정리해서 낸다
             .list().associateBy { it.artistId }
     }
 
