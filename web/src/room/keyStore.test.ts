@@ -97,5 +97,20 @@ describe('keyStore', () => {
       expect(prune({ a: ok }, t0)).toEqual({ all: { a: ok }, changed: false })
       expect(prune({ a: ok, b: null as never }, t0).changed).toBe(true)
     })
+
+    it('touch: 방을 쓰면 180일을 다시 센다', () => {
+      keyStore.save(entry('a'), t0)
+      keyStore.touch('a', at(KEY_TTL_MS - 1))
+      expect(keyStore.get('a', at(KEY_TTL_MS + 1))?.savedAt).toBe(at(KEY_TTL_MS - 1).toISOString())
+      expect(keyStore.get('a', at(2 * KEY_TTL_MS))).toBeNull()
+    })
+
+    it('touch: 없는 방이나 이미 만료된 방은 되살리지 않는다', () => {
+      keyStore.touch('none', t0)
+      expect(store.getItem('gyeol.rooms.v1')).toBeNull()
+      keyStore.save(entry('a'), t0)
+      keyStore.touch('a', at(KEY_TTL_MS + 1))
+      expect(keyStore.get('a', at(KEY_TTL_MS + 1))).toBeNull()
+    })
   })
 })

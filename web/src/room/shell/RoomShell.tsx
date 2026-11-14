@@ -129,6 +129,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       const m = await roomApi.me(roomId)
       setMe(m)
       keyStore.update(roomId, { nickname: m.member.nickname, roomName: m.roomName })
+      keyStore.touch(roomId) // I-70: 마지막 사용부터 180일
     } catch (err) { handle(err) }
   }, [roomId, handle])
 

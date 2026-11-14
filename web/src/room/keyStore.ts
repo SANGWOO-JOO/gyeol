@@ -13,7 +13,7 @@ export interface RoomKey {
 }
 
 const STORE = 'gyeol.rooms.v1'
-/** 기기에 둔 열쇠의 보관 기간 (I-69, 방 쿠키와 같은 180일). 지나면 읽을 때 버린다 */
+/** 기기에 둔 열쇠의 보관 기간 (I-69·I-70, 방 쿠키와 같은 180일). 마지막으로 방을 쓴 때(savedAt)부터 세고, 지나면 읽을 때 버린다 */
 export const KEY_TTL_MS = 180 * 86_400_000
 
 /** 저장 시각이 없는 옛 값은 지금 시각으로 채우고, 180일이 지난 값은 뺀다. 바뀐 게 있으면 changed */
@@ -74,6 +74,13 @@ export const keyStore = {
     const all = readAll()
     if (!all[roomId]) return
     all[roomId] = { ...all[roomId], ...patch }
+    writeAll(all)
+  },
+  /** 방을 쓴 시각으로 savedAt만 바꾼다 (I-70: 내 정보를 받았을 때 부름). 열쇠가 없으면 아무것도 안 함 */
+  touch(roomId: string, now: Date = new Date()) {
+    const all = readAll(now)
+    if (!all[roomId]) return
+    all[roomId] = { ...all[roomId], savedAt: now.toISOString() }
     writeAll(all)
   },
   remove(roomId: string) {
