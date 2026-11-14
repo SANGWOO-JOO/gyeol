@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
-import { roomApi, RoomApiError, type CodeMatchView, type MemberRow } from '../roomApi'
+import { memberColor, roomApi, RoomApiError, type CodeMatchView, type MemberRow } from '../roomApi'
 import { codeMatchDisplay, sourceName, unlockText } from '../roomLogic'
 import { Avatar } from '../components/Avatar'
 import { Spinner } from '../components/RoomPage'
 import type { ToastData } from './Toast'
 import s from '../room.module.css'
 import sh from './shell.module.css'
+import p from '../play/play.module.css'
+import { PairPlanets } from '../play/art/PairPlanets'
+import { WorldCupArt } from '../play/art/WorldCupArt'
+import { togglePick } from '../play/playArt'
 
 const MIN_SONGS = 5
 
@@ -35,7 +39,7 @@ export function PlayTab({ roomId, meId, version, onError, show }: {
   }, [roomId, meId, version, onError])
 
   function toggle(id: number) {
-    setPicked(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id].slice(-2))
+    setPicked(prev => togglePick(prev, id))
   }
 
   async function run(a: number, b: number) {
@@ -53,58 +57,52 @@ export function PlayTab({ roomId, meId, version, onError, show }: {
 
   if (result) return <CodeResult roomId={roomId} initial={result} onBack={() => setResult(null)} onRerun={() => run(result.a.memberId, result.b.memberId)} busy={busy} onError={onError} />
 
-  const names = picked.map(id => rows?.find(m => m.id === id)?.nickname).filter(Boolean)
+  const pickedRows = picked.map(id => rows?.find(m => m.id === id)).filter((m): m is MemberRow => !!m)
+  const side = (m?: MemberRow) => m ? { name: m.nickname, color: memberColor(m.colorIdx).bg } : null
+  const ready = pickedRows.length === 2
   return (
-    <section aria-label="놀이터" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <h2 className={sh.playTitle}>놀이터</h2>
-
-      <section aria-label="코드 맞추기" className={sh.playCard}>
-        <div className={sh.playHead}>
-          <span className={sh.playIcon} aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V6l10-2v12" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="16.5" cy="16" r="2.5" /></svg>
-          </span>
-          <span className={sh.personText}>
-            <strong style={{ fontSize: 18 }}>코드 맞추기</strong>
-            <span style={{ fontSize: 13, color: 'var(--r-accent-strong)' }}>친구랑 음악 코드가 얼마나 맞는지 봐요</span>
-          </span>
+    <section aria-label="놀이터" className={p.play}>
+      <section aria-label="코드 맞추기" className={p.hero}>
+        <div className={p.heroHead}>
+          <strong>우리 코드, 몇 % 맞을까</strong>
+          <span>두 사람의 음악 행성이 얼마나 겹치는지 봐요</span>
         </div>
-        <span style={{ fontSize: 13, fontWeight: 500 }}>누구랑 맞춰 볼까요? <span style={{ fontWeight: 400, color: 'var(--r-text-3)' }}>· 두 명</span></span>
+        <PairPlanets a={side(pickedRows[0])} b={side(pickedRows[1])} />
 
         {rows === null && <p className={sh.center} role="status"><Spinner size={14} /> 불러오는 중…</p>}
         {rows && (
-          <ul className={sh.list} role="group" aria-label="두 사람 고르기">
+          <div className={p.chips} role="group" aria-label="두 사람 고르기">
             {rows.map(m => {
               const locked = unlockText(m.songCount, MIN_SONGS)
               const on = picked.includes(m.id)
               return (
-                <li key={m.id}>
-                  <button type="button" className={sh.pickRow} aria-pressed={on} disabled={!!locked} onClick={() => toggle(m.id)}>
-                    <Avatar nickname={m.nickname} colorIdx={m.colorIdx} characterId={m.avatarCharacterId} size={38} />
-                    <span className={sh.personText}>
-                      <span style={{ fontSize: 15 }}>{m.nickname}{m.me ? ' · 나' : ''}</span>
-                      <span className={sh.songSub}>노래 {m.songCount}곡{locked ? ` · ${locked}` : ''}</span>
-                    </span>
-                    <span className={sh.check} aria-hidden="true">{on ? '✓' : ''}</span>
-                  </button>
-                </li>
+                <button key={m.id} type="button" className={p.chip} aria-pressed={on} disabled={!!locked} onClick={() => toggle(m.id)}
+                  aria-label={`${m.nickname}${m.me ? '(나)' : ''}, 노래 ${m.songCount}곡${locked ? `, ${locked}` : ''}`}
+                  style={{ ['--chip-c' as string]: memberColor(m.colorIdx).bg }}>
+                  <Avatar nickname={m.nickname} colorIdx={m.colorIdx} characterId={m.avatarCharacterId} size={44} />
+                  <span>{m.nickname}{m.me ? ' · 나' : ''}<small>{locked ?? `${m.songCount}곡`}</small></span>
+                </button>
               )
             })}
-          </ul>
+          </div>
         )}
 
-        <button type="button" className={s.primary} style={{ height: 52, fontSize: 16 }} disabled={picked.length !== 2 || busy}
-          onClick={() => run(picked[0], picked[1])}>
-          {busy ? <Spinner /> : picked.length === 2 ? `${names[0]} × ${names[1]} 코드 맞추기` : '두 사람을 골라 주세요'}
-        </button>
-        <span className={sh.center}>각자 노래 {MIN_SONGS}곡부터 할 수 있어요</span>
+        {ready ? (
+          <button type="button" className={p.cta} disabled={busy} onClick={() => run(picked[0], picked[1])}
+            style={{ ['--cta-a' as string]: memberColor(pickedRows[0].colorIdx).bg, ['--cta-b' as string]: memberColor(pickedRows[1].colorIdx).bg }}>
+            {busy ? <Spinner /> : `${pickedRows[0].nickname} × ${pickedRows[1].nickname} 맞춰 보기`}
+          </button>
+        ) : (
+          <p className={p.ctaHint}>{pickedRows.length === 1 ? `${pickedRows[0].nickname}님과 맞춰 볼 사람을 한 명 더 골라요` : '맞춰 볼 두 사람을 골라요'}<br />각자 노래 {MIN_SONGS}곡부터 할 수 있어요</p>
+        )}
       </section>
 
-      <section aria-label="준비 중" className={sh.soonCard}>
-        <span aria-hidden="true" style={{ fontSize: 18 }}>✦</span>
-        <span className={sh.personText}>
-          <span style={{ fontSize: 14, color: 'var(--r-silver)' }}>취향 월드컵</span>
-          <span style={{ fontSize: 12 }}>우리 우주 노래끼리 대결 · 준비 중</span>
-        </span>
+      <section aria-label="취향 월드컵, 곧 열려요" className={p.cup}>
+        <WorldCupArt />
+        <div>
+          <strong>취향 월드컵<span className={p.soonTag}>곧 열려요</span></strong>
+          <span>우리 우주 노래끼리 한 곡씩 붙어서, 끝까지 남는 노래를 골라요</span>
+        </div>
       </section>
     </section>
   )
@@ -139,6 +137,11 @@ function CodeResult({ roomId, initial, onBack, onRerun, busy, onError }: {
       </div>
 
       <section className={sh.resultHero}>
+        {d.showPercent && (
+          <div className={p.resultArt}>
+            <PairPlanets score={m.score} a={{ name: m.a.nickname, color: memberColor(m.a.colorIdx).bg }} b={{ name: m.b.nickname, color: memberColor(m.b.colorIdx).bg }} />
+          </div>
+        )}
         <div className={sh.compare} style={{ fontSize: 18, color: 'var(--r-peach)', gap: 10 }}>
           <Avatar nickname={m.a.nickname} colorIdx={m.a.colorIdx} characterId={m.a.avatarCharacterId} size={52} />
           <span aria-hidden="true">×</span>
