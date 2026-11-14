@@ -17,7 +17,8 @@ import software.amazon.awssdk.services.s3.S3Client
 import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
 
-data class ArtistImageMessage(val items: List<ArtistImageTarget> = emptyList(), val channels: List<ChannelImageTarget> = emptyList())
+/** [commonsOnly]: 지도 가수 일괄 채우기(I-44). YouTube를 건너뛰고 Commons만 찾으며 가수 사이를 쉰다 */
+data class ArtistImageMessage(val items: List<ArtistImageTarget> = emptyList(), val channels: List<ChannelImageTarget> = emptyList(), val commonsOnly: Boolean = false)
 
 /** 식별이 끝난 세션에서 많이 들은 가수의 이미지 찾기를 큐에 넣는다 (가수당 한 번, 전역 캐시) */
 @Component
@@ -55,9 +56,10 @@ class ArtistImageListener(
         val msg = json.readValue(body, ArtistImageMessage::class.java)
         var failure: Exception? = null
         val counts = mutableMapOf<String, Int>()
-        msg.items.forEach { t ->
+        msg.items.forEachIndexed { i, t ->
+            if (msg.commonsOnly && i > 0) Thread.sleep(props.artistImage.bulkPause.toMillis())
             try {
-                val image = find(t)
+                val image = if (msg.commonsOnly) commons(t.mbid) { "artists/${t.artistId}" } ?: ArtistImage("NONE") else find(t)
                 repo.save(t.artistId, image)
                 counts.merge(image.source, 1, Int::plus)
             } catch (e: HttpClientErrorException) {
@@ -79,7 +81,7 @@ class ArtistImageListener(
                 failure = e
             }
         }
-        log.info("가수 이미지: 가수 {}명, 채널 {}곳, {}", msg.items.size, msg.channels.size, counts)
+        log.info("가수 이미지{}: 가수 {}명, 채널 {}곳, {}", if (msg.commonsOnly) "(지도 일괄)" else "", msg.items.size, msg.channels.size, counts)
         failure?.let { throw it }
     }
 
@@ -108,4 +110,38 @@ class ArtistImageListener(
         val url = videoId?.let { fetcher.channelImage(it) }
         return if (url != null) ArtistImage("YOUTUBE", url = url) else ArtistImage("NONE")
     }
+}
+
+/**
+ * 지도 가수 얼굴 일괄 채우기 (I-44, 로컬 전용 `gyeol.worker.map.admin-endpoint=true`).
+ * 대상: 활성 지도 판 가수 중 사진을 확인한 적 없는 가수 + Commons 행은 있는데 S3 파일이 없는 가수(로컬 LocalStack 초기화 등).
+ * 10명씩 commonsOnly 메시지로 artist-image 큐에 넣는다. 처리는 큐 listener가 한 번에 한 메시지, 가수 사이 [WorkerProperties.ArtistImageProps.bulkPause]
+ */
+@org.springframework.web.bind.annotation.RestController
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty("gyeol.worker.map.admin-endpoint", havingValue = "true")
+class ArtistImageBulkController(
+    private val repo: ArtistImageRepository,
+    private val sqs: SqsTemplate,
+    private val json: JsonMapper,
+    private val s3: S3Client,
+    private val props: WorkerProperties,
+) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
+    @org.springframework.web.bind.annotation.PostMapping("/internal/artist-image/map-fill")
+    fun mapFill(@org.springframework.web.bind.annotation.RequestParam(defaultValue = "5000") limit: Int): Map<String, Int> {
+        val fresh = repo.mapTargets(limit)
+        val missing = repo.mapCommonsTargets().filter { (_, key) -> !exists(key) }.map { it.first }
+        val all = (fresh + missing).take(limit)
+        all.chunked(10).forEach { items ->
+            sqs.send { it.queue(props.artistImage.queue).payload(json.writeValueAsString(ArtistImageMessage(items = items, commonsOnly = true))) }
+        }
+        log.info("지도 가수 얼굴 일괄: 새로 {}명, 파일 없는 Commons {}명, 큐에 {}명", fresh.size, missing.size, all.size)
+        return mapOf("unchecked" to fresh.size, "missingFile" to missing.size, "queued" to all.size)
+    }
+
+    private fun exists(key: String): Boolean = try {
+        s3.headObject { it.bucket(props.cover.bucket).key(key) }; true
+    } catch (e: software.amazon.awssdk.services.s3.model.NoSuchKeyException) { false
+    } catch (e: software.amazon.awssdk.services.s3.model.S3Exception) { if (e.statusCode() == 404) false else throw e }
 }

@@ -366,3 +366,21 @@
 - 설계 4-3대로, 최신순은 가수 id 주소(`/artists/{id}/songs?sort=latest`)로만 연다. 이름 주소(`/artist-songs?name=…&sort=latest`)는 이름이 우리 가수와 맞아도 400이다(전에는 200). 인기순은 이름 주소에서도 우리 가수로 바꿔 쓰는 동작이 그대로다.
 - 로컬 확인(11-14 03:02 api 재시작 뒤): 수집 끝난 우리 가수 하나로 확인했다. 이름 주소 최신순은 400, id 주소 최신순은 200이다. 임시 기기 열쇠는 지웠다.
 - 테스트: `RoomApiIntegrationTest` I-30 최신순에 "우리 가수 이름 + latest → 400" 한 줄을 더했다. api 테스트 69개 통과(건너뜀 1).
+
+### I-44 가수 행성 얼굴 (11-14)
+- 결정(관리 세션, 사용자 캔버스 승인): 지도 얼굴은 Commons 사진만 쓴다. 다음 순서다: 사진 → 방 곡 표지 → 색(장르 구역). 비용 0, LLM 없음.
+- ① 표본(지도 가수 30명, fetcher 조회만): 사진 있음 19명(63%), 라이선스 CC BY 10·CC BY-SA 8·Public domain 1.
+- ② API:
+  - `planets[].face`·`ghosts[].face` = {kind PHOTO|COVER|NONE, url, galaxyId, author, license, pageUrl}. `ghosts[].galaxyId`도 더했다.
+  - 가수 판에 `face`·`photo`, 가수 화면 `artist.photo`를 더했다.
+  - 사진 주소 `GET /api/rooms/{rid}/artists/{id}/image`(방 열쇠, S3, private 1일)를 새로 만들었다(api `room/ArtistFaces.kt`).
+  - COVER는 방에 가장 먼저 담긴 그 가수 곡의 표지다. 흐린 행성은 PHOTO 또는 NONE만 된다. YouTube 행은 지도에서 NONE으로 처리한다.
+  - 지도 ETag는 `"{mapRev}-{Commons 수}-{마지막 확인}"`이다. 사진이 늘면 304 대신 새 응답이 간다.
+- ③ 일괄 수집(worker):
+  - `ArtistImageMessage.commonsOnly`를 더했다. Commons만 찾고 없으면 NONE이다. 가수 사이 `bulkPause` 2초로 MusicBrainz 줄을 곡 식별에 양보한다.
+  - `POST /internal/artist-image/map-fill`(로컬 전용 `MAP_ADMIN_ENDPOINT=true`) 대상: 활성 지도 판 가수 중 미확인 + Commons 행은 있는데 S3 파일이 없는 가수.
+  - 로컬 LocalStack이 11-13 15:23 다시 시작돼 `artists/` 파일이 사라졌다. 지도 가수 29명이 이 경우다. 지도 밖 세션 결과 가수 14명의 파일은 이번 범위 밖이다.
+  - 11-14 09:52 worker를 재시작(MAP_ADMIN_ENDPOINT=true)하고 1,465명을 큐에 넣었다. 처음 20명은 COMMONS 12·NONE 8. 10명당 약 40~55초로, 끝은 11:30~11:45 예상이다.
+- 테스트:
+  - api `RoomApiIntegrationTest` I-44 1개. 덤으로 "담기" 테스트의 SQS 찾기를 여러 번 받게 고쳤고, I-40·I-44 끝에 활성 판을 끈다. api 70개 통과.
+  - worker `ArtistImageBulkTest` 2개(commonsOnly는 YouTube 안 부름·없으면 NONE, 보통 메시지는 기존대로). worker 79개 통과.

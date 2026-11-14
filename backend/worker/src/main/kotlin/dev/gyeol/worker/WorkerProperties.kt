@@ -58,6 +58,8 @@ data class WorkerProperties(
         val top: Int = 50,
         /** YouTube 주소·없음 결과를 다시 확인하기까지 (YouTube API 정책 30일) */
         val retry: Duration = Duration.ofDays(30),
+        /** 지도 가수 일괄 채우기(I-44)에서 가수 사이 쉼: MusicBrainz 초당 1회 줄을 곡 식별에 양보한다 */
+        val bulkPause: Duration = Duration.ofSeconds(2),
     )
 
     /** 방송·일반 채널 영상에서 LLM으로 가수·곡 뽑기 */
