@@ -88,7 +88,7 @@ class ArtistImageListener(
 
     /** Topic 채널 이름으로 MusicBrainz 가수를 찾을 수 있으면 그 가수의 Commons 사진, 아니면 없음 */
     private fun findChannel(c: ChannelImageTarget): Pair<UUID?, ArtistImage> {
-        val mbid = fetcher.findArtist(c.channel.removeSuffix(" - Topic"), c.titles)
+        val mbid = c.mbid ?: fetcher.findArtist(c.channel.removeSuffix(" - Topic"), c.titles)
         val photo = mbid?.let { m -> commons(m) { "channels/${repo.channelId(c.channel)}" } }
         return (mbid?.let(UUID::fromString)) to (photo ?: ArtistImage("NONE"))
     }

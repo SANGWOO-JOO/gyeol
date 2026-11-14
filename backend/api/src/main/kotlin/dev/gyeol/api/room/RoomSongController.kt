@@ -74,6 +74,12 @@ data class EvidenceView(val id: Long, val source: String, val url: String)
 data class NearbyView(val artistId: Long, val name: String, val inRoom: Boolean)
 data class MapSongView(val trackId: Long, val title: String, val coverUrl: String?, val memberIds: List<Long>, val coverPath: String? = null)
 
+/**
+ * 지도 응답 형식 버전 (ETag 맨 앞). 지도 응답(MapResponse와 그 안의 Planet·MapSongView·Ghost·Face 등)의 필드를 더하거나 바꾸면 올린다.
+ * 안 올리면 브라우저가 304로 옛 모양의 본문을 계속 쓴다. v2: I-14 coverPath (11-14)
+ */
+const val MAP_FORMAT = "v2"
+
 /** 흐린 행성 수 (I-40): 전체 상한, 행성 하나당 상한 (행성 1개면 3명) */
 private const val GHOSTS_TOTAL = 6
 private const val GHOSTS_PER_PLANET_MAX = 3
@@ -282,7 +288,7 @@ class RoomSongService(
 }
 
 @RestController
-class RoomSongController(private val service: RoomSongService, private val faces: ArtistFaces) {
+class RoomSongController(private val service: RoomSongService, private val faces: ArtistFaces, private val songs: dev.gyeol.core.room.RoomSongRepository) {
 
     @GetMapping("/api/rooms/{rid}/search")
     fun search(@PathVariable rid: String, @RoomMember ctx: RoomContext, @RequestParam q: String?): RoomSearchResponse = service.search(ctx, q)
@@ -310,10 +316,13 @@ class RoomSongController(private val service: RoomSongService, private val faces
     @GetMapping("/api/rooms/{rid}/artists/{artistId}")
     fun artist(@PathVariable rid: String, @PathVariable artistId: Long, @RoomMember ctx: RoomContext): ArtistView = service.artist(ctx, artistId)
 
-    /** 몇 초마다 새로고침. 바뀐 게 없으면(map_rev와 가수 사진 상태가 같음) 304. 사진이 늘면 얼굴이 바뀌므로 ETag에 섞는다 (I-44) */
+    /**
+     * 몇 초마다 새로고침. 바뀐 게 없으면 304. ETag = 응답 형식 버전 + map_rev + 가수 사진 상태(I-44) + 방 곡 표지 저장본 수(I-14).
+     * 사진·표지 저장본은 map_rev를 올리지 않고 늘어나므로 따로 섞는다
+     */
     @GetMapping("/api/rooms/{rid}/map")
     fun map(@PathVariable rid: String, @RoomMember ctx: RoomContext, @RequestHeader(HttpHeaders.IF_NONE_MATCH, required = false) etag: String?): ResponseEntity<MapResponse> {
-        val tag = "\"${ctx.room.mapRev}-${faces.stamp()}\""
+        val tag = "\"$MAP_FORMAT-${ctx.room.mapRev}-${faces.stamp()}-${songs.storedCoverCount(ctx.room.id)}\""
         if (etag == tag) return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(tag).build()
         return ResponseEntity.ok().eTag(tag).body(service.map(ctx))
     }

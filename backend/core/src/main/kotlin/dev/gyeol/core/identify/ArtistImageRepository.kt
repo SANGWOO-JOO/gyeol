@@ -7,7 +7,8 @@ data class ArtistImageTarget(val artistId: Long, val mbid: String, val videoId: 
 
 /** 가수 기록 없이 Topic 채널로만 들은 가수 ("Red Velvet - Topic") */
 /** [titles]: 그 채널에서 많이 들은 곡 제목 (같은 이름 가수가 여럿일 때 확인용) */
-data class ChannelImageTarget(val channel: String, val videoId: String?, val titles: List<String> = emptyList())
+/** [mbid]: 이미 찾아 둔 MusicBrainz 가수 (파일만 다시 받을 때, 이름 검색을 건너뛴다) */
+data class ChannelImageTarget(val channel: String, val videoId: String?, val titles: List<String> = emptyList(), val mbid: String? = null)
 
 /** 지도 얼굴용 Commons 사진 (I-44): S3 키와 저작자 표시 */
 data class CommonsPhoto(val artistId: Long, val s3Key: String, val author: String?, val license: String?, val pageUrl: String?)

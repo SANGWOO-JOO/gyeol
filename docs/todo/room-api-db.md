@@ -440,3 +440,13 @@
 - 로컬 수: 방 곡 108곡 중 저장본 106, 둘 다 없음 2, 미확인 0이다. LocalStack 초기화로 cover_key 306개 중 228개 파일이 S3에 없다(방 곡 63곡, 방 8 위성 51개 중 11개 404). 운영과 무관하고, 로컬 복구는 하지 않았다.
 - 테스트: api `RoomApiIntegrationTest` I-14 1개. api 80(건너뜀 1)·worker 80 통과. api 13:59:00 재시작.
 - 같은 날 api 멈춤(12:28~13:53): 실행 중 api의 jar를 다시 빌드해 NoClassDefFoundError가 났다. 코드 문제가 아니다. jar를 빌드할 때는 그 모듈을 먼저 끄고 빌드 뒤 바로 재시작한다.
+- 로컬 파일 다시 받기(11-14, LocalStack 초기화 뒤 S3에 없던 파일):
+  - 표지 228개: 끊긴 cover_key를 비우고 cover 큐로 다시 받았다.
+  - 가수 사진 14개: Commons만 찾는 메시지로 다시 받았다.
+  - Topic 채널 사진 73개(전부): 저장된 artist_mbid로 다시 받았다. worker `ChannelImageTarget.mbid`가 있으면 이름 검색을 건너뛴다(테스트 1개).
+  - 14:09에 끝났고, 세 경로 모두 빠진 파일 0개다. DLQ 0, 오류 0. 방 8 지도의 표지 51개·사진 37개 주소가 모두 200이다.
+- 지도 ETag(관리 세션 요청): `"{MAP_FORMAT}-{mapRev}-{Commons 사진 상태}-{방 곡 표지 저장본 수}"`다.
+  - `MAP_FORMAT = "v2"`는 RoomSongController.kt 상수다. 지도 응답 필드를 바꾸면 올린다.
+  - 표지 저장본 수를 더한 이유는 표지 저장이 map_rev를 올리지 않아 coverPath가 바뀌어도 304가 났기 때문이다.
+  - ETag를 쓰는 다른 응답은 없다.
+  - 테스트: api `RoomApiIntegrationTest` 1개. api 81(건너뜀 1)·worker 81 통과. api 14:10:02 재시작.

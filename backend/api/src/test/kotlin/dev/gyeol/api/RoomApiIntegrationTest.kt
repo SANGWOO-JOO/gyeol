@@ -1181,4 +1181,18 @@ class RoomApiIntegrationTest {
         assertEquals("/api/rooms/${host.rid}/covers/$teddy", teddyItem["coverPath"].asString())
         assertTrue(items.filter { it["item"]["trackId"].isNull }.all { it["coverPath"].isNull })
     }
+
+    @Test
+    fun `지도 ETag - 형식 버전이 앞에 붙고, 방 곡 표지 저장본이 늘면 바뀐다 (map_rev는 그대로)`() {
+        val host = newRoom()
+        val t = track("이태그 노래", "이태그가수")
+        call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to t), host.key)
+        val etag0 = call("GET", "/api/rooms/${host.rid}/map", key = host.key).headers["etag"]!!.single()
+        assertTrue(etag0.startsWith("\"${dev.gyeol.api.room.MAP_FORMAT}-"), etag0)
+        assertEquals(304, call("GET", "/api/rooms/${host.rid}/map", key = host.key, headers = mapOf("If-None-Match" to etag0)).status)
+        jdbc.sql("UPDATE track SET cover_key = 'covers/etag-test' WHERE id = :t").param("t", t).update()
+        val res = call("GET", "/api/rooms/${host.rid}/map", key = host.key, headers = mapOf("If-None-Match" to etag0))
+        assertEquals(200, res.status, "표지 저장본이 생기면 coverPath가 바뀌므로 새 본문")
+        assertTrue(res.headers["etag"]!!.single() != etag0)
+    }
 }

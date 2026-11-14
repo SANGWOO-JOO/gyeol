@@ -71,4 +71,18 @@ class ArtistImageBulkTest {
         val off = ArtistImageBulkController(repo, mock(io.awspring.cloud.sqs.operations.SqsTemplate::class.java), json, mock(S3Client::class.java), props)
         assertEquals(1, off.mapFill(5000, retryNone = false)["queued"])
     }
+
+    @Test
+    fun `채널 메시지에 mbid가 있으면 이름 검색 없이 그 가수의 Commons 사진을 다시 받는다`() {
+        val repo = mock(ArtistImageRepository::class.java)
+        val fetcher = mock(FetcherClient::class.java)
+        val mbid = UUID.randomUUID().toString()
+        `when`(repo.channelId("가수 - Topic")).thenReturn(7)
+        `when`(fetcher.artistCommons(mbid)).thenReturn(json.readTree("""{"url":"https://upload.wikimedia.org/x.jpg","pageUrl":"p","author":"작가","license":"CC BY 4.0"}"""))
+        `when`(fetcher.artistFile(anyString())).thenReturn(ResponseEntity.ok(byteArrayOf(1)))
+        ArtistImageListener(repo, fetcher, mock(S3Client::class.java), json, props)
+            .onMessage(json.writeValueAsString(ArtistImageMessage(channels = listOf(ChannelImageTarget("가수 - Topic", null, mbid = mbid)))))
+        verify(fetcher, never()).findArtist(anyString(), org.mockito.ArgumentMatchers.anyList())
+        verify(repo).saveChannel("가수 - Topic", UUID.fromString(mbid), ArtistImage("COMMONS", s3Key = "channels/7", pageUrl = "p", author = "작가", license = "CC BY 4.0"))
+    }
 }

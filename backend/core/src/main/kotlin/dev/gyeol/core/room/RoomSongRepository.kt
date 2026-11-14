@@ -103,6 +103,11 @@ class RoomSongRepository(private val jdbc: JdbcClient) {
     fun coverKey(trackId: Long): String? =
         jdbc.sql("SELECT cover_key FROM track WHERE id = :t AND cover_key IS NOT NULL").param("t", trackId).query(String::class.java).optional().orElse(null)
 
+    /** 이 방 곡 중 표지 저장본이 있는 곡 수 (지도 ETag용, I-14) */
+    fun storedCoverCount(roomId: Long): Int =
+        jdbc.sql("SELECT count(DISTINCT rs.track_id) FROM room_song rs JOIN track t ON t.id = rs.track_id WHERE rs.room_id = :r AND t.cover_key IS NOT NULL")
+            .param("r", roomId).query(Int::class.java).single()
+
     /** 이 곡들 중 표지 저장본이 있는 곡 */
     fun storedCovers(trackIds: Collection<Long>): Set<Long> =
         if (trackIds.isEmpty()) emptySet() else
