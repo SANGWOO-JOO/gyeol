@@ -150,6 +150,34 @@ class MapService(
         return todo.size
     }
 
+    /**
+     * 지정한 가수만 [using] LLM으로 설명을 다시 만든다 (11-14 일회성: 생일 연도를 활동 시작으로 쓴 Bedrock 설명 23명).
+     * 근거 조각·프롬프트·모델은 [describe]와 같다. 실패한 가수만 한 번 더 시도하고, 전체 호출은 [maxCalls]에서 멈춘다.
+     * 새 설명이 비면(거절·근거 없음) 기존 설명을 지우지 않고 그대로 둔다. 결과: 가수 id → OK·EMPTY·FAILED·SKIPPED_CAP·NO_CHUNKS
+     */
+    fun redescribe(ids: List<Long>, using: MapLlm, maxCalls: Int): Map<Long, String> {
+        var calls = 0
+        val result = linkedMapOf<Long, String>()
+        fun once(id: Long): String {
+            val a = map.artist(id) ?: return "NOT_FOUND"
+            val chunks = map.chunks(a.mbid)
+            if (chunks.isEmpty()) return "NO_CHUNKS"
+            if (calls >= maxCalls) return "SKIPPED_CAP"
+            calls++
+            val d = try { using.describeArtist(a.name, chunks) } catch (e: RuntimeException) {
+                log.warn("설명 다시 만들기 실패: {} {}", id, e.message); return "FAILED"
+            }
+            if (d.usage.model != "fake") llmCalls.record("ARTIST_DESCRIBE", LlmUsage(d.usage.model, 1, d.usage.inputTokens, d.usage.outputTokens, d.usage.latencyMs))
+            if (d.text == null) return "EMPTY"
+            map.saveDescription(a.artistId, d.text, d.evidence, d.usage.model)
+            return "OK"
+        }
+        ids.distinct().forEach { result[it] = once(it) }
+        result.filterValues { it == "FAILED" }.keys.forEach { result[it] = once(it) } // 실패한 것만 한 번 더
+        log.info("설명 다시 만들기: {}명, 호출 {}번, 결과 {}", ids.size, calls, result.values.groupingBy { it }.eachCount())
+        return result
+    }
+
     fun describe(a: ArtistRef) {
         val chunks = map.chunks(a.mbid)
         if (chunks.isEmpty()) {

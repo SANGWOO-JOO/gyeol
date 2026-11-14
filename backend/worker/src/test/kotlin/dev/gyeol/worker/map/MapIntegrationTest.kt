@@ -253,6 +253,42 @@ class MapIntegrationTest {
     }
 
     @Test
+    fun `설명 다시 만들기 - 지정한 가수만, 실패한 것만 한 번 더, 빈 답은 기존 설명 유지, 호출 상한에서 멈춤`() {
+        val ids = (1..4).map { i ->
+            val mbid = UUID.randomUUID()
+            map.upsertArtist(mbid, "다시 $i", null, emptyList()).also { id ->
+                map.ensureProfile(id, null)
+                map.saveDescription(id, "옛 설명 $i", emptyList(), "m")
+                jdbc.sql("INSERT INTO knowledge_chunk (entity_type, entity_mbid, source, lang, url, license, text) VALUES ('ARTIST', :m, 'MUSICBRAINZ', 'ko', 'u', 'CC0', :t)")
+                    .param("m", mbid).param("t", "가수 '다시 $i' (MusicBrainz): 유형 Person; 장르·태그 pop.").update()
+            }
+        }
+        val other = map.upsertArtist(UUID.randomUUID(), "번지면 안 되는 가수", null, emptyList()).also { map.ensureProfile(it, null) }
+        var failedOnce = false
+        val calls = mutableListOf<String>()
+        val llm = object : MapLlm {
+            override fun describeArtist(name: String, chunks: List<dev.gyeol.core.map.ArtistChunk>): ArtistDescription {
+                calls += name
+                if (name == "다시 2" && !failedOnce) { failedOnce = true; throw RuntimeException("throttled") }
+                val text = if (name == "다시 3") null else "새 설명 $name: 잔잔한 팝 음악을 한다."
+                return ArtistDescription(text, listOf(chunks.first().id), LlmUsageInfo("fake", 0, 0, 0))
+            }
+            override fun nameGalaxy(members: List<GalaxyMemberText>) = GalaxyName(null, null, emptyList(), LlmUsageInfo("fake", 0, 0, 0))
+        }
+        val r = service.redescribe(ids, llm, 5)
+        assertEquals(listOf("OK", "OK", "EMPTY", "OK"), ids.map { r[it] })
+        assertEquals(listOf("다시 1", "다시 2", "다시 3", "다시 4", "다시 2"), calls, "실패한 2번만 한 번 더")
+        assertEquals("새 설명 다시 1: 잔잔한 팝 음악을 한다.", map.description(ids[0]))
+        assertEquals("옛 설명 3", map.description(ids[2]), "빈 답이면 기존 설명을 지우지 않는다")
+        assertNull(map.description(other), "지정하지 않은 가수는 건드리지 않는다")
+
+        calls.clear()
+        val capped = service.redescribe(ids, llm, 2)
+        assertEquals(2, calls.size, "호출 상한")
+        assertEquals(listOf("OK", "OK", "SKIPPED_CAP", "SKIPPED_CAP"), ids.map { capped[it] })
+    }
+
+    @Test
     fun `거절문·음악 내용 없는 설명은 지우고, 그 가수만 벡터를 다시 만든다`() {
         val ids = (1..3).map { i ->
             map.upsertArtist(UUID.randomUUID(), "정리 $i", null, emptyList()).also { map.ensureProfile(it, null) }

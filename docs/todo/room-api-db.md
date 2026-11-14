@@ -542,3 +542,14 @@
   - api: 판 FACTS 1개, nearby galaxyId·face와 TEXT 단언, 한 글자 테스트에서 곡 고르기 입구 200·400
   - fetcher: Group begin은 "활동 시작", Person은 넣지 않음
   - 결과: fetcher 54·worker 88·api 93(건너뜀 1) 통과. 18:13:48 api·fetcher 재시작.
+- **저장 조각 바로잡기 (11-14, 사용자 승인, 로컬 DB):** `knowledge_chunk` 가수 MusicBrainz 조각 중 "유형 Person|Character" 줄의 `; 활동 시작 {날짜}`를 지웠다. 날짜 모를 "????-12-02" 10개도 포함해 **687행**을 바꿨다. Group 654행은 그대로다. 남은 Person 줄의 "활동 시작"은 0이다.
+  - 벡터(`artist_vector` 원문)는 다시 만들지 않았다(다음 embed 때 반영). 로컬 fake 설명 15개 문자열에는 날짜가 남아 있지만, 판의 FACTS 표시는 조각에서 뽑아 날짜가 없다.
+- **기존 Bedrock 설명 영향(읽기만):** 바로잡기 전 Person 조각에 생일이 있던 가수 중 Bedrock 설명이 있는 647명을 봤다.
+  - 그중 **23명**이 생일 연도를 "{연도}년부터 활동을 시작" 같은 활동 시작 시점으로 썼다. 23명 모두 이 잘못이다.
+  - 예: 김필 "1986년부터 음악 활동을 시작했다", 유라 "1992년부터 음악 활동을 시작했다", J. Cole "1985년부터 활동을 시작한 이후…", ちゃんみな "1998년부터 활동을 시작하여 2016년 인디 데뷔…", Nettspend "2007년부터 활동을 시작한…".
+  - 다시 만들 경우 비용(Haiku 4.5, 평균 입력 1,392·출력 239 토큰, $1/$5 per MTok 가정): 23명은 약 $0.06, Person 647명 전부는 약 $1.7. 다시 만들지 않았다.
+- **Bedrock 설명 다시 만들기 23명 (11-14, 사용자 승인, 유료):** worker에 일회성 `POST /internal/map/redescribe {artistIds(≤30), maxCalls(≤30)}`를 더했다(`MAP_ADMIN_ENDPOINT`일 때만).
+  - LLM_MODE가 fake여도 이 요청만 `BedrockMapLlm`(같은 프롬프트·모델)을 쓴다. `MapService.redescribe`는 실패한 것만 한 번 더 시도하고, 호출 상한에서 멈추고, 빈 답이면 기존 설명을 그대로 둔다.
+  - 결과: 호출 23번(llm_call 1666 → 1689), 토큰 입력 28,523·출력 2,648, 약 $0.04(Haiku 4.5 $1/$5 가정). OK 15명, EMPTY 8명.
+  - EMPTY 8명은 근거 번호를 대지 못한 답이라 설명 가드가 버렸다. 그래서 옛 설명(생일 연도 문장)이 남아 있다: STUTS·Lil tachi·유라·조정석·ダズビー·KEIJU·kZm·Tani Yuuki. 새 설명 15명에는 그 문장이 0개다.
+  - 테스트: worker `MapIntegrationTest` 1개(지정 가수만, 실패만 한 번 더, 빈 답은 유지, 상한). worker 89 통과. 18:26:54 worker 재시작. LLM_MODE는 fake 그대로다.

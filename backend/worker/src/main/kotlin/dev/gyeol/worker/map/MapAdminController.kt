@@ -15,6 +15,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 data class SeedRequest(val countries: List<SeedCountry>, val perCountry: Int)
 data class LimitRequest(val limit: Int = 2000)
+data class RedescribeRequest(val artistIds: List<Long> = emptyList(), val maxCalls: Int = 0)
+private const val REDESCRIBE_MAX = 30
 data class JobState(val name: String, val running: Boolean, val progress: String, val startedAt: Instant, val endedAt: Instant? = null, val error: String? = null)
 
 /**
@@ -24,7 +26,11 @@ data class JobState(val name: String, val running: Boolean, val progress: String
  */
 @RestController
 @ConditionalOnProperty("gyeol.worker.map.admin-endpoint", havingValue = "true")
-class MapAdminController(private val service: MapService) {
+class MapAdminController(
+    private val service: MapService,
+    private val props: dev.gyeol.worker.WorkerProperties,
+    private val json: tools.jackson.databind.json.JsonMapper,
+) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val executor = Executors.newSingleThreadExecutor()
     private val state = AtomicReference<JobState?>(null)
@@ -50,6 +56,18 @@ class MapAdminController(private val service: MapService) {
 
     @PostMapping("/internal/map/describe")
     fun describe(@RequestBody req: LimitRequest) = start("describe") { p -> service.describeAll(req.limit, p) }
+
+    /**
+     * 11-14 일회성: 지정한 가수(최대 30명)만 Bedrock으로 설명을 다시 만든다. LLM_MODE가 fake여도 이 요청만 Bedrock을 쓴다(비용 발생).
+     * 다른 가수로 번지지 않는다(일괄 describeAll을 쓰지 않음). 호출 상한 maxCalls(최대 30)
+     */
+    @PostMapping("/internal/map/redescribe")
+    fun redescribe(@RequestBody req: RedescribeRequest): ResponseEntity<JobState> {
+        require(req.artistIds.isNotEmpty() && req.artistIds.size <= REDESCRIBE_MAX) { "artistIds는 1~${REDESCRIBE_MAX}명이어야 합니다" }
+        require(req.maxCalls in 1..REDESCRIBE_MAX) { "maxCalls는 1~${REDESCRIBE_MAX}이어야 합니다" }
+        val bedrock = BedrockMapLlm(props.llm, json)
+        return start("redescribe") { service.redescribe(req.artistIds, bedrock, req.maxCalls) }
+    }
 
     @PostMapping("/internal/map/clean-descriptions")
     fun cleanDescriptions() = start("clean-descriptions") { service.cleanDescriptions() }
