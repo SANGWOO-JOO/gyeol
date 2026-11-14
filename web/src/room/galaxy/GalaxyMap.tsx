@@ -7,7 +7,7 @@ import { SAT_GROW_MAX, fitInside, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, scr
 import { NO_FRESH, songKey, type Fresh } from './fresh'
 import { genreColor, pillWidth, planetFace } from './faces'
 import { planetLit, ringLit, songLit } from './focus'
-import { orbitLayout, RING_GAP, ringRadius, satelliteRadius, type Ring } from './orbits'
+import { COVER_PAD, COVER_R, orbitLayout, RING_GAP, ringRadii, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
 
 /**
@@ -219,10 +219,17 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
   const sizeScale = fitScale > 0 ? Math.min(s, fitScale) : s
   const radius = useMemo(() => new Map(planets.map(p => [p.artistId, screenPlanetRadius(p.songs.length, sizeScale) * grow])), [planets, sizeScale, grow])
   // 궤도까지 포함한 바깥 반지름(px): 멀리서는 궤도를 그리지 않으므로 행성만
+  // 궤도 반지름(px): 위성 지름 기준 간격 (11-14). 가까이(near)면 표지 크기로 잡는다(화면 안팎이 바뀌어도 궤도가 튀지 않게)
+  const sg = Math.min(grow, SAT_GROW_MAX)
+  const radii = useMemo(() => new Map(planets.map(p => [p.artistId, ringRadii(radius.get(p.artistId)!, p.rings, grow, sg, level === 'near')])), [planets, radius, grow, sg, level])
   const outer = useMemo(() => new Map(planets.map(p => {
     const r = radius.get(p.artistId)!
-    return [p.artistId, level === 'far' || p.rings.length === 0 ? r : ringRadius(r, p.rings.length - 1, grow) + 2 * grow]
-  })), [planets, radius, level, grow])
+    const rr = radii.get(p.artistId)!
+    if (level === 'far' || rr.length === 0) return [p.artistId, r]
+    // 바깥 궤도 + 그 궤도 위성 반지름
+    const coverHalf = level === 'near' ? (COVER_R + COVER_PAD) * sg : 3 * sg
+    return [p.artistId, rr[rr.length - 1] + coverHalf]
+  })), [planets, radius, radii, level, sg])
   // 근처 가수를 그릴 자리: 방 행성의 바깥 궤도(+위성) 밖으로 밀어낸다 (I-40 2차). 화면 px로 계산해 세계 좌표로 되돌린다
   const placedGhosts = useMemo(() => {
     const obs = planets.map(p => ({ x: p.wx * s + settled.tx, y: p.wy * s + settled.ty, r: outer.get(p.artistId)! + 5 * grow })) // 바깥 궤도 + 위성 반지름
@@ -352,7 +359,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                   {(born || ping) && <Ripples r={born ? ro : r} u={u} first={born && fresh.first} />}
                   {p.preparing && <circle className={g.prepRing} r={r + 5 * u} strokeWidth={1.2 * u} strokeDasharray={`${2 * u} ${5 * u}`} />}
                   <g className={born ? (fresh.first ? g.firstPlanet : g.bornPlanet) : undefined}>
-                  {level !== 'far' && <Orbits roomId={roomId} artistId={p.artistId} rings={p.rings} r={radius.get(p.artistId)!} u={u} grow={grow} members={members} near={level === 'near'} fresh={fresh} spin={inView.has(p.artistId)}
+                  {level !== 'far' && <Orbits roomId={roomId} artistId={p.artistId} rings={p.rings} radii={radii.get(p.artistId)!} u={u} grow={grow} members={members} near={level === 'near'} fresh={fresh} spin={inView.has(p.artistId)}
                     focus={lit ? focusId : null}
                     covers={level === 'near' && inView.has(p.artistId) ? p.covers : undefined} />}
                   {/* I-44 ② 장르 구역 색 얇은 빛 테두리 */}
@@ -469,9 +476,9 @@ function fitInsets(wrap: HTMLElement | null, maxSongs: number, rings: boolean): 
  * 궤도·위성 (규칙 ⑫). 크기는 화면 px로 계산하고 u(세계/px)를 곱해 그린다.
  * 금빛 궤도 = 같이 담은 노래, 사람 궤도 = 그 사람 색 위성(혼자 담은 노래). 가까이(near)에선 위성을 조금 크게.
  */
-function Orbits({ roomId, artistId, rings, r, u, grow, members, near, fresh, spin, covers, focus = null }: {
+function Orbits({ roomId, artistId, rings, radii, u, grow, members, near, fresh, spin, covers, focus = null }: {
   roomId: string
-  artistId: number; rings: Ring[]; r: number; u: number; grow: number; members: Map<number, MemberView>; near: boolean; fresh: Fresh
+  artistId: number; rings: Ring[]; /** 궤도 반지름(px, ringRadii) */ radii: number[]; u: number; grow: number; members: Map<number, MemberView>; near: boolean; fresh: Fresh
   /** 화면 안이면 돈다 */
   spin: boolean
   /** I-44 ④ 가까이(near)·화면 안일 때만: 곡 → 앨범 표지. 있으면 위성을 작은 표지로, 테두리 = 담은 사람(금빛 = 같이 담은 곡) */
@@ -485,7 +492,7 @@ function Orbits({ roomId, artistId, rings, r, u, grow, members, near, fresh, spi
   return (
     <g aria-hidden="true" className={g.orbits}>
       {rings.map((ring, i) => {
-        const rr = ringRadius(r, i, grow) * u
+        const rr = radii[i] * u
         const gold = ring.kind === 'gold'
         const flash = gold && ring.sats.some(s => fresh.gold.has(songKey(artistId, s.trackId)))
         return (
@@ -506,7 +513,7 @@ function Orbits({ roomId, artistId, rings, r, u, grow, members, near, fresh, spi
                     )
                     const srcs = covers?.get(sat.trackId)
                     if (!srcs || srcs.length === 0) return dot
-                    return <SatCover roomId={roomId} sources={srcs} cx={cx} cy={cy} cr={6.5 * sg * u} pad={1.6 * u} ring={gold ? '#FFE3B8' : color(sat.memberIds[0])} dot={dot}
+                    return <SatCover roomId={roomId} sources={srcs} cx={cx} cy={cy} cr={COVER_R * sg * u} pad={COVER_PAD * u} ring={gold ? '#FFE3B8' : color(sat.memberIds[0])} dot={dot}
                       className={fresh.tracks.has(key) || fresh.gold.has(key) ? g.satBorn : undefined} />
                   })()}
                   {fresh.gold.has(key) && <Sparkle x={cx} y={cy} u={u} />}

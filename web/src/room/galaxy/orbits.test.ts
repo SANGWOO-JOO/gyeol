@@ -44,3 +44,30 @@ describe('궤도 간격도 확대 체감을 따른다 (I-37)', () => {
     expect(ringRadius(10, 1, 2)).toBe(10 + RING_GAP * 2 * 2)
   })
 })
+
+describe('11-14 궤도 간격: 위성 지름 기준', async () => {
+  const { ringRadii, satDiameter, SAT_GAP, RING_GAP } = await import('./orbits')
+  const { SAT_GROW_MAX, GROW_MAX } = await import('./galaxyMath')
+  const ring = (kind: 'gold' | 'person', n: number, people = 2) => ({ kind, memberIds: [1, 2], sats: Array.from({ length: n }, (_, i) => ({ trackId: i, memberIds: kind === 'gold' ? Array.from({ length: people }, (_, k) => k + 1) : [1], angle: 0 })) })
+  const cases = [
+    { grow: 1, covers: false }, { grow: 1, covers: true }, { grow: 2, covers: true }, { grow: GROW_MAX, covers: true }, { grow: GROW_MAX, covers: false },
+  ]
+  for (const { grow, covers } of cases) {
+    it(`grow ${grow}, 표지 ${covers}: 이웃 궤도 간격 ≥ 위성 반지름 합 + 여백, 같은 궤도 현 ≥ 지름 + 여백`, () => {
+      const sg = Math.min(grow, SAT_GROW_MAX)
+      const rings = [ring('gold', 3, 4), ring('person', 9), ring('person', 2), ring('person', 14)]
+      const planetR = 20 * grow
+      const rr = ringRadii(planetR, rings, grow, sg, covers)
+      const d = rings.map(x => satDiameter(x, sg, covers))
+      expect(rr[0] - planetR).toBeGreaterThanOrEqual(d[0] / 2 + SAT_GAP - 1e-9)
+      for (let i = 1; i < rr.length; i++) {
+        expect(rr[i] - rr[i - 1]).toBeGreaterThanOrEqual(d[i - 1] / 2 + d[i] / 2 + SAT_GAP - 1e-9)
+        expect(rr[i] - rr[i - 1]).toBeGreaterThanOrEqual(RING_GAP * grow - 1e-9)
+      }
+      rings.forEach((x, i) => {
+        const n = x.sats.length
+        if (n >= 2) expect(2 * rr[i] * Math.sin(Math.PI / n)).toBeGreaterThanOrEqual(d[i] + SAT_GAP - 1e-9)
+      })
+    })
+  }
+})

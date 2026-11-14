@@ -69,3 +69,35 @@ export function satelliteRadius(sat: Satellite, kind: Ring['kind']): number {
 /** 궤도 사이 간격(px)과 궤도 반지름 */
 export const RING_GAP = 6
 export const ringRadius = (planetR: number, i: number, grow = 1) => planetR + RING_GAP * grow * (i + 1)
+
+/** 위성 표지(가까이·화면 안): 반지름 6.5px × 위성 확대, 테두리 1.6px. 지도와 같은 값 */
+export const COVER_R = 6.5
+export const COVER_PAD = 1.6
+/** 위성끼리(이웃 궤도·같은 궤도) 띄울 여백(px) */
+export const SAT_GAP = 4
+
+/** 이 궤도에서 가장 큰 위성 지름(px): 표지면 표지+테두리, 점이면 점 (sg = 위성 확대, near면 점도 1.3배) */
+export function satDiameter(ring: Ring, sg: number, covers: boolean, near = covers): number {
+  if (covers) return 2 * (COVER_R + COVER_PAD) * sg
+  const k = (near ? 1.3 : 1) * sg
+  return 2 * Math.max(...ring.sats.map(s => satelliteRadius(s, ring.kind))) * k
+}
+
+/**
+ * 궤도 반지름들(px, 11-14): 이웃 궤도 사이 ≥ (두 궤도 위성 반지름 합 + 여백), 첫 궤도는 행성 면에서 위성 반지름 + 여백,
+ * 같은 궤도의 위성끼리(고른 각도) 현의 길이 ≥ 지름 + 여백. 셋 다 기존 간격(RING_GAP × grow)보다 좁아지지는 않는다.
+ * 위성은 공전하며 서로 다른 속도로 돌므로, 이웃 궤도 위성이 같은 방향에 와도 겹치지 않게 반지름 차이로 막는다.
+ */
+export function ringRadii(planetR: number, rings: Ring[], grow: number, sg: number, covers: boolean, near = covers): number[] {
+  const out: number[] = []
+  let prev = planetR, prevHalf = 0
+  for (const ring of rings) {
+    const d = satDiameter(ring, sg, covers, near)
+    let r = prev + Math.max(RING_GAP * grow, prevHalf + d / 2 + SAT_GAP)
+    const n = ring.sats.length
+    if (n >= 2) r = Math.max(r, (d + SAT_GAP) / (2 * Math.sin(Math.PI / n)))
+    out.push(r)
+    prev = r; prevHalf = d / 2
+  }
+  return out
+}
