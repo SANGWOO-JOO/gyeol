@@ -22,7 +22,7 @@ export function ArtistFace({ roomId, name, photoUrl, credit, className }: {
   return (
     <span className={sh.faceWrap}>
       <span className={className} aria-hidden="true" style={src ? { padding: 0, overflow: 'hidden' } : undefined}>
-        {src ? <img src={src} alt="" className={sh.facePhoto} onLoad={() => setLoadedSrc(src)} onError={() => { setLoadedSrc(null); fail() }} /> : Array.from(name)[0] ?? ''}
+        {src ? <img src={src} alt="" className={sh.facePhoto} onLoad={() => setLoadedSrc(src)} onError={() => { setLoadedSrc(null); fail() }} /> : <span>{Array.from(name)[0] ?? ''}</span>}
       </span>
       {src && loaded && text && <CreditButton text={text} pageUrl={credit?.pageUrl} />}
     </span>

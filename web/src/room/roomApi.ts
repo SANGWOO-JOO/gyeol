@@ -26,7 +26,8 @@ export interface TrackItem { title: string; artist: string; mbid: string | null;
 export interface RoomSearchItem { item: TrackItem; mine: boolean; sameSong: string[]; sameArtist: string[] }
 /** 검색어가 가수와 맞을 때 결과 맨 위 가수 카드 (I-30 ①). DB에 없는 가수는 artistId 없음 */
 export interface SearchArtist { artistId: number | null; name: string; aliases?: string[] | null; songCountInRoom?: number | null; onMap?: boolean | null; /** I-44 가수 화면 머리 사진 출처 */ photo?: PhotoCredit | null }
-export interface SearchResponse { items: RoomSearchItem[]; source: string; artist?: SearchArtist | null }
+/** 방 검색 한 쪽(10곡). page 1~5, artist는 1쪽에만(2쪽부터 null), 5쪽은 늘 hasMore=false. 예전 서버는 page·hasMore가 없다 */
+export interface SearchResponse { items: RoomSearchItem[]; source: string; artist?: SearchArtist | null; page?: number; hasMore?: boolean }
 /** 가수 화면 (I-30 ②③): 인기순·최신순 20곡씩 */
 export type ArtistSort = 'popular' | 'latest'
 export interface ArtistSongItem { item: TrackItem; mine: boolean; sameSong: string[]; rank?: number | null; releaseDate?: string | null }
@@ -183,8 +184,8 @@ export const roomApi = {
   leave: (roomId: string) => call<void>(`/rooms/${rid(roomId)}/session`, { method: 'DELETE', roomId }),
 
   me: (roomId: string, signal?: AbortSignal) => call<MeView>(`/rooms/${rid(roomId)}/me`, { roomId, signal }),
-  search: (roomId: string, q: string, signal?: AbortSignal) =>
-    call<SearchResponse>(`/rooms/${rid(roomId)}/search?q=${encodeURIComponent(q)}`, { roomId, signal }),
+  search: (roomId: string, q: string, signal?: AbortSignal, page = 1) =>
+    call<SearchResponse>(`/rooms/${rid(roomId)}/search?q=${encodeURIComponent(q)}${page > 1 ? `&page=${page}` : ''}`, { roomId, signal }),
   /** 가수 노래 전체. DB 가수는 artistId로, 아직 DB에 없는 가수(카드의 artistId 없음)는 이름으로 */
   artistSongs: (roomId: string, a: { artistId: number | null; name: string }, sort: ArtistSort, page: number, signal?: AbortSignal) =>
     call<ArtistSongsPage>(a.artistId != null

@@ -306,3 +306,18 @@ export function scanNotice(scan: string | null | undefined): { title: string; su
 export function showArtistMore(artist: unknown, items: unknown[] | null | undefined, loading: boolean): boolean {
   return !!artist && !!items && items.length > 0 && !loading
 }
+
+/** 검색 더보기: 다음 쪽을 이어 붙이되 이미 보인 곡(trackKey: trackId, 없으면 제목|가수)은 빼고, 다음 쪽 안의 중복도 뺀다 */
+export function appendSearch<T extends { item: Parameters<typeof trackKey>[0] }>(prev: T[], next: T[]): T[] {
+  const seen = new Set(prev.map(x => trackKey(x.item)))
+  return [...prev, ...next.filter(x => { const k = trackKey(x.item); if (seen.has(k)) return false; seen.add(k); return true })]
+}
+
+/**
+ * 검색 가수 카드 얼굴 주소: DB 가수(artistId)면 방 사진 주소(/api/rooms/{rid}/artists/{id}/image).
+ * 검색 응답엔 사진 여부(photo)가 없어서 주소를 만들어 시도하고, 없으면 404 → 이니셜. DB에 없는 가수는 null(이니셜)
+ */
+export function artistPhotoUrl(roomId: string, a: { artistId: number | null; photo?: { url?: string | null } | null }): string | null {
+  if (a.photo?.url) return a.photo.url
+  return a.artistId != null ? `/api/rooms/${encodeURIComponent(roomId)}/artists/${a.artistId}/image` : null
+}

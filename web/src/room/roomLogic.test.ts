@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, isNewArtist, showArtistMore, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, appendSearch, artistPhotoUrl, isNewArtist, showArtistMore, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -271,5 +271,26 @@ describe('검색 목록 끝 가수 버튼', () => {
     expect(showArtistMore(null, [1], false)).toBe(false)
     expect(showArtistMore({ name: '윤하' }, [], false)).toBe(false)
     expect(showArtistMore({ name: '윤하' }, [1], true)).toBe(false)
+  })
+})
+
+describe('검색 더보기 이어 붙이기', () => {
+  const it2 = (trackId: number | null, title: string, artist = '윤하') => ({ item: { trackId, title, artist } as never, mine: false, sameSong: [], sameArtist: [] })
+  it('이미 보인 곡(trackId, 없으면 제목|가수)과 다음 쪽 안의 중복은 빼고 순서대로 붙인다', () => {
+    const prev = [it2(1, '비밀번호 486'), it2(null, '기다리다')]
+    const next = [it2(1, '비밀번호 486'), it2(2, '사건의 지평선'), it2(null, '기다리다'), it2(2, '사건의 지평선'), it2(3, '오늘 헤어졌어요')]
+    expect(appendSearch(prev, next).map(x => (x.item as { title: string }).title)).toEqual(['비밀번호 486', '기다리다', '사건의 지평선', '오늘 헤어졌어요'])
+  })
+  it('다음 쪽이 비면 그대로', () => {
+    const prev = [it2(1, 'a')]
+    expect(appendSearch(prev, [])).toEqual(prev)
+  })
+})
+
+describe('검색 가수 카드 얼굴 주소', () => {
+  it('DB 가수면 방 사진 주소, 아니면 null(이니셜)', () => {
+    expect(artistPhotoUrl('r1', { artistId: 7 })).toBe('/api/rooms/r1/artists/7/image')
+    expect(artistPhotoUrl('r1', { artistId: null })).toBeNull()
+    expect(artistPhotoUrl('r1', { artistId: 7, photo: { url: '/x' } })).toBe('/x')
   })
 })

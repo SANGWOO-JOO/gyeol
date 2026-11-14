@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { roomApi, RoomApiError, type RoomSearchItem, type SearchArtist } from '../roomApi'
-import { artistCardSub, searchBadge, showArtistMore, sharedWithText, trackKey } from '../roomLogic'
+import { appendSearch, artistCardSub, artistPhotoUrl, searchBadge, showArtistMore, sharedWithText, trackKey } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
+import { ArtistFace } from './ArtistFace'
 import { CoverImg } from './CoverImg'
 import sh from './shell.module.css'
 
@@ -10,7 +11,7 @@ export const itemKey = trackKey
 
 /** 4-d 노래 검색해 담기. 담는 일은 부모(RoomShell)가 하고, 여기서는 찾기와 표시만 */
 export function SearchPanel({
-  roomId, query, setQuery, added, pending, busy, onAdd, onOpenArtist,
+  roomId, query, setQuery, added, pending, busy, onAdd, onOpenArtist, displayName,
 }: {
   roomId: string
   query: string
@@ -24,30 +25,59 @@ export function SearchPanel({
   onAdd: (r: RoomSearchItem) => void
   /** 가수 카드 → 가수 화면 (I-30) */
   onOpenArtist: (a: SearchArtist) => void
+  /** 지도에 같은 가수(artistId)가 있으면 그 표시 이름(DB 이름, 예: "윤하"). 검색 카드는 MusicBrainz 이름(예: "YOUNHA")이라 맞춘다 */
+  displayName?: (artistId: number) => string | undefined
 }) {
   const [items, setItems] = useState<RoomSearchItem[] | null>(null)
-  const [artist, setArtist] = useState<SearchArtist | null>(null)
+  const [rawArtist, setArtist] = useState<SearchArtist | null>(null)
+  const artist = rawArtist && rawArtist.artistId != null && displayName?.(rawArtist.artistId) ? { ...rawArtist, name: displayName(rawArtist.artistId)! } : rawArtist
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // 오류 뒤 같은 검색어로 다시 (I-42 D): Enter 또는 [다시 시도]
   const [retry, setRetry] = useState(0)
+  // 더보기: 받은 쪽·다음 쪽 있음·이어서 받는 중·이어 받기 오류. 검색어가 바뀌면 처음부터
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [moreError, setMoreError] = useState<string | null>(null)
+  const searchGen = useRef(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
   useEffect(() => {
     const q = query.trim()
+    const gen = ++searchGen.current
+    setPage(1); setHasMore(false); setLoadingMore(false); setMoreError(null)
     if (q.length < 1) { setItems(null); setArtist(null); setError(null); setLoading(false); return }
     const ac = new AbortController()
     setLoading(true)
     const t = setTimeout(() => {
       roomApi.search(roomId, q, ac.signal)
-        .then(r => { setItems(r.items); setArtist(r.artist ?? null); setError(null) })
+        .then(r => { if (gen !== searchGen.current) return; setItems(r.items); setArtist(r.artist ?? null); setPage(r.page ?? 1); setHasMore(!!r.hasMore); setError(null) })
         .catch(err => { if (!ac.signal.aborted) setError(err instanceof RoomApiError ? err.message : '검색하지 못했어요') })
         .finally(() => { if (!ac.signal.aborted) setLoading(false) })
     }, 300)
     return () => { clearTimeout(t); ac.abort() }
   }, [roomId, query, retry])
+
+  async function more() {
+    const q = query.trim()
+    if (!q || loadingMore || !hasMore) return
+    const gen = searchGen.current
+    setLoadingMore(true); setMoreError(null)
+    try {
+      const r = await roomApi.search(roomId, q, undefined, page + 1)
+      if (gen !== searchGen.current) return // 그사이 검색어가 바뀜
+      // 2쪽부터 artist는 null: 1쪽 가수 카드를 그대로 둔다
+      setItems(prev => appendSearch(prev ?? [], r.items))
+      setPage(r.page ?? page + 1); setHasMore(!!r.hasMore && r.items.length > 0) // 빈 쪽이 오면(1쪽 hasMore는 추정값) 더보기를 숨긴다
+    } catch (err) {
+      if (gen === searchGen.current) setMoreError(err instanceof RoomApiError ? err.message : '더 불러오지 못했어요')
+    } finally {
+      if (gen === searchGen.current) setLoadingMore(false)
+    }
+  }
 
   return (
     <section aria-label="노래 검색" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -77,7 +107,7 @@ export function SearchPanel({
       {artist && !loading && (
         <>
           <span className={sh.groupLabel}>가수</span>
-          <ArtistCard artist={artist} onOpen={() => onOpenArtist(artist)} />
+          <ArtistCard roomId={roomId} artist={artist} onOpen={() => onOpenArtist(artist)} />
           {items && items.length > 0 && <span className={sh.groupLabel}>노래</span>}
         </>
       )}
@@ -98,6 +128,14 @@ export function SearchPanel({
         </ul>
       )}
 
+      {items && items.length > 0 && !loading && (hasMore || moreError) && (
+        <div className={sh.moreRow}>
+          {moreError && <span role="alert">{moreError}</span>}
+          <button type="button" className={sh.searchMore} onClick={more} disabled={loadingMore} aria-busy={loadingMore}>
+            {loadingMore ? <><Spinner size={14} /> 불러오는 중…</> : moreError ? '다시 시도' : '더보기'}
+          </button>
+        </div>
+      )}
       {/* 목록 끝: 맨 위 가수 카드가 스크롤로 사라져도 가수 화면(인기순·최신순·더보기)으로 갈 수 있게 */}
       {showArtistMore(artist, items, loading) && artist && (
         <button type="button" className={sh.artistMoreButton} onClick={() => onOpenArtist(artist)} aria-label={`${artist.name} 노래 전체 보기, 인기순·최신순`}>
@@ -111,11 +149,12 @@ export function SearchPanel({
 }
 
 /** 4-d2 검색 맨 위 가수 카드: 누르면 가수 화면(노래 전체 보기) */
-function ArtistCard({ artist, onOpen }: { artist: SearchArtist; onOpen: () => void }) {
+function ArtistCard({ roomId, artist, onOpen }: { roomId: string; artist: SearchArtist; onOpen: () => void }) {
   const sub = artistCardSub(artist)
   return (
     <button type="button" className={sh.artistCard} onClick={onOpen} aria-label={`${artist.name} 노래 전체 보기`}>
-      <span className={sh.artistOrb} aria-hidden="true"><span>{Array.from(artist.name)[0] ?? ''}</span></span>
+      {/* 얼굴: Commons 사진(없으면 404 → 이니셜). 카드 전체가 버튼이라 ⓘ 출처 버튼은 넣지 않는다(출처는 가수 화면에서) */}
+      <ArtistFace roomId={roomId} name={artist.name} className={sh.artistOrb} photoUrl={artistPhotoUrl(roomId, artist)} />
       <span className={sh.rowText}>
         <strong className={sh.artistName}>{artist.name}</strong>
         {sub && <span className={sh.songSub}>{sub}</span>}
