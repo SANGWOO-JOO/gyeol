@@ -43,7 +43,11 @@ export interface AddSongResponse { status: 'ADDED' | 'IDENTIFYING'; song: SongVi
 export interface RequestView { id: number; status: 'IDENTIFYING' | 'DONE' | 'FAILED'; song: SongView | null; failReason: string | null }
 
 export interface MapSong { trackId: number; title: string; coverUrl: string | null; memberIds: number[] }
-export interface Planet { artistId: number; name: string; x: number; y: number; songs: MapSong[]; galaxyId: number | null; preparing: boolean }
+export interface Planet {
+  artistId: number; name: string; x: number; y: number; songs: MapSong[]; galaxyId: number | null; preparing: boolean
+  /** I-44 행성 얼굴 (작업 세션이 만드는 중, 선택). url이 있으면 사진(PHOTO)·표지로 쓴다 */
+  face?: { kind?: string | null; url?: string | null; credit?: unknown } | null
+}
 export interface Galaxy { id: number; name: string | null; x: number; y: number }
 export interface Ghost { artistId: number; name: string; x: number; y: number; near: number }
 export interface RoomMap { rev: number; placeholder: boolean; members: MemberView[]; planets: Planet[]; galaxies: Galaxy[]; ghosts: Ghost[] }

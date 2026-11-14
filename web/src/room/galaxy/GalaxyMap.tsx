@@ -4,6 +4,7 @@ import { memberColor } from '../roomApi'
 import { planetPeople } from '../roomLogic'
 import { fitView, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type View } from './galaxyMath'
 import { NO_FRESH, songKey, type Fresh } from './fresh'
+import { genreColor, pillWidth, planetFace } from './faces'
 import { orbitLayout, ringRadius, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
 
@@ -36,6 +37,19 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
     return map.planets.map(p => ({ ...p, wx: toWorld(p.x), wy: toWorld(p.y), people: planetPeople(p), rings: orbitLayout(p, order) }))
   }, [map.planets, map.members])
   const galaxies = useMemo(() => map.galaxies.filter(x => x.name).map(x => ({ ...x, wx: toWorld(x.x), wy: toWorld(x.y) })), [map.galaxies])
+  // I-44 얼굴과 장르 색: 지도 데이터가 바뀔 때만
+  const faces = useMemo(() => {
+    const gname = new Map(map.galaxies.map(x => [x.id, x.name]))
+    const colors: string[] = []
+    const out = new Map<number, { face: ReturnType<typeof planetFace>; color: string; grad: number }>()
+    for (const p of map.planets) {
+      const color = genreColor(p.galaxyId != null ? gname.get(p.galaxyId) : null, p.galaxyId)
+      let grad = colors.indexOf(color)
+      if (grad < 0) { colors.push(color); grad = colors.length - 1 }
+      out.set(p.artistId, { face: planetFace(p), color, grad })
+    }
+    return { byId: out, colors }
+  }, [map.planets, map.galaxies])
   const ghosts = useMemo(() => map.ghosts.map(x => ({ ...x, wx: toWorld(x.x), wy: toWorld(x.y) })), [map.ghosts])
   const starField = useMemo(() => stars(roomId), [roomId])
 
@@ -277,6 +291,15 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
               <stop offset="0%" stopColor="#4a4385" />
               <stop offset="100%" stopColor="#221e45" />
             </radialGradient>
+            {/* I-44 장르색 행성(얼굴 사진·표지가 없거나 아직 안 불러왔을 때 바탕) */}
+            {faces.colors.map((c, i) => (
+              <radialGradient key={i} id={`gl-genre-${i}`} cx="35%" cy="30%" r="80%">
+                <stop offset="0%" stopColor={c} />
+                <stop offset="55%" stopColor={c} stopOpacity={0.5} />
+                <stop offset="100%" stopColor="#221e45" />
+              </radialGradient>
+            ))}
+            <clipPath id="planet-face-clip" clipPathUnits="objectBoundingBox"><circle cx=".5" cy=".5" r=".5" /></clipPath>
           </defs>
           <g ref={layerRef} transform={`translate(${v.tx} ${v.ty}) scale(${v.scale})`}>
             <g aria-hidden="true">
@@ -305,6 +328,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
               const mine = p.people.memberIds.includes(meId)
               const who = p.people.memberIds.map(id => members.get(id)?.nickname).filter(Boolean).join(', ')
               // 연출: 4-f 첫 행성 · 새 행성(또는 준비 끝) · 멀리서 새 위성이 생긴 행성은 물결로 알림
+              const fc = faces.byId.get(p.artistId)
               const born = fresh.planets.has(p.artistId)
               const ping = !born && level === 'far' && p.songs.some(x => fresh.tracks.has(songKey(p.artistId, x.trackId)) || fresh.gold.has(songKey(p.artistId, x.trackId)))
               return (
@@ -317,14 +341,29 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                   {p.preparing && <circle className={g.prepRing} r={r + 5 * u} strokeWidth={1.2 * u} strokeDasharray={`${2 * u} ${5 * u}`} />}
                   <g className={born ? (fresh.first ? g.firstPlanet : g.bornPlanet) : undefined}>
                   {level !== 'far' && <Orbits artistId={p.artistId} rings={p.rings} r={radius.get(p.artistId)!} u={u} grow={grow} members={members} near={level === 'near'} fresh={fresh} spin={inView.has(p.artistId)} />}
-                  <circle className={g.planetBody} r={r} fill={p.preparing ? 'none' : 'url(#gl-planet)'} stroke={mine ? '#E6DCFF' : '#5E5794'}
-                    strokeWidth={(mine ? 1.8 : 1.1) * u} strokeDasharray={p.preparing ? `${3 * u} ${4 * u}` : undefined} />
-                  {level === 'far'
-                    ? <text className={g.planetCount} y={r * 0.35} fontSize={Math.max(10 * u, r * 0.95)} textAnchor="middle">{p.songs.length}</text>
-                    : <text className={g.planetInitial} y={r * 0.33} fontSize={r * 0.9} textAnchor="middle">{Array.from(p.name)[0]}</text>}
-                  {labels.has(p.artistId) && (
-                    <text className={g.planetName} y={ro + 13 * nameGrow * u} fontSize={NAME_PX * nameGrow * u} textAnchor="middle">{p.name}</text>
+                  {/* I-44 ② 장르 구역 색 얇은 빛 테두리 */}
+                  {!p.preparing && fc && <>
+                    <circle className={g.genreGlow} r={r + 2.6 * u} stroke={fc.color} strokeWidth={3.2 * u} />
+                    <circle className={g.genreRing} r={r + 0.9 * u} stroke={fc.color} strokeWidth={1.3 * u} />
+                  </>}
+                  {/* I-44 ① 얼굴: 장르색 바탕 위에 사진·앨범 표지(화면 안 행성만 불러옴). 불러오지 못하면 장르색이 그대로 보인다 */}
+                  <circle className={g.planetBody} r={r} fill={p.preparing || !fc ? 'none' : `url(#gl-genre-${fc.grad})`} stroke={p.preparing ? '#5E5794' : 'none'}
+                    strokeWidth={1.1 * u} strokeDasharray={p.preparing ? `${3 * u} ${4 * u}` : undefined} />
+                  {!p.preparing && fc && fc.face.kind !== 'genre' && inView.has(p.artistId) && (
+                    <image className={g.planetFace} href={fc.face.url} x={-r} y={-r} width={2 * r} height={2 * r} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
                   )}
+                  {mine && !p.preparing && <circle className={g.mineRing} r={r} strokeWidth={1.4 * u} />}
+                  {/* I-44 ③ 행성 아래 반투명 알약 이름표 */}
+                  {labels.has(p.artistId) && (() => {
+                    const fs = NAME_PX * nameGrow
+                    const pw = pillWidth(p.name, fs)
+                    return (
+                      <g className={g.namePillGroup} transform={`translate(0 ${ro + 4 * nameGrow * u})`}>
+                        <rect className={g.namePill} x={-pw / 2 * u} y={0} width={pw * u} height={(fs + 8) * u} rx={(fs + 8) / 2 * u} />
+                        <text className={g.planetName} y={(fs + 2.5) * u} fontSize={fs * u} textAnchor="middle">{p.name}</text>
+                      </g>
+                    )
+                  })()}
                   {p.people.shared > 0 && level !== 'far' && (
                     <g transform={`translate(${r * 0.78} ${-r * 0.78})`}>
                       <circle r={7 * grow * u} fill="#FFE3B8" stroke="#141225" strokeWidth={u} />
