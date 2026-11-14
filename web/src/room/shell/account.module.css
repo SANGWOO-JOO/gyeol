@@ -1,0 +1,101 @@
+/* 내 정보·방 설정·멤버 관리 개편 (11-14): 신청서 대신 사람 색 고리 얼굴 + 유리 카드. 위험 동작은 맨 아래 장미색 구역에 따로 */
+.ring { flex: none; display: inline-flex; border-radius: 50%; }
+.sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; font-size: 12px; color: var(--r-text-2); }
+.chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; background: rgba(255, 255, 255, .07); color: var(--r-text); white-space: nowrap; }
+.chip i { width: 8px; height: 8px; border-radius: 50%; }
+
+.card {
+  display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 22px;
+  background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--tint, #b9a2ff) 10%, transparent), rgba(255, 255, 255, .03) 60%);
+  box-shadow: inset 0 0 0 1px rgba(185, 162, 255, .12);
+}
+.cardHead { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 15px; font-weight: 700; }
+.cardHead svg { flex: none; color: var(--r-accent-strong); }
+.cardNote { margin: 0; font-size: 13px; line-height: 1.6; color: var(--r-text-2); word-break: keep-all; }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.label { font-size: 13px; color: var(--r-text-2); }
+.row { display: flex; gap: 8px; }
+.input {
+  flex: 1; min-width: 0; height: 48px; box-sizing: border-box; padding: 0 14px; border: 0; border-radius: 14px; font: inherit; font-size: 16px; color: var(--r-text);
+  background: rgba(20, 18, 37, .7); box-shadow: inset 0 0 0 1px rgba(185, 162, 255, .18);
+}
+.input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--r-accent-strong); }
+.input[aria-invalid='true'] { box-shadow: inset 0 0 0 2px var(--r-error); }
+.save {
+  flex: none; height: 48px; padding: 0 18px; border: 0; border-radius: 14px; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+  background: #e6dcff; color: #16132b; display: inline-flex; align-items: center; justify-content: center;
+}
+.save:disabled { background: rgba(255, 255, 255, .08); color: var(--r-text-3); cursor: default; }
+.help { font-size: 12px; line-height: 1.55; color: var(--r-text-3); }
+.error { margin: 0; font-size: 13px; color: var(--r-error); }
+
+/* 받은 캐릭터: 고리 얼굴 줄 + 다음 자리(점선 궤도) */
+.faces { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.faceChoice { width: 56px; height: 56px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.faceChoice > span { transition: box-shadow .2s; box-shadow: 0 0 0 2px transparent; }
+.faceChoice[aria-pressed='true'] > span { box-shadow: 0 0 0 2px #1e1b36, 0 0 0 4px #ffe3b8, 0 0 16px rgba(255, 227, 184, .35); }
+.faceChoice:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 4px; }
+.faceChoice:disabled { cursor: default; }
+.nextSlot { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--r-text-2); border: 1.5px dashed rgba(230, 220, 255, .3); box-sizing: border-box; }
+.goldNote { font-size: 12px; color: #ffe3b8; }
+
+/* 이 기기에서 나가기·참가 마감 같은 한 줄 동작 */
+.action {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 0; border: 0; background: none; color: var(--r-text); font: inherit; font-size: 15px; font-weight: 600; text-align: left; cursor: pointer;
+}
+.action:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 4px; border-radius: 12px; }
+.action .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.action small { font-size: 12px; font-weight: 400; line-height: 1.55; color: var(--r-text-2); }
+.icon { flex: none; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(185, 162, 255, .12); color: #e6dcff; }
+
+.switch { appearance: none; width: 50px; height: 30px; flex: none; margin: 0; border-radius: 999px; background: #3a3466; position: relative; cursor: pointer; transition: background .2s; }
+.switch::after { content: ''; position: absolute; left: 3px; top: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--r-text-2); transition: transform .2s, background .2s; }
+.switch:checked { background: linear-gradient(90deg, #b9a2ff, #e3a6b8); }
+.switch:checked::after { transform: translateX(20px); background: #16132b; }
+.switch:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 3px; }
+.switch:disabled { opacity: .6; }
+/* 자리: 찬 자리는 빛, 빈 자리는 흐린 점선 */
+.seats { display: flex; gap: 6px; }
+.seats i { width: 14px; height: 14px; border-radius: 50%; box-sizing: border-box; }
+.seatOn { background: #e6dcff; box-shadow: 0 0 8px rgba(230, 220, 255, .4); }
+.seatOff { border: 1.5px dashed rgba(230, 220, 255, .3); }
+
+/* 위험 구역: 장미색 테두리로 따로 */
+.danger { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 22px; background: rgba(227, 166, 184, .05); box-shadow: inset 0 0 0 1px rgba(227, 166, 184, .32); }
+.dangerHead { margin: 0; font-size: 15px; font-weight: 700; color: #f2c4d1; }
+.dangerOpen {
+  align-self: flex-start; height: 44px; padding: 0 18px; border: 1.5px solid rgba(227, 166, 184, .6); border-radius: 999px; background: none; color: #f2c4d1; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.dangerGo {
+  height: 50px; border: 0; border-radius: 999px; background: #e3a6b8; color: #3a1424; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.dangerGo:disabled, .dangerOpen:disabled { opacity: .55; cursor: default; }
+.dangerOpen:focus-visible, .dangerGo:focus-visible, .cancel:focus-visible, .cta:focus-visible, .quiet:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 3px; }
+.cancel { height: 50px; border: 1.5px solid rgba(185, 162, 255, .35); border-radius: 999px; background: none; color: #e6dcff; font: inherit; font-size: 15px; cursor: pointer; }
+.buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* 놀이터 A안 그라데이션 버튼 */
+.cta {
+  display: flex; align-items: center; justify-content: center; gap: 8px; height: 50px; width: 100%; border: 0; border-radius: 999px; font: inherit; font-size: 15px; font-weight: 700; color: #16132b; cursor: pointer;
+  background: linear-gradient(90deg, #b9a2ff, #e6dcff 50%, #e3a6b8); box-shadow: 0 8px 24px rgba(185, 162, 255, .25);
+}
+.cta:disabled { opacity: .6; cursor: default; }
+.quiet { align-self: center; min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--r-text-2); font: inherit; font-size: 14px; cursor: pointer; }
+
+/* 새 암호: 숫자 칸 넷 */
+.pin { display: flex; justify-content: center; gap: 10px; margin: 4px 0; }
+.pin span {
+  width: 54px; height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 16px;
+  font-family: var(--r-font-title); font-size: 32px; font-weight: 700; color: #ffe3b8;
+  background: rgba(20, 18, 37, .7); box-shadow: inset 0 0 0 1px rgba(255, 227, 184, .35), 0 0 18px rgba(255, 227, 184, .12);
+}
+.pinNote { margin: 0; font-size: 13px; line-height: 1.6; text-align: center; color: var(--r-text-2); word-break: keep-all; }
+
+/* 삭제 확인 */
+.confirm { display: flex; flex-direction: column; gap: 14px; }
+.fade { align-self: center; }
+.loss { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.loss li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 1.55; color: var(--r-text); }
+.loss li svg { flex: none; margin-top: 2px; color: #e3a6b8; }
+.lossStrong { color: #f2c4d1 !important; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .switch, .switch::after, .faceChoice > span { transition: none; } }
