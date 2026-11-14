@@ -30,22 +30,78 @@ class TrackMerger(private val db: TrackSearchRepository) {
             BRACKET.find(title.trim())?.takeIf { !VERSION.containsMatchIn(it.groupValues[2]) }?.let { m ->
                 out += SearchText.norm(m.groupValues[1]); out += SearchText.norm(m.groupValues[2])
             }
-            // "NAN CHUN 난춘"·"난춘 NAN CHUN": 단어가 한 글자 체계로만 되어 있고 체계가 한 번만 바뀔 때 양쪽
-            val words = title.trim().split(Regex("""\s+""")).filter { it.isNotBlank() }
-            val kinds = words.map { w ->
-                val h = HANGUL.containsMatchIn(w); val l = LATIN.containsMatchIn(w)
-                when { h && !l -> 'H'; l && !h -> 'L'; else -> '?' }
-            }
             // 괄호가 있거나 판 표시가 있으면 나누지 않는다 ("밤편지 (Inst.)"·"좋은 날 Live")
-            if ('?' !in kinds && kinds.toSet().size == 2 && BRACKET.find(title.trim()) == null && !VERSION.containsMatchIn(title)) {
-                val switches = kinds.zipWithNext().count { (a, b) -> a != b }
-                if (switches == 1) {
-                    val cut = kinds.indexOfFirst { it != kinds.first() }
-                    out += SearchText.norm(words.take(cut).joinToString(" "))
-                    out += SearchText.norm(words.drop(cut).joinToString(" "))
-                }
+            if (BRACKET.find(title.trim()) == null && !VERSION.containsMatchIn(title)) {
+                scriptHalves(title)?.let { (a, b) -> out += SearchText.norm(a); out += SearchText.norm(b) }
             }
             return out.filter { it.isNotEmpty() }.toSet()
+        }
+
+        /** "NAN CHUN 난춘"·"난춘 NAN CHUN": 단어가 한 글자 체계로만 되어 있고 한글·로마자가 한 번만 바뀔 때 양쪽 */
+        fun scriptHalves(s: String): Pair<String, String>? {
+            val words = s.trim().split(Regex("""\s+""")).filter { it.isNotBlank() }
+            // 기호만 있는 단어("&", "+")는 어느 쪽도 아니다 ("너랑 나 You & I"). 숫자가 든 단어("2", "Pt.2")나 한글·로마자가 섞인 단어가 있으면
+            // 나누지 않는다 ("더보기 DB 0"·"편지 Pt. 2"를 앞부분으로 합치지 않게)
+            val kinds = words.map { w ->
+                val h = HANGUL.containsMatchIn(w); val l = LATIN.containsMatchIn(w)
+                when { h && l -> '?'; h -> 'H'; l -> 'L'; w.any(Char::isLetterOrDigit) -> '?'; else -> null }
+            }
+            if ('?' in kinds) return null
+            val lettered = kinds.filterNotNull()
+            if (lettered.toSet().size != 2 || lettered.zipWithNext().count { (a, b) -> a != b } != 1) return null
+            val cut = kinds.indexOfFirst { it != null && it != lettered.first() }
+            return words.take(cut).joinToString(" ") to words.drop(cut).joinToString(" ")
+        }
+
+        /** 'H' 한글만, 'L' 로마자만, 섞이거나 둘 다 없으면 null */
+        private fun script(s: String): Char? {
+            val h = HANGUL.containsMatchIn(s); val l = LATIN.containsMatchIn(s)
+            return when { h && !l -> 'H'; l && !h -> 'L'; else -> null }
+        }
+
+        /** 가수 이름에 붙는 채널 군더더기 ("TAEYEON Official", "가수 - Topic") */
+        private val ARTIST_NOISE_WORD = Regex("""(?i)(\s*-\s*)?\b(official|topic|vevo)\b""")
+
+        fun cleanArtist(name: String): String = name.replace(ARTIST_NOISE_WORD, " ").trim().replace(Regex("""\s+"""), " ")
+
+        /**
+         * Last.fm 가수 이름의 조각 (I-54): 군더더기를 뺀 이름, 쉼표로 나뉜 이름들, 한글·로마자 병기의 양쪽("윤하 Younha"),
+         * 괄호 병기의 앞쪽과, 글자 체계가 다를 때만 괄호 안쪽("다비치 (Davichi)"). "김태연 (소녀시대)"처럼 같은 글자 체계의 괄호는 소속일 수 있어 쓰지 않는다
+         */
+        fun artistParts(name: String): List<String> {
+            val whole = name.trim()
+            val cleaned = cleanArtist(whole)
+            val out = linkedSetOf(cleaned)
+            for (piece in cleaned.split(',', '，').map { it.trim() }.filter { it.isNotEmpty() }) {
+                out += piece
+                BRACKET.find(piece)?.let { m ->
+                    val outside = m.groupValues[1].trim(); val inside = m.groupValues[2].trim()
+                    out += outside
+                    val so = script(outside); val si = script(inside)
+                    if (so != null && si != null && so != si) out += inside
+                }
+                scriptHalves(piece)?.let { (a, b) -> out += a; out += b }
+            }
+            return out.filter { it != whole && SearchText.norm(it).length >= 2 }
+        }
+
+        // 트랙 번호: "01 곡"·"15 곡"(두 자리) 또는 "1. 곡". "7 Rings"처럼 숫자로 시작하는 제목은 건드리지 않는다
+        private val TRACK_NO = Regex("""^\s*(?:\d{2}\s+|\d{1,3}[.)]\s*)(?=\S)""")
+        private val FEAT = Regex("""(?i)\s*[(\[（]\s*(?:feat|ft|featuring)\.?\s[^)\]）]*[)\]）]|\s+(?:feat|ft|featuring)\.?\s.*$""")
+        private val ORIGINAL = Regex("""(?i)\s*[(\[（]?\s*original\s+ver(?:sion|\.)?\s*[)\]）]?\s*$""")
+
+        /**
+         * 같은 가수의 곡끼리 비교할 때 쓰는 넓은 표기 (I-54): [titleForms]에 더해 "곡 - 가수" 꼬리, 앞 트랙 번호, feat. 부분,
+         * "Original Ver(sion)"을 뗀 제목의 표기. Inst·Remix·Live 등 판 표시는 그대로 남아 다른 녹음으로 본다
+         */
+        fun looseForms(title: String, artists: Collection<String>): Set<String> {
+            var t = title.trim()
+            t.replace(TRACK_NO, "").takeIf { it.isNotBlank() }?.let { t = it }
+            for (a in artists.map { it.trim() }.filter { it.isNotEmpty() }.flatMap { listOf(it, cleanArtist(it)) }.distinct()) {
+                t = t.replace(Regex("""\s+[-–]\s+${Regex.escape(a)}\s*$""", RegexOption.IGNORE_CASE), "")
+            }
+            t = t.replace(FEAT, "").replace(ORIGINAL, "").trim()
+            return if (t.isEmpty() || t == title.trim()) titleForms(title) else titleForms(title) + titleForms(t)
         }
 
         fun item(h: DbTrackHit) = TrackItem(h.title, h.artist, h.recordingMbid.toString(), null, h.releaseYear, h.trackId, h.coverUrl, h.artistId)
@@ -53,11 +109,19 @@ class TrackMerger(private val db: TrackSearchRepository) {
 
     /** 이름(정규화) → 우리 가수 (한 명만 맞을 때) */
     fun resolveArtists(names: Collection<String>): Map<String, ArtistNames> {
-        val norms = names.map(SearchText::norm).filter { it.isNotEmpty() }.toSet()
-        if (norms.isEmpty()) return emptyMap()
-        val candidates = db.artistsByNames(names.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet())
-        return norms.mapNotNull { n ->
-            val hit = candidates.filter { a -> SearchText.norm(a.name) == n || a.aliases.any { SearchText.norm(it) == n } }
+        val byNorm = names.filter { SearchText.norm(it).isNotEmpty() }.associateBy(SearchText::norm)
+        if (byNorm.isEmpty()) return emptyMap()
+        val parts = byNorm.mapValues { (_, name) -> artistParts(name) }
+        val lookup = (byNorm.values + parts.values.flatten()).map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
+        val candidates = db.artistsByNames(lookup)
+        fun hits(n: String) = candidates.filter { a -> SearchText.norm(a.name) == n || a.aliases.any { SearchText.norm(it) == n } }
+        return byNorm.keys.mapNotNull { n ->
+            val hit = hits(n)
+            // 이름 전체가 안 맞으면 조각으로 (I-54): 조각들이 가리키는 가수가 모두 합쳐 한 명일 때만 묶는다 (둘 이상이면 묶지 않음)
+            if (hit.isEmpty()) {
+                val byParts = parts[n].orEmpty().flatMap { hits(SearchText.norm(it)) }.distinctBy { it.id }
+                return@mapNotNull byParts.singleOrNull()?.let { n to it }
+            }
             // 여럿이면: 대표 이름이 같은 가수 하나 → 우리 DB에 들린 곡이 있는 가수 하나 (예: 별칭 "Sung Si Kyung"은 성시경과 "Sung Si Kyung with friends"가 함께 가짐)
             val pick = hit.singleOrNull()
                 ?: hit.filter { SearchText.norm(it.name) == n }.singleOrNull()
@@ -86,12 +150,13 @@ class TrackMerger(private val db: TrackSearchRepository) {
         // 같은 가수의 곡은 검색 결과에 없어도 비교한다 ("다비치" 검색에 성시경 곡이 Last.fm으로 섞인 경우 등). 가수 수가 적어 한 번씩 읽는다
         val otherArtists = named.mapNotNull { it.first.artistId }.toSet() - local.map { it.artistId }.toSet()
         val artistTracks = otherArtists.flatMap { db.hitsOfArtist(it) }
-        val localForms = (local + artistTracks).map { h -> h to (titleForms(h.title) + titleForms(h.mbTitle)) }
-        val mapped = named.map { (r, _) ->
+        // 같은 가수끼리만 비교하므로 넓은 표기(꼬리 가수·트랙 번호·feat. 제거)를 쓴다 (I-54)
+        val localForms = (local + artistTracks).map { h -> h to (looseForms(h.title, listOf(h.artist)) + looseForms(h.mbTitle, listOf(h.artist))) }
+        val mapped = named.map { (r, orig) ->
             val id = r.mbid?.let { m -> runCatching { UUID.fromString(m) }.getOrNull()?.let(byMbid::get) }
                 ?: keys[r]!!.firstNotNullOfOrNull(byAlias::get)
                 ?: r.artistId?.let { aid ->
-                    val f = titleForms(r.title)
+                    val f = looseForms(r.title, listOf(r.artist, orig))
                     localForms.firstOrNull { (h, hf) -> h.artistId == aid && hf.any(f::contains) }?.first?.trackId
                 }
             r to id
@@ -116,8 +181,8 @@ class TrackMerger(private val db: TrackSearchRepository) {
         val seen = mutableListOf<Pair<String, Set<String>>>()
         return items.filter { t ->
             if (t.trackId != null && !seenIds.add(t.trackId)) return@filter false
-            val key = t.artistId?.let { "id:$it" } ?: "n:${SearchText.norm(t.artist)}"
-            val forms = titleForms(t.title)
+            val key = t.artistId?.let { "id:$it" } ?: "n:${SearchText.norm(cleanArtist(t.artist))}"
+            val forms = looseForms(t.title, listOf(t.artist))
             if (seen.any { (k, f) -> k == key && f.any(forms::contains) }) return@filter false
             seen += key to forms
             true
