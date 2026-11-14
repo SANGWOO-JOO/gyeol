@@ -38,8 +38,8 @@
 .planetNode { cursor: pointer; outline: none; }
 .planetHit { fill: transparent; }
 .planetBody { transition: stroke .2s; }
-.planetNode:hover .planetBody, .planetNode:focus-visible .planetBody { stroke: var(--r-accent-strong); stroke-width: 3; }
-.planetNode:focus-visible .planetHit { stroke: var(--r-accent-strong); stroke-width: 2; stroke-dasharray: 4 4; }
+.planetNode:hover .planetBody, .planetNode:focus-visible .planetBody { stroke: var(--r-accent-strong); stroke-width: 3; vector-effect: non-scaling-stroke; } /* 화면 3px (확대 배율과 무관) */
+.planetNode:focus-visible .planetHit { stroke: var(--r-accent-strong); stroke-width: 2; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
 .planetInitial { fill: var(--r-text); font-weight: 700; pointer-events: none; }
 .planetCount { fill: var(--r-text); font-weight: 700; pointer-events: none; }
 .planetName { fill: #f0eaff; pointer-events: none; }
@@ -162,3 +162,27 @@
 @media (prefers-reduced-motion: reduce) {
   .planetNode, .ghost, .satNode, .goldRing, .personRing { transition: none; }
 }
+
+/* 위성 곡 제목 이름표 (11-14, "궤도 엽서"): 반투명 유리 알약 + 그 위성 색(같이 담은 곡은 금빛) 빛 테두리, 음표, 위성을 가리키는 꼬리 */
+.orbits .satNode { pointer-events: auto; cursor: default; outline: none; }
+.planetNode:focus-within .spin { animation-play-state: paused; }
+.satTip {
+  position: absolute; z-index: 6; display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; box-sizing: border-box;
+  border-radius: 999px; pointer-events: none; white-space: nowrap;
+  background: rgba(24, 21, 46, .72); -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3);
+  border: 1px solid color-mix(in srgb, var(--tip-c) 70%, transparent);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .04) inset, 0 4px 18px rgba(0, 0, 0, .35), 0 0 14px color-mix(in srgb, var(--tip-c) 30%, transparent);
+  color: #f5f0ff; font-size: 13px; font-weight: 600; letter-spacing: -.01em;
+  animation: satTipIn .18s ease-out both;
+}
+.satTip svg { flex: none; color: var(--tip-c); }
+.satTip span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.satTip::after {
+  content: ''; position: absolute; left: var(--tail-x); bottom: -5px; width: 8px; height: 8px; margin-left: -4px; transform: rotate(45deg);
+  background: rgba(24, 21, 46, .9); border-right: 1px solid color-mix(in srgb, var(--tip-c) 70%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--tip-c) 70%, transparent);
+}
+@keyframes satTipIn { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .satTip { animation-name: satTipFade; } }
+@keyframes satTipFade { from { opacity: 0; } }
+.satTip[data-below]::after { bottom: auto; top: -5px; transform: rotate(225deg); }
+.orbits .satNode:focus-visible > :first-child { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }

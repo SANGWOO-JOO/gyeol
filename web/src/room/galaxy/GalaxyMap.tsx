@@ -6,6 +6,8 @@ import { planetPeople } from '../roomLogic'
 import { SAT_GROW_MAX, fitInside, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type Insets, type View } from './galaxyMath'
 import { NO_FRESH, songKey, type Fresh } from './fresh'
 import { genreColor, pillWidth, planetFace } from './faces'
+import { SAT_TIP_MAX, satTipPosition, satTipWidth } from './satTip'
+import { keepCenterShift } from '../shell/panelPref'
 import { planetLit, ringLit, songLit } from './focus'
 import { COVER_PAD, COVER_R, orbitLayout, RING_GAP, ringRadii, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
@@ -40,7 +42,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
   // 궤도 순서(규칙 ⑫)는 지도 데이터가 바뀔 때만 다시 정한다
   const planets = useMemo(() => {
     const order = map.members.map(m => m.id)
-    return map.planets.map(p => ({ ...p, wx: toWorld(p.x), wy: toWorld(p.y), people: planetPeople(p), rings: orbitLayout(p, order), covers: new Map(p.songs.map(s => [s.trackId, coverSources(s)])) }))
+    return map.planets.map(p => ({ ...p, wx: toWorld(p.x), wy: toWorld(p.y), people: planetPeople(p), rings: orbitLayout(p, order), covers: new Map(p.songs.map(s => [s.trackId, coverSources(s)])), titles: new Map(p.songs.map(s => [s.trackId, s.title])) }))
   }, [map.planets, map.members])
   const galaxies = useMemo(() => map.galaxies.filter(x => x.name).map(x => ({ ...x, wx: toWorld(x.x), wy: toWorld(x.y) })), [map.galaxies])
   // I-44 얼굴과 장르 색: 지도 데이터가 바뀔 때만
@@ -104,8 +106,14 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
   // ⑤ 처음(또는 0곡에서 첫 행성이 생겼을 때) 방의 행성이 모두 보이게.
   // 사용자가 아직 지도를 움직이지 않았다면 화면 크기가 바뀔 때(회전·창 크기)도 다시 맞춘다
   const touched = useRef(false)
+  const prevSize = useRef<{ width: number; height: number } | null>(null)
   useEffect(() => {
+    const prev = prevSize.current
+    prevSize.current = size
     if (size.width === 0 || planets.length === 0) return
+    // PC 판 접기·펴기처럼 가로만 바뀌면 다시 맞추지 않고 보던 중심을 그대로 (행성이 튀지 않게)
+    const dx = fitted.current ? keepCenterShift(prev, size) : null
+    if (dx != null) { const v = viewRef.current; apply({ ...v, tx: v.tx + dx }, true); return }
     if (fitted.current && touched.current) return
     fitted.current = true
     fit()
@@ -295,6 +303,18 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
   }, [hint])
   const hintGhost = hint ? placedGhosts.find(x => x.artistId === hint.id) : undefined
 
+  // 위성 곡 제목 이름표 (PC 마우스·키보드): 위성의 화면 위치를 재서 지도 위 HTML로 띄운다. 그 행성 공전은 CSS(:hover·:focus-within)로 멈춘다
+  const [satTip, setSatTip] = useState<{ title: string; color: string; gold: boolean; x: number; y: number; r: number } | null>(null)
+  const showSatTip = useCallback((t: { title: string; color: string; gold: boolean; el: Element } | null) => {
+    if (!t) { setSatTip(null); return }
+    const w = wrapRef.current?.getBoundingClientRect()
+    const b = t.el.getBoundingClientRect()
+    if (!w) return
+    setSatTip({ title: t.title, color: t.color, gold: t.gold, x: b.left + b.width / 2 - w.left, y: b.top - w.top, r: b.width / 2 })
+  }, [])
+  useEffect(() => { setSatTip(null) }, [settled])
+  const tipPos = satTip ? satTipPosition({ x: satTip.x, y: satTip.y }, satTipWidth(satTip.title), size) : null
+
   const v = viewRef.current
   return (
     <div className={g.mapWrap}>
@@ -361,7 +381,8 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                   <g className={born ? (fresh.first ? g.firstPlanet : g.bornPlanet) : undefined}>
                   {level !== 'far' && <Orbits roomId={roomId} artistId={p.artistId} rings={p.rings} radii={radii.get(p.artistId)!} u={u} grow={grow} members={members} near={level === 'near'} fresh={fresh} spin={inView.has(p.artistId)}
                     focus={lit ? focusId : null}
-                    covers={level === 'near' && inView.has(p.artistId) ? p.covers : undefined} />}
+                    covers={level === 'near' && inView.has(p.artistId) ? p.covers : undefined}
+                    titles={p.titles} onSatTip={showSatTip} />}
                   {/* I-44 ② 장르 구역 색 얇은 빛 테두리 */}
                   {!p.preparing && fc && <>
                     <circle className={g.genreGlow} r={r + 2.6 * u} stroke={fc.color} strokeWidth={3.2 * u} />
@@ -401,6 +422,13 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
             </g>
           </g>
         </svg>
+        {satTip && tipPos && (
+          <div className={g.satTip} role="tooltip" data-gold={satTip.gold || undefined} data-below={tipPos.below || undefined}
+            style={{ left: tipPos.left, top: tipPos.top, maxWidth: SAT_TIP_MAX, ['--tip-c' as string]: satTip.color, ['--tail-x' as string]: `${tipPos.tailX}px` }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /><circle cx="6.5" cy="18" r="3" fill="currentColor" /><circle cx="17.5" cy="16" r="3" fill="currentColor" /></svg>
+            <span>{satTip.title}</span>
+          </div>
+        )}
         {hintGhost && level !== 'far' && (
           <div className={g.ghostTip} role="tooltip" style={{ left: hintGhost.wx * s + settled.tx, top: hintGhost.wy * s + settled.ty - ghostR - 8 }}>
             <strong>{hintGhost.name}</strong><span>아직 우리 우주에 없는 비슷한 가수</span><span>누르면 노래 찾기</span>
@@ -476,13 +504,17 @@ function fitInsets(wrap: HTMLElement | null, maxSongs: number, rings: boolean): 
  * 궤도·위성 (규칙 ⑫). 크기는 화면 px로 계산하고 u(세계/px)를 곱해 그린다.
  * 금빛 궤도 = 같이 담은 노래, 사람 궤도 = 그 사람 색 위성(혼자 담은 노래). 가까이(near)에선 위성을 조금 크게.
  */
-function Orbits({ roomId, artistId, rings, radii, u, grow, members, near, fresh, spin, covers, focus = null }: {
+function Orbits({ roomId, artistId, rings, radii, u, grow, members, near, fresh, spin, covers, focus = null, titles, onSatTip }: {
   roomId: string
   artistId: number; rings: Ring[]; /** 궤도 반지름(px, ringRadii) */ radii: number[]; u: number; grow: number; members: Map<number, MemberView>; near: boolean; fresh: Fresh
   /** 화면 안이면 돈다 */
   spin: boolean
   /** I-44 ④ 가까이(near)·화면 안일 때만: 곡 → 앨범 표지. 있으면 위성을 작은 표지로, 테두리 = 담은 사람(금빛 = 같이 담은 곡) */
   covers?: Map<number, ImgSource[]>
+  /** 곡 → 제목 (위성 이름표·화면 읽기) */
+  titles?: Map<number, string>
+  /** 위성에 마우스·키보드가 오면 그 위성 요소와 제목, 벗어나면 null */
+  onSatTip?: (t: { title: string; color: string; gold: boolean; el: Element } | null) => void
   /** I-26: 이 사람이 담지 않은 위성·궤도는 흐리게 (행성 전체가 흐린 경우엔 null로 받아 겹쳐 흐리지 않는다) */
   focus?: number | null
 }) {
@@ -501,10 +533,14 @@ function Orbits({ roomId, artistId, rings, radii, u, grow, members, near, fresh,
               stroke={gold ? undefined : color(ring.memberIds[0])} strokeWidth={(gold ? 1 : 0.8) * u} />
             {ring.sats.map(sat => {
               const key = songKey(artistId, sat.trackId)
+              const tip = (el: Element) => { const t = titles?.get(sat.trackId); if (t) onSatTip?.({ title: t, color: gold ? '#FFE3B8' : color(sat.memberIds[0]), gold, el: el.firstElementChild ?? el }) }
               const cx = Math.cos(sat.angle) * rr, cy = Math.sin(sat.angle) * rr
               const sr = satelliteRadius(sat, ring.kind) * k * u
               return (
-                <g key={sat.trackId} className={songLit(sat.memberIds, focus) ? g.satNode : `${g.satNode} ${g.dimmed}`}>
+                <g key={sat.trackId} className={songLit(sat.memberIds, focus) ? g.satNode : `${g.satNode} ${g.dimmed}`}
+                  tabIndex={near ? 0 : -1} role="img" aria-label={titles?.get(sat.trackId)}
+                  onPointerEnter={e => { if (e.pointerType === 'mouse') tip(e.currentTarget) }}
+                  onPointerLeave={() => onSatTip?.(null)} onFocus={e => tip(e.currentTarget)} onBlur={() => onSatTip?.(null)}>
                   {/* 4-e 새 위성: 튀어나오듯 / 4-h 겹친 순간: 금빛 반짝임 */}
                   {(() => {
                     const dot = (

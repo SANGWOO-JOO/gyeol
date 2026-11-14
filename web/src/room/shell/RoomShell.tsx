@@ -21,6 +21,7 @@ import { PlayTab } from './PlayTab'
 import { Toast, type ToastData } from './Toast'
 import { SheetModeContext } from './Sheet'
 import { useWide } from './useWide'
+import { expandsPanel, readCollapsed, writeCollapsed } from './panelPref'
 import s from '../room.module.css'
 import sh from './shell.module.css'
 
@@ -72,6 +73,9 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const [notFound, setNotFound] = useState<NotFound | null>(null)
   const [pollTick, setPollTick] = useState(0)
   const [sheet, setSheetRaw] = useState<SheetState>(null)
+  // PC 오른쪽 판 접기 (11-14): 이 브라우저에 기억, 탭을 고르거나 가수·내 정보 판이 열리면 저절로 펼침
+  const [collapsed, setCollapsedRaw] = useState(readCollapsed)
+  const setCollapsed = useCallback((v: boolean) => { setCollapsedRaw(v); writeCollapsed(v) }, [])
   /** PC에선 참가자 판이 따로 없고 오른쪽 판의 참가자 탭이다 */
   const setSheet = useCallback((next: SheetState | ((prev: SheetState) => SheetState)) => {
     if (typeof next !== 'function' && wide && next?.kind === 'people') {
@@ -79,9 +83,11 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       setSheetRaw(null)
       return
     }
+    if (typeof next !== 'function' && expandsPanel({ kind: 'sheet', sheet: next?.kind })) setCollapsed(false)
     setSheetRaw(next)
-  }, [wide, setParams])
+  }, [wide, setParams, setCollapsed])
   const setPanel = (t: PanelTab) => {
+    if (expandsPanel({ kind: 'tab' })) setCollapsed(false)
     setSheetRaw(prev => (prev?.kind === 'artist' || prev?.kind === 'me' ? null : prev))
     setParams({ tab: t }, { replace: true })
   }
@@ -287,7 +293,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const galaxy = map
     ? <GalaxyView map={map} roomId={roomId} fresh={fresh} meId={me?.member.id ?? -1} fill={wide} selectedId={wide && sheet?.kind === 'artist' ? sheet.id : null} onAddFirst={goSearch}
       focusId={wide ? focusId : null} onFocus={wide ? onFocus : undefined} onClearFocus={clearFocus} onSelectArtist={id => setSheet({ kind: 'artist', id })}
-      onSelectGhost={(id, name) => { setArtistPage({ artistId: id, name, fromMap: true, songCountInRoom: 0 }); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }} />
+      onSelectGhost={(id, name) => { setCollapsed(false); setArtistPage({ artistId: id, name, fromMap: true, songCountInRoom: 0 }); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }} />
     : <p className={sh.center} role="status">우주를 불러오는 중…</p>
   const pendingKeys = new Set(pending.map(p => p.key))
   /** 가수 화면에서 뒤로: 행성 판에서 왔으면 그 판으로(휴대폰은 지도 탭), 아니면 검색 결과로 */
@@ -345,6 +351,11 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   if (wide) {
     const detail = artistSheet || meSheet
     const PANEL_LABEL: Record<PanelTab, string> = { play: '놀이터', search: '검색', mine: '내 노래', people: '참가자' }
+    const tabIcon = (id: Tab) => TABS.find(x => x.id === id)!.icon
+    const PANEL_ICON: Record<PanelTab, ReactNode> = {
+      play: tabIcon('play'), search: tabIcon('search'), mine: tabIcon('mine'),
+      people: <><circle cx="9" cy="8" r="3.2" /><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5" /><circle cx="17" cy="9" r="2.6" /><path d="M16 14.2c2.6.2 4.4 1.8 5 4.8" /></>,
+    }
     return (
       <AvatarRoom.Provider value={roomId}>
       <div className={sh.wideShell}>
@@ -367,7 +378,33 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
             {galaxy}
             {(pendingBar || notFoundBox) && <div className={sh.mapNotices}>{pendingBar}{notFoundBox}</div>}
             <Toast toast={toast} onClose={closeToast} wide />
+            {/* 판 왼쪽 가장자리(= 지도 오른쪽 끝)에 붙은 접기 손잡이. 판은 스크롤 상자라 그 안에 두면 잘린다 */}
+            {!collapsed && (
+              <button type="button" className={sh.panelToggle} aria-expanded={true} aria-label="오른쪽 판 접기" title="판 접기" onClick={() => setCollapsed(true)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+              </button>
+            )}
           </section>
+          {collapsed ? (
+            <aside className={`${sh.sidePanel} ${sh.sideRail}`} aria-label="자세히 (접힘)">
+              <button type="button" className={sh.railToggle} aria-expanded={false} aria-label="오른쪽 판 펼치기" title="판 펼치기" onClick={() => setCollapsed(false)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+              </button>
+              <nav className={sh.railTabs} aria-label="판 보기">
+                {PANEL_TABS.map(t => {
+                  const count = t === 'mine' ? me?.songCount : t === 'people' ? members.length : undefined
+                  const label = `${PANEL_LABEL[t]}${count != null ? ` ${count}` : ''}${t === 'mine' && badge ? ' · 선물 소식 있음' : ''}`
+                  return (
+                    <button key={t} type="button" className={sh.railTab} aria-label={`${label} 열기`} title={PANEL_LABEL[t]} aria-current={panelTab === t ? 'page' : undefined} onClick={() => setPanel(t)}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{PANEL_ICON[t]}</svg>
+                      {t === 'mine' && badge ? <span className={sh.railBadge} aria-hidden="true">{badge}</span>
+                        : count != null && <span className={sh.railCount} aria-hidden="true">{count}</span>}
+                    </button>
+                  )
+                })}
+              </nav>
+            </aside>
+          ) : (
           <aside className={sh.sidePanel} aria-label="자세히">
             <nav className={sh.segTabs} aria-label="판 보기">
               {PANEL_TABS.map(t => (
@@ -391,6 +428,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
               </div>
             )}
           </aside>
+          )}
         </div>
         <SheetModeContext.Provider value="dialog">{overlays}</SheetModeContext.Provider>
       </div>
