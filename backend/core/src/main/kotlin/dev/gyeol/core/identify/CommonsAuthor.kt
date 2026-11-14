@@ -24,6 +24,8 @@ object CommonsAuthor {
     private val CUT_URL = Regex("""\s+(?:h|ht|htt|https?:?/?/?|www\.?)$""", RegexOption.IGNORE_CASE)
     private const val LONG_PAREN = 20
     private const val MAX = 40
+    private const val MAX_WITH_NAME = 60
+    private val TAIL_PAREN = Regex("""\s*(\(([^()]+)\))$""")
     private val NUMERIC = Regex("""&#(x[0-9a-fA-F]+|\d+);""")
 
     fun clean(raw: String?): String? {
@@ -67,14 +69,33 @@ object CommonsAuthor {
         return out.toString()
     }
 
-    /** 40자(코드포인트) 상한. 뒤쪽 절반에 빈칸이 있으면 단어 경계에서 자른다 */
+    /**
+     * 40자(코드포인트) 상한. 뒤쪽 절반에 빈칸이 있으면 단어 경계에서 자른다.
+     * 끝에 짧은 괄호(20자 이하, 보통 촬영자 이름)가 있으면 그 괄호는 남기고 앞부분만 줄인다
+     * ("Korea.net / Korean Culture… (Jeon Han)"). 앞부분은 최소 20자를 남기고, 이때 전체는 60자를 넘지 않는다.
+     */
     private fun cap(s: String): String {
-        if (s.codePointCount(0, s.length) <= MAX) return s
-        var cut = s.substring(0, s.offsetByCodePoints(0, MAX))
-        val sp = cut.lastIndexOf(' ')
-        if (sp >= MAX / 2) cut = cut.substring(0, sp)
-        return cut.trimEnd(' ', ',', ';', '-', '·', ':', '(') + "…"
+        if (len(s) <= MAX) return s
+        TAIL_PAREN.find(s)?.let { m ->
+            val tail = " " + m.groupValues[1]
+            val head = s.substring(0, m.range.first).trimEnd()
+            if (head.isNotEmpty() && len(m.groupValues[2]) <= LONG_PAREN) {
+                val budget = maxOf(MAX / 2, MAX - len(tail) - 1)
+                val short = if (len(head) <= budget) head else cut(head, budget) + "…"
+                if (len(short + tail) <= MAX_WITH_NAME) return short + tail
+            }
+        }
+        return cut(s, MAX) + "…"
     }
+
+    private fun cut(s: String, n: Int): String {
+        var c = s.substring(0, s.offsetByCodePoints(0, n))
+        val sp = c.lastIndexOf(' ')
+        if (sp >= n / 2) c = c.substring(0, sp)
+        return c.trimEnd(' ', ',', ';', '-', '·', ':', '(', '/')
+    }
+
+    private fun len(s: String) = s.codePointCount(0, s.length)
 
     /** 주소 하나 → 표시용 이름. 못 읽는 주소는 그대로 둔다 */
     private fun shorten(url: String): String {

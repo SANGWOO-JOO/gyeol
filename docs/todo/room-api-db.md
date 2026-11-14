@@ -402,3 +402,5 @@
 - 40자 상한 때문에 "Korea.net / Korean Culture and Information Service (Jeon Han)"은 "Korea.net / Korean Culture and…"가 된다. 원본 링크는 pageUrl에 있다.
 - 테스트: api `CommonsAuthorTest` 1개 추가(기존 40자 넘는 두 기대값 수정). api 73개(건너뜀 1)·worker 79개 통과.
 - 로컬(11:50:24 api·worker 재시작 뒤): 방 8 PHOTO 36개 작성자 최대 36자, "["·"http" 0건이다. IVE는 "@_TV10" 그대로다.
+- 짧은 괄호 남기기(11-14, 관리 세션 요청): 40자를 넘어 자를 때 끝에 20자 이하 괄호(촬영자 이름)가 있으면 괄호는 남기고 앞부분만 줄인다. 앞부분 몫은 40 − 괄호 길이(최소 20자)이고, 이때 전체 상한은 60자다. "Korea.net / Korean Culture and Information Service (Jeon Han)" → "Korea.net / Korean Culture… (Jeon Han)".
+  - 테스트: api `CommonsAuthorTest` 1개 추가. api 74개(건너뜀 1)·worker 79개 통과. api·worker 11:53 재시작 뒤 방 8 가수 115 작성자가 위 값(38자)이다.

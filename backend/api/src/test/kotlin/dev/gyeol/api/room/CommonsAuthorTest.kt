@@ -16,7 +16,7 @@ class CommonsAuthorTest {
         assertEquals("A & B", CommonsAuthor.clean("Photograph: Uploaded by: A &amp; B"))
         assertEquals("Kim", CommonsAuthor.clean("Photographer : Kim"))
         assertEquals("@x", CommonsAuthor.clean("https://www.youtube.com/user/x/about"))
-        assertEquals("Korea.net / Korean Culture and…", CommonsAuthor.clean("Korea.net / Korean Culture and Information Service (Jeon Han)"))
+        assertEquals("Korea.net / Korean Culture… (Jeon Han)", CommonsAuthor.clean("Korea.net / Korean Culture and Information Service (Jeon Han)"))
         assertEquals("The original uploader was Shuohyun at…", CommonsAuthor.clean("The original uploader was Shuohyun at Chinese Wikipedia."))
         assertNull(CommonsAuthor.clean("  <span> </span> "))
         assertNull(CommonsAuthor.clean(null))
@@ -48,5 +48,15 @@ class CommonsAuthorTest {
         assertEquals("Jeon Han (Korea.net)", CommonsAuthor.clean("Jeon Han (Korea.net), see also http://x"))
         assertEquals("Park", CommonsAuthor.clean("Park http:/"))
         assertEquals("Lee See-hoon", CommonsAuthor.clean("Lee See-hoon"))
+    }
+
+    @Test
+    fun `40자를 넘을 때 끝의 짧은 괄호(촬영자 이름)는 남기고 앞부분만 줄인다`() {
+        assertEquals("Korea.net / Korean Culture… (Jeon Han)",
+            CommonsAuthor.clean("Korea.net / Korean Culture and Information Service (Jeon Han)"))
+        assertEquals("Cheongwadae / Blue House (Kim Yong-wi)", CommonsAuthor.clean("Cheongwadae / Blue House (Kim Yong-wi)"))
+        val r = CommonsAuthor.clean("Ministry of Culture, Sports and Tourism of the Republic of Korea (Hong Gil-dong)")!!
+        assert(r.endsWith("(Hong Gil-dong)") && r.contains("…") && r.codePointCount(0, r.length) <= 60) { r }
+        assertEquals("The original uploader was Shuohyun at…", CommonsAuthor.clean("The original uploader was Shuohyun at Chinese Wikipedia."))
     }
 }
