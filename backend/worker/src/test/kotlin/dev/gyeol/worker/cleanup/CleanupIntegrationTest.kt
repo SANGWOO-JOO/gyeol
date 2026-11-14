@@ -35,6 +35,7 @@ import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** 보관 기간이 지난 데이터 정리: S3 원본(7일) → 청취 기록(7일) → 세션(30일) */
 @Testcontainers
@@ -189,5 +190,75 @@ class CleanupIntegrationTest {
         val (sid, _) = uploaded(12_000)
         assertEquals(12_000, cleanup.run(t0.plus(Duration.ofDays(8))).listens)
         assertEquals(0L, listenCount(sid))
+    }
+
+    private fun ts(i: Instant) = Timestamp.from(i)
+
+    /** 시험용 방 하나 (만든 시각·열쇠 마지막 요청·노래 담은 시각을 정해서) */
+    private fun room(createdAgo: Duration, keySeenAgo: Duration?, songAddedAgo: Duration?): Long {
+        val now = Instant.now()
+        val id = jdbc.sql("INSERT INTO room (public_id, name, created_at) VALUES (:p, 'I-56 시험 방', :c) RETURNING id")
+            .param("p", "t" + UUID.randomUUID().toString().take(12)).param("c", ts(now.minus(createdAgo))).query(Long::class.java).single()
+        val member = jdbc.sql("INSERT INTO member (room_id, nickname, role, color_idx, pin_hash) VALUES (:r, '방장', 'HOST', 0, 'x') RETURNING id")
+            .param("r", id).query(Long::class.java).single()
+        keySeenAgo?.let {
+            jdbc.sql("INSERT INTO member_key (key_hash, member_id, created_at, last_seen_at) VALUES (:k, :m, :c, :s)")
+                .param("k", UUID.randomUUID().toString().toByteArray()).param("m", member).param("c", ts(now.minus(createdAgo))).param("s", ts(now.minus(it))).update()
+        }
+        songAddedAgo?.let {
+            val artist = jdbc.sql("INSERT INTO artist (mbid, name) VALUES (:m, 'I-56 가수') RETURNING id").param("m", UUID.randomUUID()).query(Long::class.java).single()
+            val track = jdbc.sql("INSERT INTO track (recording_mbid, title, artist_id) VALUES (:m, 'I-56 곡', :a) RETURNING id").param("m", UUID.randomUUID()).param("a", artist).query(Long::class.java).single()
+            jdbc.sql("INSERT INTO room_song (room_id, member_id, track_id, artist_id, added_at) VALUES (:r, :m, :t, :a, :at)")
+                .param("r", id).param("m", member).param("t", track).param("a", artist).param("at", ts(now.minus(it))).update()
+        }
+        return id
+    }
+
+    private fun status(id: Long) = jdbc.sql("SELECT status FROM room WHERE id = :i").param("i", id).query(String::class.java).single()
+
+    @Test
+    fun `I-56 마지막 사용 1년 지난 방만 숨기고 감사 기록을 남긴다 - 열쇠 요청이나 노래 담기가 1년 안이면 그대로`() {
+        val old = room(Duration.ofDays(400), Duration.ofDays(370), null)
+        val noKey = room(Duration.ofDays(380), null, null)
+        val keyRecent = room(Duration.ofDays(400), Duration.ofDays(10), null)
+        val songRecent = room(Duration.ofDays(400), Duration.ofDays(370), Duration.ofDays(30))
+        val fresh = room(Duration.ofDays(5), null, null)
+        val now = Instant.now()
+
+        val r = cleanup.run(now)
+
+        assertEquals(2, r.unusedRooms, r.toString())
+        assertEquals("HIDDEN", status(old)); assertEquals("HIDDEN", status(noKey))
+        listOf(keyRecent, songRecent, fresh).forEach { assertEquals("ACTIVE", status(it)) }
+        val purgeAt = jdbc.sql("SELECT purge_at FROM room WHERE id = :i").param("i", old).query { rs, _ -> rs.getTimestamp(1).toInstant() }.single()
+        assertTrue(Duration.between(now.plus(Duration.ofDays(7)), purgeAt).abs() < Duration.ofSeconds(5), "7일 뒤 완전 삭제 흐름")
+        val audit = jdbc.sql("SELECT actor_type, detail ->> 'lastUsedAt' FROM audit_log WHERE room_id = :i AND action = 'ROOM_EXPIRE_HIDE'").param("i", old)
+            .query { rs, _ -> rs.getString(1) to rs.getString(2) }.single()
+        assertEquals("SYSTEM", audit.first)
+        assertNotNull(audit.second)
+        assertEquals(0, cleanup.run(now).unusedRooms, "이미 숨긴 방은 다시 숨기지 않는다")
+        // 7일 뒤 기존 흐름으로 완전 삭제
+        cleanup.run(now.plus(Duration.ofDays(8)))
+        assertEquals(0, jdbc.sql("SELECT count(*) FROM room WHERE id IN (:i)").param("i", listOf(old, noKey)).query(Int::class.java).single())
+        jdbc.sql("DELETE FROM room WHERE id IN (:i)").param("i", listOf(keyRecent, songRecent, fresh)).update()
+    }
+
+    @Test
+    fun `I-57 90일 지난 메일 발송 기록은 지우고 관리자 세션 IP는 비운다`() {
+        val now = Instant.now()
+        jdbc.sql("INSERT INTO mail_send_log (email_hash, ip, sent_at) VALUES ('\\x01', '1.1.1.1', :o), ('\\x02', '2.2.2.2', :n)")
+            .param("o", ts(now.minus(Duration.ofDays(91)))).param("n", ts(now.minus(Duration.ofDays(89)))).update()
+        val admin = jdbc.sql("INSERT INTO admin_user (email, password_hash, totp_secret) VALUES (:e, 'x', 'x') RETURNING id")
+            .param("e", "i57-${UUID.randomUUID()}@example.com").query(Long::class.java).single()
+        jdbc.sql("INSERT INTO admin_session (token_hash, admin_id, stage, ip, created_at, expires_at) VALUES ('\\x0a', :a, 'ACTIVE', '3.3.3.3', :o, :o), ('\\x0b', :a, 'ACTIVE', '4.4.4.4', :n, :n)")
+            .param("a", admin).param("o", ts(now.minus(Duration.ofDays(91)))).param("n", ts(now.minus(Duration.ofDays(1)))).update()
+
+        assertEquals(2, cleanup.run(now).oldIps)
+
+        assertEquals(listOf("2.2.2.2"), jdbc.sql("SELECT ip FROM mail_send_log ORDER BY id").query(String::class.java).list())
+        assertEquals(listOf(null, "4.4.4.4"), jdbc.sql("SELECT ip FROM admin_session WHERE admin_id = :a ORDER BY id").param("a", admin).query { rs, _ -> rs.getString(1) }.list())
+        assertEquals(2, jdbc.sql("SELECT count(*) FROM admin_session WHERE admin_id = :a").param("a", admin).query(Int::class.java).single(), "세션 행은 남긴다")
+        jdbc.sql("DELETE FROM mail_send_log").update()
+        jdbc.sql("DELETE FROM admin_user WHERE id = :a").param("a", admin).update()
     }
 }

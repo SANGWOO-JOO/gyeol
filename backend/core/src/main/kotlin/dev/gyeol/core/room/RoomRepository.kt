@@ -191,6 +191,25 @@ class RoomRepository(private val jdbc: JdbcClient) {
     }
 
     /** 1년 지난 감사 기록 삭제 (정리 작업). 지운 수 */
+    /**
+     * I-56: 마지막 사용이 [unusedBefore]보다 오래된(1년) 숨기지 않은 방. 마지막 사용 = 참가자 기기 열쇠의 마지막 요청(입장·지도 보기·담기 등
+     * 방 API를 쓸 때마다 갱신, [memberByKey])과 마지막 노래 담기, 없으면 방 만든 시각 중 가장 늦은 것.
+     * room.last_active_at은 다른 방 활동으로 공용 지도를 다시 그릴 때도 올라가 쓰지 않는다. (방 id, 마지막 사용)
+     */
+    fun unusedRooms(unusedBefore: Instant): List<Pair<Long, Instant>> =
+        jdbc.sql(
+            """
+            SELECT id, last_used FROM (
+                SELECT r.id, greatest(
+                    r.created_at,
+                    coalesce((SELECT max(k.last_seen_at) FROM member m JOIN member_key k ON k.member_id = m.id WHERE m.room_id = r.id), r.created_at),
+                    coalesce((SELECT max(rs.added_at) FROM room_song rs WHERE rs.room_id = r.id), r.created_at)
+                ) AS last_used
+                FROM room r WHERE r.status <> 'HIDDEN'
+            ) x WHERE last_used < :b ORDER BY id
+            """.trimIndent(),
+        ).param("b", Timestamp.from(unusedBefore)).query { rs, _ -> rs.getLong(1) to rs.getTimestamp(2).toInstant() }.list()
+
     fun deleteOldAudit(before: Instant): Int =
         jdbc.sql("DELETE FROM audit_log WHERE created_at < :b").param("b", Timestamp.from(before)).update()
 }

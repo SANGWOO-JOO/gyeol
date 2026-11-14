@@ -49,7 +49,15 @@ data class WorkerProperties(
     data class CodeMatchProps(val queue: String = "gyeol-local-code-match", val dlq: String = "gyeol-local-code-match-dlq")
 
     /** 음악 방 담기 식별 (docs/todo/room-api-db.md) */
-    data class RoomProps(val songQueue: String = "gyeol-local-room-song", val songDlq: String = "gyeol-local-room-song-dlq")
+    data class RoomProps(
+        val songQueue: String = "gyeol-local-room-song", val songDlq: String = "gyeol-local-room-song-dlq",
+        /** I-56: 마지막 사용 뒤 이만큼 지나면 숨긴다 (그 뒤 [purgeAfter]에 완전 삭제) */
+        val unusedHideAfter: Duration = Duration.ofDays(365),
+        /** 숨긴 뒤 완전 삭제까지 (api gyeol.room.purge-after와 같은 7일) */
+        val purgeAfter: Duration = Duration.ofDays(7),
+        /** I-57: 메일 발송 기록·관리자 세션 IP 보관 */
+        val ipRetention: Duration = Duration.ofDays(90),
+    )
 
     /** 가수 이미지 (docs/todo/artist-images.md). 사진은 표지와 같은 버킷의 artists/ 아래에 둔다 */
     data class ArtistImageProps(

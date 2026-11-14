@@ -81,4 +81,8 @@ class RoomDraftRepository(private val jdbc: JdbcClient) {
     fun sendsByIp(ip: String, since: Instant): Int =
         jdbc.sql("SELECT count(*) FROM mail_send_log WHERE ip = :ip AND sent_at > :s").param("ip", ip).param("s", Timestamp.from(since))
             .query(Int::class.java).single()
+
+    /** I-57: [before]보다 오래된 메일 발송 기록(IP·이메일 해시)을 지운다. 발송 제한은 시간·하루 단위라 90일 전 기록은 쓰지 않는다 */
+    fun deleteOldMailLogs(before: java.time.Instant): Int =
+        jdbc.sql("DELETE FROM mail_send_log WHERE sent_at < :b").param("b", java.sql.Timestamp.from(before)).update()
 }

@@ -594,3 +594,17 @@
 ### I-48 4-2 방안 A 구현: 판정 경로 제목 29일 뒤 삭제 (11-15, 사용자 승인)
 - 자세한 기록은 `docs/todo/youtube-derived-title-expiry.md` "구현 기록"에 있다. V34, 저장 경로 판정 시각, `CleanupService.deleteApiDerived`, 색인 재생성, filter.ts 불변식 주석.
 - 테스트: worker `YoutubeDerivedExpiryTest` 6개. worker 101·api 99(건너뜀 1) 통과. 01:17:40 api·worker 재시작.
+
+### I-56·I-57·I-59·I-60 보관·개인정보 정리 (11-15, 사용자 승인)
+- **I-56 쓰지 않는 방:** `CleanupService.hideUnusedRooms`(매일 04:00)가 마지막 사용 1년 지난 방을 숨긴다(`purge_at` = 숨긴 시각 + 7일 → 기존 `purgeHidden` 흐름으로 완전 삭제). 감사 기록 `SYSTEM ROOM_EXPIRE_HIDE {lastUsedAt}`을 남긴다.
+  - 마지막 사용 = max(참가자 기기 열쇠의 `member_key.last_seen_at`, 마지막 `room_song.added_at`, 방 만든 시각). `last_seen_at`은 방 API를 쓸 때마다 갱신된다(입장·지도 보기·담기 모두).
+  - `room.last_active_at`은 쓰지 않는다. 다른 방 활동으로 공용 지도를 다시 그릴 때도(`bumpMapRev`) 올라가 실제 사용이 아니다.
+  - 새 컬럼·마이그레이션은 필요 없다(V35 없음). 설정: `WorkerProperties.RoomProps.unusedHideAfter`(365일)·`purgeAfter`(7일).
+- **I-57 IP 90일:** 메일 발송 기록(`mail_send_log`, IP·이메일 해시)은 90일 지난 행을 지운다. 관리자 세션(`admin_session.ip`)은 만든 지 90일 지나면 IP만 비우고 행은 남긴다(`ipRetention` 90일).
+- **I-59:** 방 쿠키 `gyeol_room` Max-Age 400일 → 180일(`RoomKeys.COOKIE_MAX_AGE`).
+- **I-60:** 주석만 고쳤다. `infra/terraform/base/s3.tf`(수명 규칙 1일이 실제 삭제, worker는 처리 뒤 바로 지우지 않고 정리 작업이 7일에 한 번 더), `CleanupService` 머리 주석(세션 30일·청취 기록·원본 7일 구분, 6·7번 항목 추가).
+- 테스트
+  - worker `CleanupIntegrationTest` 2개: 쓰지 않는 방 숨김(열쇠·노래 담기가 1년 안이면 유지, 감사 기록, 다시 돌려도 0, 8일 뒤 완전 삭제), IP 90일
+  - api 쿠키 Max-Age 단언 1줄
+  - 결과: worker 103·api 99(건너뜀 1) 통과. 01:26:00 api·worker 재시작.
+- 로컬 영향: 지금 숨길 방 0개(리뷰 방 9n4jTVwPmV는 ACTIVE 그대로), 90일 지난 메일 기록 0·관리자 IP 0. 시험 방은 테스트 DB(Testcontainers)에서 만들고 지웠다.

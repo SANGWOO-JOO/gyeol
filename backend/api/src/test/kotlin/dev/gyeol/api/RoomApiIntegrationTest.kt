@@ -741,6 +741,7 @@ class RoomApiIntegrationTest {
         assertEquals(200, ok.status)
         assertEquals(host.memberId, ok.body!!["member"]["id"].asLong())
         assertTrue(ok.headers["set-cookie"]!!.single().contains("Path=/api/rooms/${host.rid}"))
+        assertTrue(ok.headers["set-cookie"]!!.single().contains("Max-Age=15552000"), "I-59: 방 쿠키 180일")
         assertEquals(200, call("GET", "/api/rooms/${host.rid}/me", key = ok.body["key"].asString()).status, "새 열쇠")
         assertEquals(401, call("GET", "/api/rooms/${host.rid}/me", key = host.key).status, "다른 기기 열쇠는 폐기 (I-10)")
         assertEquals("PIN_MISMATCH", call("POST", "/api/rooms/${host.rid}/session", mapOf("memberId" to host.memberId, "pin" to "1234")).body!!["code"].asString())

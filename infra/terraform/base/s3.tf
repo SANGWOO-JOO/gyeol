@@ -28,7 +28,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
   }
 }
 
-# 업로드 파일은 worker가 처리 뒤 지운다. 남은 파일은 하루 뒤 삭제 (안전장치)
+# 업로드 원본은 이 수명 규칙이 하루 뒤 지운다(실제 삭제 시점). worker는 처리 뒤 바로 지우지 않고,
+# 정리 작업(CleanupService)이 업로드 7일 뒤(또는 세션 만료)에 한 번 더 지우며 file_deleted_at을 남긴다
 resource "aws_s3_bucket_lifecycle_configuration" "uploads" {
   bucket = aws_s3_bucket.this["uploads"].id
   rule {

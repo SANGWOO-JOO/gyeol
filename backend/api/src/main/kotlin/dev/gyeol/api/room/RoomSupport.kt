@@ -62,10 +62,12 @@ object RoomIds {
 object RoomKeys {
     const val HEADER = "X-Room-Key"
     const val COOKIE = "gyeol_room"
+    /** I-59 (11-15): 400일 → 180일. 방을 계속 쓰면 요청마다 다시 받지 않아도 되고, 안 쓰는 기기에는 반년 뒤 남지 않는다 */
+    val COOKIE_MAX_AGE: Duration = Duration.ofDays(180)
 
     fun cookie(publicId: String, key: String, secure: Boolean): ResponseCookie =
         ResponseCookie.from(COOKIE, key).httpOnly(true).secure(secure).sameSite("Lax").path("/api/rooms/$publicId")
-            .maxAge(Duration.ofDays(400)).build()
+            .maxAge(COOKIE_MAX_AGE).build()
 
     fun clear(publicId: String, secure: Boolean): ResponseCookie =
         ResponseCookie.from(COOKIE, "").httpOnly(true).secure(secure).sameSite("Lax").path("/api/rooms/$publicId").maxAge(0).build()

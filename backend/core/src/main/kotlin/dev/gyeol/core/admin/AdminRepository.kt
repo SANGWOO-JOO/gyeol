@@ -138,4 +138,8 @@ class AdminRepository(private val jdbc: JdbcClient) {
                 rs.getObject(6) as Long?, rs.getString(7), rs.getTimestamp(8).toInstant(),
             )
         }.list()
+
+    /** I-57: [before]보다 오래전에 만든 관리자 세션의 IP를 지운다 (세션 행은 남김). 지운 행 수 */
+    fun clearOldSessionIps(before: java.time.Instant): Int =
+        jdbc.sql("UPDATE admin_session SET ip = NULL WHERE created_at < :b AND ip IS NOT NULL").param("b", java.sql.Timestamp.from(before)).update()
 }
