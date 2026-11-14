@@ -57,3 +57,6 @@
   .body { max-width: 40em; padding: 12px 40px 36px; font-size: 15.5px; }
 }
 @media (prefers-reduced-motion: no-preference) { html:has(.page) { scroll-behavior: smooth; } }
+/* 두 칸 표(위탁·국외 이전)는 휴대폰에서도 가로로 밀지 않고 줄바꿈 */
+.tableWrap table.twoCol { min-width: 0; }
+.twoCol th:first-child, .twoCol td:first-child { width: 6.5em; white-space: normal; }

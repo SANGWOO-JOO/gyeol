@@ -78,3 +78,8 @@
 @media (prefers-reduced-motion: reduce) {
   .starsFar { animation: none; }
 }
+
+/* 방 만들기 이메일 동의 문구 안 처리방침 링크 (새 탭) */
+.consentLink { color: #cbb8ff; text-underline-offset: 3px; white-space: nowrap; }
+.consentLink:hover { color: #e6dcff; }
+.consentLink:focus-visible { outline: 2px solid #b9a2ff; outline-offset: 2px; border-radius: 4px; }

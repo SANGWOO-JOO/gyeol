@@ -30,7 +30,7 @@ function BlockView({ b }: { b: Block }) {
     case 'note': return <p className={l.note}><Inl parts={b.inl} /></p>
     case 'table': return (
       <div className={l.tableWrap} tabIndex={0} role="region" aria-label="표">
-        <table>
+        <table className={b.head.length <= 2 ? l.twoCol : undefined}>
           <thead><tr>{b.head.map((c, i) => <th key={i} scope="col"><Inl parts={c} /></th>)}</tr></thead>
           <tbody>{b.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}><Inl parts={c} /></td>)}</tr>)}</tbody>
         </table>

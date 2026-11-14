@@ -118,7 +118,7 @@ function FormStep({ form, setForm, onSent }: { form: Form; setForm: (f: Form) =>
 
         <label className={s.consent}>
           <input type="checkbox" checked={form.consent} onChange={e => set('consent', e.target.checked)} />
-          <span>방 복구를 위해 이메일을 저장하는 데 동의해요. 방을 삭제할 때까지 보관해요.</span>
+          <span>방 복구를 위해 이메일을 저장하는 데 동의해요. 방을 삭제할 때까지 보관해요. <a href="/privacy" target="_blank" rel="noopener" className={o.consentLink}>개인정보 처리방침</a></span>
         </label>
 
         {error && <p className={s.error} role="alert">{error}</p>}

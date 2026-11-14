@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router'
+import './styles/fonts'
 import './styles/tokens.css'
 import './styles/room.css'
 import { Pick } from './pages/Pick'
