@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { keyStore } from './keyStore'
+import { KEY_TTL_MS, keyStore, prune } from './keyStore'
 
 /** node 환경용 간단한 localStorage */
 class MemoryStorage {
@@ -59,5 +59,43 @@ describe('keyStore', () => {
     expect(() => keyStore.save(entry('a'))).not.toThrow()
     expect(keyStore.get('a')).toBeNull()
     expect(keyStore.list()).toEqual([])
+  })
+
+  describe('180일 보관 (I-69)', () => {
+    const t0 = new Date('2026-01-01T00:00:00Z')
+    const at = (ms: number) => new Date(t0.getTime() + ms)
+
+    it('180일이 지난 열쇠는 읽을 때 버리고 저장소에서도 지운다', () => {
+      keyStore.save(entry('a'), t0)
+      expect(keyStore.get('a', at(KEY_TTL_MS))?.key).toBe('key-a')
+      expect(keyStore.get('a', at(KEY_TTL_MS + 1))).toBeNull()
+      expect(JSON.parse(store.getItem('gyeol.rooms.v1')!)).toEqual({})
+    })
+
+    it('목록에서도 만료된 방은 빠진다', () => {
+      keyStore.save(entry('old'), t0)
+      keyStore.save(entry('new'), at(KEY_TTL_MS))
+      expect(keyStore.list(at(KEY_TTL_MS + 1)).map(k => k.roomId)).toEqual(['new'])
+    })
+
+    it('저장 시각이 없는 옛 값은 처음 읽을 때 지금 시각으로 채운다', () => {
+      store.setItem('gyeol.rooms.v1', JSON.stringify({ a: entry('a') }))
+      expect(keyStore.get('a', t0)?.savedAt).toBe(t0.toISOString())
+      expect(JSON.parse(store.getItem('gyeol.rooms.v1')!).a.savedAt).toBe(t0.toISOString())
+      expect(keyStore.get('a', at(KEY_TTL_MS))?.key).toBe('key-a')
+    })
+
+    it('이름만 바꿔도 저장 시각은 그대로', () => {
+      const now = new Date()
+      keyStore.save(entry('a'), now)
+      keyStore.update('a', { nickname: '새 이름' })
+      expect(keyStore.get('a')).toMatchObject({ nickname: '새 이름', savedAt: now.toISOString() })
+    })
+
+    it('prune: 잘못된 값은 빼고 바뀐 게 없으면 changed=false', () => {
+      const ok = { ...entry('a'), savedAt: t0.toISOString() }
+      expect(prune({ a: ok }, t0)).toEqual({ all: { a: ok }, changed: false })
+      expect(prune({ a: ok, b: null as never }, t0).changed).toBe(true)
+    })
   })
 })

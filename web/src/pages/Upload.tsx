@@ -108,12 +108,12 @@ export function Upload() {
               <Alert kind="warn">기록 기간이 짧아요({Math.round(days)}일). "YouTube 및 YouTube Music"으로 받은 파일은 최근 기록 일부만 와요. "내 활동 → YouTube"로 다시 받으면 더 길게 올 수 있어요.</Alert>
             )}
             <p className={ui.small} style={{ margin: 0 }}>
-              올리면 <Link to="/terms">이용약관</Link>과 <Link to="/privacy">개인정보 처리방침</Link>에 동의하는 것으로 봐요. 올린 기록은 결과 화면에서 언제든 지울 수 있어요.
+              아래 <b>동의하고 올리기</b>를 누르면 <Link to="/terms">이용약관</Link>과 <Link to="/privacy">개인정보 처리방침</Link>(YouTube 서비스 약관 포함)에 동의하게 돼요. 올린 기록은 결과 화면에서 언제든 지울 수 있어요.
             </p>
             <div className={ui.row} style={{ justifyContent: 'flex-end' }}>
               <button className={ui.button} onClick={() => inputRef.current?.click()} disabled={step !== 'preview'}>다른 파일</button>
               <button className={`${ui.button} ${ui.primary}`} onClick={upload} disabled={step !== 'preview'}>
-                {step === 'checking' ? '음악 영상 확인 중…' : step === 'uploading' ? '올리는 중…' : `음악 기록 올리기`}
+                {step === 'checking' ? '음악 영상 확인 중…' : step === 'uploading' ? '올리는 중…' : '동의하고 올리기'}
               </button>
             </div>
           </div>

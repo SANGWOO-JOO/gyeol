@@ -77,6 +77,11 @@ export function Result() {
           <Alert>기록을 처리하지 못했어요{session.error ? `: ${session.error}` : ''}. <Link to="/upload">다시 올리기</Link></Alert>
         )}
 
+        {session?.entry === 'TAKEOUT' && (
+          <p className={ui.small} style={{ margin: 0 }}>
+            음악인지 판정한 결과와 아래 분석·추천은 YouTube가 준 수치가 아니라, 올린 기록으로 결이 직접 계산한 값이에요.
+          </p>
+        )}
         {session?.status === 'DONE' && session.entry === 'SEEDS' && <Seeds session={session} />}
         {session?.status === 'DONE' && session.entry === 'TAKEOUT' && session.identify && <IdentifyProgress p={session.identify} />}
         {session?.status === 'DONE' && session.enrich && session.enrich.done + session.enrich.failed < session.enrich.target && (
@@ -86,12 +91,15 @@ export function Result() {
         {session?.status === 'DONE' && stats && <Report stats={stats} token={token} />}
 
         {session && (
-          <div className={ui.row} style={{ justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+          <div className={ui.stack} style={{ gap: 8, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+          <div className={ui.row} style={{ justifyContent: 'space-between' }}>
             <span className={ui.small}>{new Date(session.expiresAt).toLocaleDateString('ko-KR')}까지 이 링크로 볼 수 있어요.</span>
             <div className={ui.row}>
               <button className={ui.button} onClick={copy}>{copied ? '복사했어요' : '링크 복사'}</button>
               <button className={`${ui.button} ${ui.danger}`} onClick={remove}>지금 삭제</button>
             </div>
+          </div>
+          <span className={ui.small}>지금 삭제를 누르면 결에 올린 기록과 결과가 바로 지워져요. 결에서 지워도 YouTube 시청 기록에는 영향이 없어요.</span>
           </div>
         )}
       </div>
