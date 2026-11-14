@@ -8,6 +8,7 @@ import { NO_FRESH, songKey, type Fresh } from './fresh'
 import { genreColor, pillWidth, planetFace } from './faces'
 import { SAT_TIP_MAX, satTipPosition, satTipWidth } from './satTip'
 import { keepCenterShift } from '../shell/panelPref'
+import { bucketMinScale, declutter, declutterBucket } from './declutter'
 import { planetLit, ringLit, songLit } from './focus'
 import { COVER_PAD, COVER_R, orbitLayout, RING_GAP, ringRadii, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
@@ -238,18 +239,32 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
     const coverHalf = level === 'near' ? (COVER_R + COVER_PAD) * sg : 3 * sg
     return [p.artistId, rr[rr.length - 1] + coverHalf]
   })), [planets, radius, radii, level, sg])
+  // 행성 겹침 풀기 (11-14 방안 A): 확대 구간(단계 + 1/4옥타브)이 바뀔 때만, 그 크기의 바깥 반지름으로 겹치는 행성을 조금씩 민다.
+  // 구간 안에서 배율이 올라가면 세계 단위로 필요한 간격은 줄어드므로(바깥 반지름은 배율보다 느리게 큼) 구간 최저 배율 기준으로 잡는다
+  const bucket = declutterBucket(s, level)
+  const outerRef = useRef(outer); outerRef.current = outer
+  const sRef = useRef(s); sRef.current = s
+  const placedPos = useMemo(() => {
+    const sNow = sRef.current
+    const k = Math.pow(sNow / bucketMinScale(sNow), 0.3)
+    const centers = map.galaxies.map(g => ({ id: g.id, x: toWorld(g.x), y: toWorld(g.y) }))
+    return declutter(planets.map(p => ({ id: p.artistId, x: p.wx, y: p.wy, r: (outerRef.current.get(p.artistId)! + 6) / sNow * k, galaxyId: p.galaxyId })), centers)
+    // 구간이 바뀔 때만 다시 (매 프레임 아님)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bucket, planets, map.galaxies])
+  const planetsAt = useMemo(() => planets.map(p => { const q = placedPos.get(p.artistId); return q ? { ...p, wx: q.x, wy: q.y } : p }), [planets, placedPos])
   // 근처 가수를 그릴 자리: 방 행성의 바깥 궤도(+위성) 밖으로 밀어낸다 (I-40 2차). 화면 px로 계산해 세계 좌표로 되돌린다
   const placedGhosts = useMemo(() => {
-    const obs = planets.map(p => ({ x: p.wx * s + settled.tx, y: p.wy * s + settled.ty, r: outer.get(p.artistId)! + 5 * grow })) // 바깥 궤도 + 위성 반지름
+    const obs = planetsAt.map(p => ({ x: p.wx * s + settled.tx, y: p.wy * s + settled.ty, r: outer.get(p.artistId)! + 5 * grow })) // 바깥 궤도 + 위성 반지름
     return ghosts.map(x => {
       const q = pushOut({ x: x.wx * s + settled.tx, y: x.wy * s + settled.ty }, ghostR, obs, 8 * grow)
       return { ...x, wx: (q.x - settled.tx) / s, wy: (q.y - settled.ty) / s }
     })
-  }, [ghosts, planets, outer, s, settled.tx, settled.ty, ghostR, grow])
-  const nameItems = useMemo(() => planets.map(p => ({
+  }, [ghosts, planetsAt, outer, s, settled.tx, settled.ty, ghostR, grow])
+  const nameItems = useMemo(() => planetsAt.map(p => ({
     id: p.artistId, sx: p.wx * s + settled.tx, sy: p.wy * s + settled.ty, r: outer.get(p.artistId)!,
     w: Math.min(130 * nameGrow, (Array.from(p.name).length * 9 + 8) * nameGrow), weight: p.songs.length + (p.people.memberIds.includes(meId) ? 0.5 : 0),
-  })), [planets, s, settled.tx, settled.ty, outer, meId, nameGrow])
+  })), [planetsAt, s, settled.tx, settled.ty, outer, meId, nameGrow])
   // 화면 밖(한 화면 거리 이상) 행성은 그리지 않는다: 수백 개여도 가볍게. 이동 중엔 이 여유 안에서 보인다
   const onScreen = useMemo(() => {
     const mx = size.width, my = size.height
@@ -360,7 +375,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                 {ghostLabels.has(x.artistId) && <text y={(ghostR + 13 * nameGrow) * u} fontSize={NAME_PX * nameGrow * u} textAnchor="middle">{x.name}</text>}
               </g>
             ))}
-            {planets.filter(p => onScreen.has(p.artistId)).map(p => {
+            {planetsAt.filter(p => onScreen.has(p.artistId)).map(p => {
               const r = radius.get(p.artistId)! * u
               const ro = outer.get(p.artistId)! * u
               const mine = p.people.memberIds.includes(meId)
@@ -372,7 +387,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
               const ping = !born && level === 'far' && p.songs.some(x => fresh.tracks.has(songKey(p.artistId, x.trackId)) || fresh.gold.has(songKey(p.artistId, x.trackId)))
               return (
                 <g key={p.artistId} className={`${g.planetNode} ${p.preparing ? g.preparingNode : ''} ${selectedId === p.artistId ? g.selectedNode : ''} ${lit ? '' : g.dimmed}`} data-artist={p.artistId} aria-current={selectedId === p.artistId ? 'true' : undefined}
-                  transform={`translate(${p.wx} ${p.wy})`} role="button" tabIndex={0} onKeyDown={onKey(p.artistId)}
+                  style={{ transform: `translate(${p.wx}px, ${p.wy}px)` }} role="button" tabIndex={0} onKeyDown={onKey(p.artistId)}
                   aria-label={`${p.name}, 노래 ${p.songs.length}곡${who ? `, ${who}` : ''}${p.people.shared ? `, 같이 담은 노래 ${p.people.shared}곡` : ''}${p.preparing ? ', 우주에 올리는 중' : ''}`}>
                   <circle className={g.planetHit} r={Math.max(ro, r + 10 * u)} />
                   {selectedId === p.artistId && <circle className={g.selectRing} r={r + 4 * u} strokeWidth={2 * u} />}

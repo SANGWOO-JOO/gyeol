@@ -186,3 +186,7 @@
 @keyframes satTipFade { from { opacity: 0; } }
 .satTip[data-below]::after { bottom: auto; top: -5px; transform: rotate(225deg); }
 .orbits .satNode:focus-visible > :first-child { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+
+/* 겹침 풀기로 행성 자리가 바뀌면 짧게 이어서 옮긴다 (CSS transform이라 SVG 세계 단위 = px) */
+.planetNode { transition: opacity .25s ease, transform .2s ease; }
+@media (prefers-reduced-motion: reduce) { .planetNode { transition: none; } }
