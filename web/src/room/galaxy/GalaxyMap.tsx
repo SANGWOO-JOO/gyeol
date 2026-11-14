@@ -128,6 +128,17 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
     return () => ro.disconnect()
   }, [])
 
+  // 지도 위에 얹힌 위쪽 것(PC 유리 띠 아래 목록 보기 칩)의 아래 끝(지도 안 px). 구역 이름이 그 아래에 오게
+  const [topInset, setTopInset] = useState(0)
+  useLayoutEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const w = el.getBoundingClientRect()
+    let b = 0
+    ;(el.closest('section') ?? el.parentElement)?.querySelectorAll<HTMLElement>('[data-map-overlay="top"]').forEach(o => { const r = o.getBoundingClientRect(); if (r.width > 0 && r.bottom > w.top) b = Math.max(b, r.bottom - w.top) })
+    setTopInset(b > 0 ? b + 6 : 0)
+  }, [size])
+
   // ⑤ 처음(또는 0곡에서 첫 행성이 생겼을 때) 방의 행성이 모두 보이게.
   // 사용자가 아직 지도를 움직이지 않았다면 화면 크기가 바뀔 때(회전·창 크기)도 다시 맞춘다
   const touched = useRef(false)
@@ -348,7 +359,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
   // 공전은 실제로 화면 안(여유 없이)에 있는 행성만: 여유 칸 행성까지 돌리면 수백 개 지도에서 애니메이션이 몇 배로 는다
   const inView = useMemo(() => new Set(nameItems.filter(it => it.sx > -it.r && it.sx < size.width + it.r && it.sy > -it.r && it.sy < size.height + it.r).map(it => it.id)), [nameItems, size])
   // 이름 자리 정하기: 행성 몸체를 먼저 놓고 → 행성 이름(노래 많은 순) → 유령 이름 → 구역 이름. 겹치면 숨긴다
-  const { labels, ghostLabels, galaxyLabels } = useMemo(() => {
+  const { labels, ghostLabels, galaxyLabels, galaxyShift } = useMemo(() => {
     const bodies = nameItems.map(it => ({ x0: it.sx - it.r - 3, x1: it.sx + it.r + 3, y0: it.sy - it.r - 3, y1: it.sy + it.r }))
     const nameH = 15 * nameGrow
     const labels = level === 'far' ? new Set<number>() : visibleLabels(nameItems, nameH, bodies)
@@ -364,12 +375,27 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
     const count = new Map<number, number>()
     planets.forEach(p => { if (p.galaxyId != null) count.set(p.galaxyId, (count.get(p.galaxyId) ?? 0) + p.songs.length) })
     // 화면 가장자리에 잘리는 구역 이름은 숨긴다
-    const galaxyLabels = visibleLabels(galaxies.map(x => ({
-      id: x.id, sx: x.wx * s + settled.tx, sy: x.wy * s + settled.ty - 38, r: 0,
-      w: (Array.from(x.name ?? '').length * 13 + 8) * galaxyGrow, weight: count.get(x.id) ?? 0,
-    })).filter(it => it.sx - it.w / 2 >= 4 && it.sx + it.w / 2 <= size.width - 4 && it.sy >= 0 && it.sy + 20 * galaxyGrow <= size.height), 18 * galaxyGrow, level === 'far' ? [] : taken) // 멀리서는 구역 이름이 행성 위에 (테두리로 읽히게)
-    return { labels, ghostLabels, galaxyLabels }
-  }, [nameItems, placedGhosts, galaxies, planets, s, settled.tx, settled.ty, level, size, nameGrow, galaxyGrow, ghostR])
+    // 위에 얹힌 것(PC 유리 띠·목록 보기 칩) 아래로: 띠에 걸리는 구역 이름은 띠 아래 첫 줄로 내린다(숨기지 않음, 11-14)
+    const galaxyShift = new Map<number, number>()
+    const galaxyItems = galaxies.map(x => {
+      const sy0 = x.wy * s + settled.ty - 38
+      const sx = x.wx * s + settled.tx
+      const w = (Array.from(x.name ?? '').length * 13 + 8) * galaxyGrow
+      let shift = Math.max(0, topInset - sy0)
+      // 내린 이름이 행성·이름과 겹치면 겹치지 않는 줄이 나올 때까지 조금씩 더 내린다(최대 160px)
+      if (shift > 0 && level !== 'far') {
+        const h = 18 * galaxyGrow
+        const hits = (y: number) => taken.some(b => sx - w / 2 < b.x1 && sx + w / 2 > b.x0 && y + 2 < b.y1 && y + 2 + h > b.y0)
+        while (shift < topInset - sy0 + 160 && hits(sy0 + shift)) shift += 10
+      }
+      if (shift > 0) galaxyShift.set(x.id, shift)
+      return { id: x.id, sx, sy: sy0 + shift, r: 0, w, weight: count.get(x.id) ?? 0, above: sy0 + 20 * galaxyGrow < 0 }
+    })
+    const galaxyLabels = visibleLabels(galaxyItems
+      // 화면 위로 완전히 벗어난 구역(지금 보는 곳과 먼 구역)은 내리지 않고 그대로 뺀다
+      .filter(it => !it.above && it.sx - it.w / 2 >= 4 && it.sx + it.w / 2 <= size.width - 4 && it.sy + 20 * galaxyGrow <= size.height), 18 * galaxyGrow, level === 'far' ? [] : taken) // 멀리서는 구역 이름이 행성 위에 (테두리로 읽히게)
+    return { labels, ghostLabels, galaxyLabels, galaxyShift }
+  }, [nameItems, placedGhosts, galaxies, planets, s, settled.tx, settled.ty, level, size, nameGrow, galaxyGrow, ghostR, topInset])
 
   // 처음 근처 가수가 화면에 보이면 방마다 한 번 안내를 띄운다 (이름이 겹쳐 숨었어도). 4.5초 뒤 저절로 닫힘
   const firstGhost = useMemo(() => {
@@ -516,7 +542,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
             })}
             {/* 구역 이름은 맨 위에 (멀리서는 행성 위에 겹쳐 그림) */}
             <g aria-hidden="true" className={g.galaxyNames}>
-              {galaxies.filter(x => galaxyLabels.has(x.id)).map(x => <text key={x.id} x={x.wx} y={x.wy - 22 * u} fontSize={GALAXY_PX * galaxyGrow * u} strokeWidth={3 * u} textAnchor="middle">{x.name}</text>)}
+              {galaxies.filter(x => galaxyLabels.has(x.id)).map(x => <text key={x.id} x={x.wx} y={x.wy - 22 * u + (galaxyShift.get(x.id) ?? 0) * u} fontSize={GALAXY_PX * galaxyGrow * u} strokeWidth={3 * u} textAnchor="middle">{x.name}</text>)}
             </g>
           </g>
         </svg>
