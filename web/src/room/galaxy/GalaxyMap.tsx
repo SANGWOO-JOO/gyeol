@@ -34,7 +34,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
   // 궤도 순서(규칙 ⑫)는 지도 데이터가 바뀔 때만 다시 정한다
   const planets = useMemo(() => {
     const order = map.members.map(m => m.id)
-    return map.planets.map(p => ({ ...p, wx: toWorld(p.x), wy: toWorld(p.y), people: planetPeople(p), rings: orbitLayout(p, order) }))
+    return map.planets.map(p => ({ ...p, wx: toWorld(p.x), wy: toWorld(p.y), people: planetPeople(p), rings: orbitLayout(p, order), covers: new Map(p.songs.map(s => [s.trackId, s.coverUrl])) }))
   }, [map.planets, map.members])
   const galaxies = useMemo(() => map.galaxies.filter(x => x.name).map(x => ({ ...x, wx: toWorld(x.x), wy: toWorld(x.y) })), [map.galaxies])
   // I-44 얼굴과 장르 색: 지도 데이터가 바뀔 때만
@@ -314,7 +314,10 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                 onFocus={() => setHint({ id: x.artistId, auto: false })} onBlur={() => setHint(null)}>
                 <circle className={g.ghostHit} r={Math.max(20, ghostR + 8) * u} />
                 <circle className={g.ghostBody} r={ghostR * u} fill="url(#gl-planet)" strokeWidth={1.2 * u} strokeDasharray={`${3 * u} ${3 * u}`} />
-                <text className={g.ghostInitial} y={ghostR * 0.33 * u} fontSize={ghostR * 0.9 * u} textAnchor="middle">{Array.from(x.name)[0]}</text>
+                {/* I-44 ⑤ 사진이 있으면 흑백에 가깝게 흐린 얼굴, 없으면 이니셜 */}
+                {x.face?.url
+                  ? <image className={g.ghostFace} href={x.face.url} x={-ghostR * u} y={-ghostR * u} width={2 * ghostR * u} height={2 * ghostR * u} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
+                  : <text className={g.ghostInitial} y={ghostR * 0.33 * u} fontSize={ghostR * 0.9 * u} textAnchor="middle">{Array.from(x.name)[0]}</text>}
                 <g className={g.ghostPlus} transform={`translate(${ghostR * 0.78 * u} ${-ghostR * 0.78 * u})`}>
                   <circle r={6.5 * u} />
                   <path d={`M${-3 * u} 0H${3 * u}M0 ${-3 * u}V${3 * u}`} strokeWidth={1.5 * u} />
@@ -340,7 +343,8 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                   {(born || ping) && <Ripples r={born ? ro : r} u={u} first={born && fresh.first} />}
                   {p.preparing && <circle className={g.prepRing} r={r + 5 * u} strokeWidth={1.2 * u} strokeDasharray={`${2 * u} ${5 * u}`} />}
                   <g className={born ? (fresh.first ? g.firstPlanet : g.bornPlanet) : undefined}>
-                  {level !== 'far' && <Orbits artistId={p.artistId} rings={p.rings} r={radius.get(p.artistId)!} u={u} grow={grow} members={members} near={level === 'near'} fresh={fresh} spin={inView.has(p.artistId)} />}
+                  {level !== 'far' && <Orbits artistId={p.artistId} rings={p.rings} r={radius.get(p.artistId)!} u={u} grow={grow} members={members} near={level === 'near'} fresh={fresh} spin={inView.has(p.artistId)}
+                    covers={level === 'near' && inView.has(p.artistId) ? p.covers : undefined} />}
                   {/* I-44 ② 장르 구역 색 얇은 빛 테두리 */}
                   {!p.preparing && fc && <>
                     <circle className={g.genreGlow} r={r + 2.6 * u} stroke={fc.color} strokeWidth={3.2 * u} />
@@ -351,6 +355,12 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                     strokeWidth={1.1 * u} strokeDasharray={p.preparing ? `${3 * u} ${4 * u}` : undefined} />
                   {!p.preparing && fc && fc.face.kind !== 'genre' && inView.has(p.artistId) && (
                     <image className={g.planetFace} href={fc.face.url} x={-r} y={-r} width={2 * r} height={2 * r} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
+                  )}
+                  {born && fresh.fromGhost.has(p.artistId) && !p.preparing && (
+                    <g clipPath={`url(#fill-${p.artistId})`} aria-hidden="true">
+                      <clipPath id={`fill-${p.artistId}`}><circle r={r} /></clipPath>
+                      <rect className={g.fillVeil} x={-r} y={-r} width={2 * r} height={2 * r} />
+                    </g>
                   )}
                   {mine && !p.preparing && <circle className={g.mineRing} r={r} strokeWidth={1.4 * u} />}
                   {/* I-44 ③ 행성 아래 반투명 알약 이름표 */}
@@ -401,10 +411,12 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
  * 궤도·위성 (규칙 ⑫). 크기는 화면 px로 계산하고 u(세계/px)를 곱해 그린다.
  * 금빛 궤도 = 같이 담은 노래, 사람 궤도 = 그 사람 색 위성(혼자 담은 노래). 가까이(near)에선 위성을 조금 크게.
  */
-function Orbits({ artistId, rings, r, u, grow, members, near, fresh, spin }: {
+function Orbits({ artistId, rings, r, u, grow, members, near, fresh, spin, covers }: {
   artistId: number; rings: Ring[]; r: number; u: number; grow: number; members: Map<number, MemberView>; near: boolean; fresh: Fresh
   /** 화면 안이면 돈다 */
   spin: boolean
+  /** I-44 ④ 가까이(near)·화면 안일 때만: 곡 → 앨범 표지. 있으면 위성을 작은 표지로, 테두리 = 담은 사람(금빛 = 같이 담은 곡) */
+  covers?: Map<number, string | null>
 }) {
   const color = (id: number) => memberColor(members.get(id)?.colorIdx ?? 0).bg
   const k = (near ? 1.3 : 1) * grow
@@ -425,8 +437,18 @@ function Orbits({ artistId, rings, r, u, grow, members, near, fresh, spin }: {
               return (
                 <g key={sat.trackId}>
                   {/* 4-e 새 위성: 튀어나오듯 / 4-h 겹친 순간: 금빛 반짝임 */}
+                  {covers?.get(sat.trackId) ? (() => {
+                    const cr = 6.5 * grow * u
+                    return (
+                      <g className={fresh.tracks.has(key) || fresh.gold.has(key) ? g.satBorn : undefined}>
+                        <circle cx={cx} cy={cy} r={cr + 1.6 * u} fill={gold ? '#FFE3B8' : color(sat.memberIds[0])} />
+                        <image className={g.satCover} href={covers.get(sat.trackId)!} x={cx - cr} y={cy - cr} width={2 * cr} height={2 * cr} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
+                      </g>
+                    )
+                  })() : (
                   <circle cx={cx} cy={cy} r={sr} fill={gold ? undefined : color(sat.memberIds[0])}
                     className={`${gold ? g.goldSat : ''} ${fresh.tracks.has(key) || fresh.gold.has(key) ? g.satBorn : ''}`} />
+                  )}
                   {fresh.gold.has(key) && <Sparkle x={cx} y={cy} u={u} />}
                 </g>
               )

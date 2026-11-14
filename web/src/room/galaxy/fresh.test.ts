@@ -36,3 +36,13 @@ describe('연출 표시 비교', () => {
     expect(isEmptyFresh(diffMaps(m, m))).toBe(true)
   })
 })
+
+describe('I-44 ⑤ 근처 가수가 행성이 된 순간', () => {
+  const pl = (artistId: number): Planet => ({ artistId, name: 'a', x: 0.5, y: 0.5, songs: [{ trackId: artistId * 10, title: 't', coverUrl: null, memberIds: [1] }], galaxyId: null, preparing: false })
+  it('지난 지도에서 유령이었던 가수만 fromGhost', () => {
+    const prev: RoomMap = { ...map(pl(1)), ghosts: [{ artistId: 2, name: 'g', x: 0.4, y: 0.4, near: 1 }] }
+    const f = diffMaps(prev, map(pl(1), pl(2), pl(3)))
+    expect([...f.planets].sort()).toEqual([2, 3])
+    expect([...f.fromGhost]).toEqual([2])
+  })
+})

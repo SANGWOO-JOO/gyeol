@@ -8,8 +8,8 @@ import type { RoomMap } from '../roomApi'
  * - planets: 새 행성, 또는 준비 중(4-g)이던 행성이 자리를 잡은 순간
  * - first: 빈 우주에 첫 행성 (4-f)
  */
-export interface Fresh { tracks: Set<string>; gold: Set<string>; planets: Set<number>; first: boolean }
-export const NO_FRESH: Fresh = { tracks: new Set(), gold: new Set(), planets: new Set(), first: false }
+export interface Fresh { tracks: Set<string>; gold: Set<string>; planets: Set<number>; first: boolean; /** I-44 ⑤ 근처 가수(유령)였다가 담겨서 행성이 된 것: 색이 차오른다 */ fromGhost: Set<number> }
+export const NO_FRESH: Fresh = { tracks: new Set(), gold: new Set(), planets: new Set(), first: false, fromGhost: new Set() }
 export const songKey = (artistId: number, trackId: number) => `${artistId}:${trackId}`
 
 export function diffMaps(prev: RoomMap, next: RoomMap): Fresh {
@@ -25,7 +25,9 @@ export function diffMaps(prev: RoomMap, next: RoomMap): Fresh {
       if (s.memberIds.length >= 2 && (!o || o.memberIds.length < 2)) gold.add(songKey(p.artistId, s.trackId))
     }
   }
-  return { tracks, gold, planets, first: prev.planets.length === 0 && next.planets.length > 0 }
+  const wasGhost = new Set(prev.ghosts.map(x => x.artistId))
+  const fromGhost = new Set([...planets].filter(id => !before.has(id) && wasGhost.has(id)))
+  return { tracks, gold, planets, first: prev.planets.length === 0 && next.planets.length > 0, fromGhost }
 }
 
 export const isEmptyFresh = (f: Fresh) => !f.first && f.tracks.size === 0 && f.gold.size === 0 && f.planets.size === 0

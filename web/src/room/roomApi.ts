@@ -49,7 +49,7 @@ export interface Planet {
   face?: { kind?: string | null; url?: string | null; credit?: unknown } | null
 }
 export interface Galaxy { id: number; name: string | null; x: number; y: number }
-export interface Ghost { artistId: number; name: string; x: number; y: number; near: number }
+export interface Ghost { artistId: number; name: string; x: number; y: number; near: number; /** I-44 ⑤ 얼굴(선택): 사진이 있으면 흐린 흑백으로 */ face?: { kind?: string | null; url?: string | null } | null }
 export interface RoomMap { rev: number; placeholder: boolean; members: MemberView[]; planets: Planet[]; galaxies: Galaxy[]; ghosts: Ghost[] }
 
 export interface MemberRow { id: number; nickname: string; role: Role; colorIdx: number; songCount: number; me: boolean; avatarCharacterId?: number | null }

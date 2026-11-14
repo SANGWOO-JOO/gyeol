@@ -137,3 +137,10 @@
 .mineRing { fill: none; stroke: #f5f0ff; opacity: .85; pointer-events: none; }
 .namePillGroup { pointer-events: none; }
 .namePill { fill: rgba(20, 18, 37, .72); }
+/* I-44 ④ 위성 앨범 표지 · ⑤ 근처 가수 흐린 사진, 담으면 아래에서부터 색이 차오름 */
+.satCover { pointer-events: none; }
+.ghostFace { filter: grayscale(.85); opacity: .5; pointer-events: none; transition: opacity .15s, filter .15s; }
+.ghost:hover .ghostFace, .ghost:focus-visible .ghostFace { opacity: .8; filter: grayscale(.5); }
+.fillVeil { fill: #6a6488; opacity: .85; transform-box: fill-box; transform-origin: top; animation: fillUp 1.3s cubic-bezier(.4, 0, .2, 1) .15s both; }
+@keyframes fillUp { from { transform: scaleY(1); } to { transform: scaleY(0); } }
+@media (prefers-reduced-motion: reduce) { .fillVeil { animation: none; display: none; } }
