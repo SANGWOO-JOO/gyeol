@@ -1133,4 +1133,52 @@ class RoomApiIntegrationTest {
         assertEquals("CC BY-SA 4.0", screen["artist"]["photo"]["license"].asString())
         jdbc.sql("UPDATE map_version SET active = false WHERE id = :v").param("v", version).update()
     }
+
+    @Test
+    fun `I-14 방 표지 - 저장본이 있으면 coverPath(우리 주소), 없으면 null이고 coverUrl 그대로, 표지는 방 열쇠로만`() {
+        val host = newRoom()
+        val stored = track("표지저장 노래", "표지저장가수")
+        val external = track("표지외부 노래", "표지외부가수")
+        val key = "covers/test-$stored"
+        s3().use { it.putObject({ r -> r.bucket(COVERS).key(key).contentType("image/jpeg") }, software.amazon.awssdk.core.sync.RequestBody.fromBytes(byteArrayOf(4, 5, 6))) }
+        jdbc.sql("UPDATE track SET cover_key = :k, cover_url = 'https://coverartarchive.org/release/s/front-250', cover_checked_at = now() WHERE id = :t").param("k", key).param("t", stored).update()
+        jdbc.sql("UPDATE track SET cover_url = 'https://coverartarchive.org/release/e/front-250', cover_checked_at = now() WHERE id = :t").param("t", external).update()
+        val path = "/api/rooms/${host.rid}/covers/$stored"
+
+        // 담기 응답
+        val added = call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to stored), host.key).body!!["song"]
+        assertEquals(path, added["coverPath"].asString())
+        assertEquals("https://coverartarchive.org/release/s/front-250", added["coverUrl"].asString())
+        val addedExt = call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to external), host.key).body!!["song"]
+        assertTrue(addedExt["coverPath"].isNull)
+        assertEquals("https://coverartarchive.org/release/e/front-250", addedExt["coverUrl"].asString())
+
+        // 내 노래·지도 위성·가수 판
+        val mine = call("GET", "/api/rooms/${host.rid}/me/songs", key = host.key).body!!["items"].toList().associate { it["trackId"].asLong() to it["coverPath"] }
+        assertEquals(path, mine[stored]!!.asString()); assertTrue(mine[external]!!.isNull)
+        val sats = call("GET", "/api/rooms/${host.rid}/map", key = host.key).body!!["planets"].toList().flatMap { it["songs"].toList() }.associate { it["trackId"].asLong() to it["coverPath"] }
+        assertEquals(path, sats[stored]!!.asString()); assertTrue(sats[external]!!.isNull)
+        val storedArtist = songs.trackArtist(stored)!!
+        val panel = call("GET", "/api/rooms/${host.rid}/artists/$storedArtist", key = host.key).body!!
+        assertEquals(path, panel["songs"].toList().single()["coverPath"].asString())
+        assertEquals("COVER", panel["face"]["kind"].asString())
+        assertEquals(path, panel["face"]["url"].asString(), "행성 얼굴 COVER도 저장본이 있으면 우리 주소")
+
+        // 표지: 방 열쇠가 있어야, 저장본이 없으면 404
+        val img = http.send(HttpRequest.newBuilder(URI("http://localhost:$port$path")).header("X-Room-Key", host.key).build(), HttpResponse.BodyHandlers.ofByteArray())
+        assertEquals(200, img.statusCode())
+        assertEquals(listOf<Byte>(4, 5, 6), img.body().toList())
+        assertTrue(img.headers().firstValue("Cache-Control").orElse("").contains("private"))
+        assertEquals(401, call("GET", path).status)
+        assertEquals(404, call("GET", "/api/rooms/${host.rid}/covers/$external", key = host.key).status)
+
+        // 가수 화면 곡 목록 (인기순, 우리 DB 곡에만 trackId가 있다)
+        val stayc = ArtistInfo(UUID.randomUUID(), "STAYC", "STAYC", emptyList())
+        val teddy = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "Teddy Bear", stayc, UUID.randomUUID(), UUID.randomUUID(), "음반", "2023-02-14", "Single"))
+        jdbc.sql("UPDATE track SET cover_key = :k WHERE id = :t").param("k", key).param("t", teddy).update()
+        val items = call("GET", "/api/rooms/${host.rid}/artists/${songs.trackArtist(teddy)}/songs?sort=popular", key = host.key).body!!["items"].toList()
+        val teddyItem = items.single { it["item"]["title"].asString() == "Teddy Bear" }
+        assertEquals("/api/rooms/${host.rid}/covers/$teddy", teddyItem["coverPath"].asString())
+        assertTrue(items.filter { it["item"]["trackId"].isNull }.all { it["coverPath"].isNull })
+    }
 }

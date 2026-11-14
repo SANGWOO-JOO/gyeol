@@ -429,3 +429,14 @@
 - 일괄(12:31~13:10, 597명): COMMONS 874 → 910(+36: enwiki 19·kowiki 10·jawiki 7), NONE 561, 미확인 0. DLQ 0, 오류 0.
   - 거른 가수 32명: LOGO 30(실제 로고 21·.svg 서명 4·자리표시 그림 5), NOT_SELF 2(벽화 1·서명 1).
 - 사용자 결정 대기: 로고 사용 여부. 지금은 전부 뺀다.
+
+### I-14 방 표지 우리 주소 (11-14, 사용자 승인)
+- 응답에 `coverPath`(없으면 null)를 더했다. 기존 `coverUrl`은 그대로다.
+  - 대상: 내 노래·담기·식별 요청의 song, 지도 위성, 가수 판 songs, 가수 화면 items[].coverPath.
+  - 저장본(track.cover_key)이 있으면 `/api/rooms/{rid}/covers/{trackId}`다. 웹은 `coverPath ?? coverUrl`.
+  - 행성 얼굴 COVER도 저장본이 있으면 이 주소다.
+- `GET /api/rooms/{rid}/covers/{trackId}`(api `room/RoomCovers.kt`): 방 열쇠, 저장본 없으면 404 COVER_NOT_FOUND, private 1일. 우리 DB 곡이면 방 곡이 아니어도 준다(가수 화면은 DB의 어떤 가수 곡이든 나옴).
+- core `RoomSongRepository`: MapSong·MySong에 coverStored, `coverKey`·`storedCovers`를 더했다.
+- 로컬 수: 방 곡 108곡 중 저장본 106, 둘 다 없음 2, 미확인 0이다. LocalStack 초기화로 cover_key 306개 중 228개 파일이 S3에 없다(방 곡 63곡, 방 8 위성 51개 중 11개 404). 운영과 무관하고, 로컬 복구는 하지 않았다.
+- 테스트: api `RoomApiIntegrationTest` I-14 1개. api 80(건너뜀 1)·worker 80 통과. api 13:59:00 재시작.
+- 같은 날 api 멈춤(12:28~13:53): 실행 중 api의 jar를 다시 빌드해 NoClassDefFoundError가 났다. 코드 문제가 아니다. jar를 빌드할 때는 그 모듈을 먼저 끄고 빌드 뒤 바로 재시작한다.

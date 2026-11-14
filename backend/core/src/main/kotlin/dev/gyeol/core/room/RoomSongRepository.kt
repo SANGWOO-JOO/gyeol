@@ -11,11 +11,14 @@ import java.util.UUID
 data class MapSong(
     val trackId: Long, val title: String, val artistId: Long, val artistName: String, val artistMbid: UUID,
     val coverUrl: String?, val memberIds: List<Long>,
+    /** 표지 S3 저장본이 있으면 true (I-14, 방 표지 주소로 내려 준다) */
+    val coverStored: Boolean = false,
 )
 
 data class MySong(
     val id: Long, val trackId: Long, val title: String, val artistId: Long, val artistName: String,
     val coverUrl: String?, val addedAt: Instant, val sharedWith: Int,
+    val coverStored: Boolean = false,
 )
 
 data class SongRequest(
@@ -64,17 +67,18 @@ class RoomSongRepository(private val jdbc: JdbcClient) {
     fun mapSongs(roomId: Long): List<MapSong> =
         jdbc.sql(
             """
-            SELECT rs.track_id, t.title, a.id, a.name, a.mbid, t.cover_url, array_agg(rs.member_id ORDER BY rs.added_at, rs.id)
+            SELECT rs.track_id, t.title, a.id, a.name, a.mbid, t.cover_url, array_agg(rs.member_id ORDER BY rs.added_at, rs.id),
+                   t.cover_key IS NOT NULL
             FROM room_song rs JOIN track t ON t.id = rs.track_id JOIN artist a ON a.id = rs.artist_id
             WHERE rs.room_id = :r
-            GROUP BY rs.track_id, t.title, a.id, a.name, a.mbid, t.cover_url
+            GROUP BY rs.track_id, t.title, a.id, a.name, a.mbid, t.cover_url, t.cover_key
             ORDER BY min(rs.added_at)
             """.trimIndent(),
         ).param("r", roomId).query { rs, _ ->
             @Suppress("UNCHECKED_CAST")
             MapSong(
                 rs.getLong(1), rs.getString(2), rs.getLong(3), rs.getString(4), rs.getObject(5) as UUID, rs.getString(6),
-                (rs.getArray(7).array as Array<Long>).toList(),
+                (rs.getArray(7).array as Array<Long>).toList(), rs.getBoolean(8),
             )
         }.list()
 
@@ -83,14 +87,26 @@ class RoomSongRepository(private val jdbc: JdbcClient) {
         jdbc.sql(
             """
             SELECT rs.id, rs.track_id, t.title, a.id, a.name, t.cover_url, rs.added_at,
-                   (SELECT count(*) FROM room_song o WHERE o.room_id = rs.room_id AND o.track_id = rs.track_id AND o.member_id <> rs.member_id)
+                   (SELECT count(*) FROM room_song o WHERE o.room_id = rs.room_id AND o.track_id = rs.track_id AND o.member_id <> rs.member_id),
+                   t.cover_key IS NOT NULL
             FROM room_song rs JOIN track t ON t.id = rs.track_id JOIN artist a ON a.id = rs.artist_id
             WHERE rs.member_id = :m AND rs.id < :before
             ORDER BY rs.id DESC LIMIT :limit
             """.trimIndent(),
         ).param("m", memberId).param("before", beforeId ?: Long.MAX_VALUE).param("limit", limit)
-            .query { rs, _ -> MySong(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getLong(4), rs.getString(5), rs.getString(6), rs.getTimestamp(7).toInstant(), rs.getInt(8)) }
+            .query { rs, _ -> MySong(rs.getLong(1), rs.getLong(2), rs.getString(3), rs.getLong(4), rs.getString(5), rs.getString(6), rs.getTimestamp(7).toInstant(), rs.getInt(8), rs.getBoolean(9)) }
             .list()
+
+    // ── 표지 저장본 (I-14) ──
+
+    /** 표지 S3 키. 저장본이 없으면 null */
+    fun coverKey(trackId: Long): String? =
+        jdbc.sql("SELECT cover_key FROM track WHERE id = :t AND cover_key IS NOT NULL").param("t", trackId).query(String::class.java).optional().orElse(null)
+
+    /** 이 곡들 중 표지 저장본이 있는 곡 */
+    fun storedCovers(trackIds: Collection<Long>): Set<Long> =
+        if (trackIds.isEmpty()) emptySet() else
+            jdbc.sql("SELECT id FROM track WHERE id = ANY (:ids) AND cover_key IS NOT NULL").param("ids", trackIds.toTypedArray()).query { rs, _ -> rs.getLong(1) }.set()
 
     // ── 검색 결과에 친구 표시 ──
 

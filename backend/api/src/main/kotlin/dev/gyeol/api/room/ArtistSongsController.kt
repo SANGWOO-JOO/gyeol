@@ -34,7 +34,8 @@ data class ArtistHeader(val artistId: Long?, val name: String, val aliases: List
  * 가수 화면 한 줄. item·mine·sameSong은 방 검색과 같은 모양(웹이 담기·"담음"·친구 금빛을 그대로 쓴다).
  * rank: 인기순 순위(1부터). releaseDate: 최신순에서 처음 나온 날(YYYY, YYYY-MM, YYYY-MM-DD, 모르면 null)
  */
-data class ArtistSongItem(val item: TrackItem, val mine: Boolean, val sameSong: List<String>, val rank: Int? = null, val releaseDate: String? = null)
+/** coverPath (I-14): 표지 S3 저장본이 있으면 우리 주소, 없으면 null → item.coverUrl */
+data class ArtistSongItem(val item: TrackItem, val mine: Boolean, val sameSong: List<String>, val rank: Int? = null, val releaseDate: String? = null, val coverPath: String? = null)
 
 /** scan: 최신순일 때 발매일 모으기 상태(RUNNING·DONE·FAILED), 인기순은 null */
 data class ArtistSongsPage(
@@ -56,6 +57,7 @@ class ArtistSongsService(
     private val latest: ArtistLatestService,
     private val faces: ArtistFaces,
     private val releases: dev.gyeol.core.identify.ArtistReleaseRepository,
+    private val covers: RoomCovers,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -229,10 +231,11 @@ class ArtistSongsService(
     /** 방 표시: 내가 담음, 친구가 담음(이름) */
     private fun decorate(ctx: RoomContext, items: List<TrackItem>, rankFrom: Int?): List<ArtistSongItem> {
         val owners = songs.whoHasTracks(ctx.room.id, items.mapNotNull { it.trackId })
+        val coverPaths = covers.paths(ctx.room.publicId, items.mapNotNull { it.trackId })
         val names = rooms.members(ctx.room.id).associate { it.id to it.nickname }
         return items.mapIndexed { i, t ->
             val who = t.trackId?.let { owners[it] }.orEmpty()
-            ArtistSongItem(t, ctx.member.id in who, who.filter { it != ctx.member.id }.mapNotNull(names::get), rankFrom?.let { it + i })
+            ArtistSongItem(t, ctx.member.id in who, who.filter { it != ctx.member.id }.mapNotNull(names::get), rankFrom?.let { it + i }, coverPath = t.trackId?.let(coverPaths::get))
         }
     }
 }

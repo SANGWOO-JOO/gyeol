@@ -29,7 +29,8 @@ import java.util.UUID
 /** trackId(우리 DB 검색 결과) 또는 제목·가수(Last.fm 결과) */
 data class AddSongRequest(val trackId: Long?, val title: String?, val artist: String?, val mbid: String?)
 
-data class SongView(val id: Long, val trackId: Long, val title: String, val artist: String, val coverUrl: String?, val sharedCount: Int)
+/** coverPath (I-14): 표지 S3 저장본이 있으면 우리 주소(GET /api/rooms/{rid}/covers/{trackId}), 없으면 null → coverUrl(Cover Art Archive)을 쓴다 */
+data class SongView(val id: Long, val trackId: Long, val title: String, val artist: String, val coverUrl: String?, val sharedCount: Int, val coverPath: String? = null)
 
 /** 201: song이 있음. 202: requestId로 식별 상태를 읽는다. gift: 이번 담기로 50곡 단위 상자가 생겼으면 (④) */
 data class AddSongResponse(val status: String, val song: SongView?, val requestId: Long?, val todayAdded: Int, val dailyLimit: Int, val gift: GiftNotice? = null)
@@ -47,7 +48,7 @@ data class RoomSearchItem(val item: TrackItem, val mine: Boolean, val sameSong: 
 data class ArtistCard(val artistId: Long?, val name: String, val aliases: List<String>, val songCountInRoom: Int, val onMap: Boolean)
 data class RoomSearchResponse(val items: List<RoomSearchItem>, val source: String, val artist: ArtistCard? = null)
 
-data class MySongView(val id: Long, val trackId: Long, val title: String, val artist: String, val coverUrl: String?, val addedAt: Instant, val sharedWith: Int)
+data class MySongView(val id: Long, val trackId: Long, val title: String, val artist: String, val coverUrl: String?, val addedAt: Instant, val sharedWith: Int, val coverPath: String? = null)
 data class MySongsPage(val items: List<MySongView>, val nextCursor: Long?)
 
 /**
@@ -71,7 +72,7 @@ data class ArtistView(
 )
 data class EvidenceView(val id: Long, val source: String, val url: String)
 data class NearbyView(val artistId: Long, val name: String, val inRoom: Boolean)
-data class MapSongView(val trackId: Long, val title: String, val coverUrl: String?, val memberIds: List<Long>)
+data class MapSongView(val trackId: Long, val title: String, val coverUrl: String?, val memberIds: List<Long>, val coverPath: String? = null)
 
 /** 흐린 행성 수 (I-40): 전체 상한, 행성 하나당 상한 (행성 1개면 3명) */
 private const val GHOSTS_TOTAL = 6
@@ -90,6 +91,7 @@ class RoomSongService(
     private val merger: dev.gyeol.api.search.TrackMerger,
     private val trackSearch: dev.gyeol.core.identify.TrackSearchRepository,
     private val faces: ArtistFaces,
+    private val covers: RoomCovers,
 ) {
     private val p get() = props.room
 
@@ -157,7 +159,7 @@ class RoomSongService(
             }
             // 방 행을 잠근 같은 트랜잭션에서 50곡 단위 상자 (식별 경로는 worker RoomSongService가 같은 함수를 부른다)
             val box = gifts.onSongAdded(me, todayKst())?.let { GiftNotice(it.id, it.milestone, it.status.name) }
-            return HttpStatus.CREATED to AddSongResponse("ADDED", songView(room.id, me, id), null, today, p.dailySongLimit, box)
+            return HttpStatus.CREATED to AddSongResponse("ADDED", songView(room.publicId, room.id, me, id), null, today, p.dailySongLimit, box)
         }
         val title = body.title?.trim()?.takeIf { it.length in 1..300 } ?: throw ApiException.validation("제목은 1~300자예요")
         val artist = body.artist?.trim()?.takeIf { it.length in 1..300 } ?: throw ApiException.validation("가수는 1~300자예요")
@@ -173,15 +175,15 @@ class RoomSongService(
         songs.incrementDaily(memberId, todayKst(), p.dailySongLimit)
             ?: throw ApiException.tooMany("DAILY_LIMIT", "오늘은 ${p.dailySongLimit}곡까지 담을 수 있어요. 내일 또 담아 주세요")
 
-    private fun songView(roomId: Long, memberId: Long, songId: Long): SongView {
+    private fun songView(rid: String, roomId: Long, memberId: Long, songId: Long): SongView {
         val s = songs.mySongs(memberId, songId + 1, 1).single()
-        return SongView(s.id, s.trackId, s.title, s.artistName, s.coverUrl, songs.sharedCount(roomId, s.trackId))
+        return SongView(s.id, s.trackId, s.title, s.artistName, s.coverUrl, songs.sharedCount(roomId, s.trackId), covers.path(rid, s.trackId, s.coverStored))
     }
 
     fun request(ctx: RoomContext, id: Long): RequestView {
         val r = songs.request(id)?.takeIf { it.roomId == ctx.room.id && it.memberId == ctx.member.id }
             ?: throw ApiException(HttpStatus.NOT_FOUND, "REQUEST_NOT_FOUND", "없는 요청이에요")
-        val song = r.roomSongId?.let { sid -> runCatching { songView(ctx.room.id, ctx.member.id, sid) }.getOrNull() }
+        val song = r.roomSongId?.let { sid -> runCatching { songView(ctx.room.publicId, ctx.room.id, ctx.member.id, sid) }.getOrNull() }
         return RequestView(r.id, r.status, song, r.failReason)
     }
 
@@ -194,7 +196,7 @@ class RoomSongService(
     fun mySongs(ctx: RoomContext, cursor: Long?, limit: Int): MySongsPage {
         if (limit !in 1..100) throw ApiException.validation("limit은 1~100이에요")
         val rows = songs.mySongs(ctx.member.id, cursor, limit + 1)
-        val page = rows.take(limit).map { MySongView(it.id, it.trackId, it.title, it.artistName, it.coverUrl, it.addedAt, it.sharedWith) }
+        val page = rows.take(limit).map { MySongView(it.id, it.trackId, it.title, it.artistName, it.coverUrl, it.addedAt, it.sharedWith, covers.path(ctx.room.publicId, it.trackId, it.coverStored)) }
         return MySongsPage(page, if (rows.size > limit) page.last().id else null)
     }
 
@@ -214,13 +216,13 @@ class RoomSongService(
             val a = list.first()
             val at = pos[a.artistId]
             val (x, y) = at?.let { it.x to it.y } ?: placeholderXY(a)
-            Planet(a.artistId, a.artistName, x, y, list.map { MapSongView(it.trackId, it.title, it.coverUrl, it.memberIds) }, at?.galaxyId, at == null)
+            Planet(a.artistId, a.artistName, x, y, list.map { it.view(ctx.room.publicId) }, at?.galaxyId, at == null)
         }
         val ghosts = ghosts(version, byArtist.keys, byArtist)
         // 얼굴 (I-44): 행성은 사진 → 방 곡 표지(가장 먼저 담긴 곡부터) → 없음, 흐린 행성은 사진 → 없음. 사진은 한 번에 읽는다
         val face = faces.faces(
             ctx.room.publicId,
-            planets.associate { pl -> pl.artistId to (pl.galaxyId to pl.songs.firstNotNullOfOrNull { it.coverUrl }) } +
+            planets.associate { pl -> pl.artistId to (pl.galaxyId to pl.songs.firstNotNullOfOrNull { it.coverPath ?: it.coverUrl }) } +
                 ghosts.associate { g -> g.artistId to (g.galaxyId to null) },
         )
         val galaxies = maps.galaxies(pos.values.mapNotNull { it.galaxyId }.toSet()).map { GalaxyView(it.id, it.name, it.cx, it.cy) }
@@ -264,12 +266,15 @@ class RoomSongService(
             maps.nearestPlaced(version!!, v, 5, listOf(artistId), byRaw).map { NearbyView(it.artistId, it.name, it.artistId in roomArtists) }
         }.orEmpty()
         val galaxy = version?.let { maps.positions(it, listOf(artistId))[artistId]?.galaxyId }
-        val face = faces.faces(ctx.room.publicId, mapOf(artistId to (galaxy to roomSongs.firstNotNullOfOrNull { it.coverUrl })))[artistId]
+        val songViews = roomSongs.map { it.view(ctx.room.publicId) }
+        val face = faces.faces(ctx.room.publicId, mapOf(artistId to (galaxy to songViews.firstNotNullOfOrNull { it.coverPath ?: it.coverUrl })))[artistId]
         return ArtistView(
-            d.artistId, d.name, d.description, evidence, roomSongs.map { MapSongView(it.trackId, it.title, it.coverUrl, it.memberIds) }, nearby, !placed,
+            d.artistId, d.name, d.description, evidence, songViews, nearby, !placed,
             face, faces.photo(ctx.room.publicId, artistId),
         )
     }
+
+    private fun MapSong.view(rid: String) = MapSongView(trackId, title, coverUrl, memberIds, covers.path(rid, trackId, coverStored))
 
     /** 자리를 아직 못 잡은 가수의 임시 좌표: 가수 mbid로 0~1 사이 고정 위치 */
     private fun placeholderXY(s: MapSong): Pair<Double, Double> =
