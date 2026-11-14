@@ -5,6 +5,12 @@ import { groupByGalaxy, planetPeople } from '../roomLogic'
 import { GalaxyMap } from './GalaxyMap'
 import type { Fresh } from './fresh'
 import g from './galaxy.module.css'
+import s from '../room.module.css'
+
+const focusName = (members: MemberView[], id: number | null) => {
+  const m = id != null ? members.find(x => x.id === id) : undefined
+  return m ? `지도에 ${m.nickname}님이 담은 노래만 밝게 보여요` : ''
+}
 
 /**
  * 지도 자리 (room-web.md Q1·9단계). 기본은 SVG 은하 지도(GalaxyMap), "목록으로 보기"를 누르면
@@ -24,9 +30,15 @@ export interface GalaxyViewProps {
   fill?: boolean
   /** PC: 오른쪽 판에 자세히 열린 행성 */
   selectedId?: number | null
+  /** I-26 PC: 이 사람 노래만 밝게 (참가자 탭·색 안내가 같은 상태를 쓴다) */
+  focusId?: number | null
+  /** 색 안내에서 사람을 눌렀을 때 (켜기·바꾸기·끄기는 부모가 정한다) */
+  onFocus?: (memberId: number) => void
+  /** 지도 빈 곳을 눌렀을 때 */
+  onClearFocus?: () => void
 }
 
-export function GalaxyView({ map, roomId, meId, onSelectArtist, onSelectGhost, onAddFirst, fresh, fill = false, selectedId = null }: GalaxyViewProps) {
+export function GalaxyView({ map, roomId, meId, onSelectArtist, onSelectGhost, onAddFirst, fresh, fill = false, selectedId = null, focusId = null, onFocus, onClearFocus }: GalaxyViewProps) {
   const [asList, setAsList] = useState(false)
   if (map.planets.length === 0) return <div className={fill ? g.fillCenter : undefined}><EmptyGalaxy onAddFirst={onAddFirst} /></div>
   const toggle = <button type="button" className={g.viewToggle} data-map-overlay="top" onClick={() => setAsList(v => !v)}>{asList ? '지도로 보기' : '목록으로 보기'}</button>
@@ -34,8 +46,10 @@ export function GalaxyView({ map, roomId, meId, onSelectArtist, onSelectGhost, o
     return (
       <section aria-label="우리 음악 은하" className={fill ? g.fillMap : undefined} style={fill ? undefined : { display: 'flex', flexDirection: 'column', gap: 8 }}>
         {toggle}
-        <GalaxyMap map={map} meId={meId} roomId={roomId} onSelectArtist={onSelectArtist} onSelectGhost={onSelectGhost} fresh={fresh} selectedId={selectedId} />
-        {fill && <Legend members={map.members} hasGhosts={map.ghosts.length > 0} />}
+        <GalaxyMap map={map} meId={meId} roomId={roomId} onSelectArtist={onSelectArtist} onSelectGhost={onSelectGhost} fresh={fresh} selectedId={selectedId}
+          focusId={focusId} onEmptyTap={focusId != null ? onClearFocus : undefined} />
+        {fill && <Legend members={map.members} hasGhosts={map.ghosts.length > 0} focusId={focusId} onFocus={onFocus} />}
+        <span className={s.srOnly} role="status">{focusName(map.members, focusId)}</span>
       </section>
     )
   }
@@ -85,13 +99,26 @@ function PlanetRow({ planet, members, meId, onSelect }: {
   )
 }
 
-/** PC 지도 아래 색 안내 (캔버스 4-PC): 사람 색 · 같이 담은 노래 · 근처 추천 가수 */
-function Legend({ members, hasGhosts }: { members: MemberView[]; hasGhosts: boolean }) {
+/**
+ * PC 지도 아래 색 안내 (캔버스 4-PC): 사람 색 · 같이 담은 노래 · 근처 추천 가수.
+ * I-26: 사람을 누르면 그 사람 노래만 밝게 (참가자 탭과 같은 상태, 다시 누르면 해제)
+ */
+function Legend({ members, hasGhosts, focusId, onFocus }: { members: MemberView[]; hasGhosts: boolean; focusId: number | null; onFocus?: (id: number) => void }) {
+  const dim = focusId != null
   return (
-    <div data-map-overlay="bottom" className={g.legend} aria-hidden="true">
-      {members.map(m => <span key={m.id}><i style={{ background: memberColor(m.colorIdx).bg }} />{m.nickname}</span>)}
-      <span><i className={g.legendGold} />같이 담은 노래</span>
-      {hasGhosts && <span><i className={g.legendGhost} />비슷한 아티스트</span>}
+    <div data-map-overlay="bottom" className={g.legend} role={onFocus ? 'group' : undefined} aria-label={onFocus ? '사람 색 안내: 누르면 그 사람 노래만 밝게' : undefined} aria-hidden={onFocus ? undefined : true}>
+      {members.map(m => {
+        const dot = <i style={{ background: memberColor(m.colorIdx).bg }} />
+        if (!onFocus) return <span key={m.id}>{dot}{m.nickname}</span>
+        return (
+          <button key={m.id} type="button" className={g.legendPerson} aria-pressed={focusId === m.id}
+            style={{ ['--legend-c' as string]: memberColor(m.colorIdx).bg }} onClick={() => onFocus(m.id)}>
+            {dot}{m.nickname}
+          </button>
+        )
+      })}
+      <span className={dim ? g.legendDim : undefined} aria-hidden="true"><i className={g.legendGold} />같이 담은 노래</span>
+      {hasGhosts && <span className={dim ? g.legendDim : undefined} aria-hidden="true"><i className={g.legendGhost} />비슷한 아티스트</span>}
     </div>
   )
 }

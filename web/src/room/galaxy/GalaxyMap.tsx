@@ -6,6 +6,7 @@ import { planetPeople } from '../roomLogic'
 import { fitInside, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type Insets, type View } from './galaxyMath'
 import { NO_FRESH, songKey, type Fresh } from './fresh'
 import { genreColor, pillWidth, planetFace } from './faces'
+import { planetLit, ringLit, songLit } from './focus'
 import { orbitLayout, RING_GAP, ringRadius, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
 
@@ -14,12 +15,16 @@ import g from './galaxy.module.css'
  * 확대·이동 중에는 React를 다시 그리지 않고 그룹 변환만 바꾸고, 멈춘 뒤(0.15초) 그 배율에 맞춰
  * 행성·글자를 화면에서 읽을 수 있는 크기로 다시 그린다. 이름은 겹치지 않는 것만 보인다.
  */
-export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fresh = NO_FRESH, selectedId = null }: {
+export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fresh = NO_FRESH, selectedId = null, focusId = null, onEmptyTap }: {
   map: RoomMap; meId: number; roomId: string; onSelectArtist?: (artistId: number) => void; fresh?: Fresh
   /** 근처 가수(유령 행성)를 눌렀을 때 → 가수 화면 (I-40). 없으면 onSelectArtist */
   onSelectGhost?: (artistId: number, name: string) => void
   /** PC: 오른쪽 판에 자세히 열린 행성 */
   selectedId?: number | null
+  /** I-26 PC: 이 사람이 담은 노래만 밝게 (나머지 행성·위성·근처 가수는 흐리게) */
+  focusId?: number | null
+  /** 지도 빈 곳을 눌렀을 때 (행성·근처 가수가 아닌 곳, 끌기 아님) */
+  onEmptyTap?: () => void
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const layerRef = useRef<SVGGElement>(null)
@@ -167,6 +172,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
       const hit = (gesture.current.downTarget as Element | null)?.closest?.('[data-artist]')
       const id = hit ? Number(hit.getAttribute('data-artist')) : NaN
       if (!Number.isNaN(id)) select(id)
+      else onEmptyTap?.()
     }
   }
 
@@ -308,7 +314,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
             </g>
             {/* ⑧·I-40 근처 가수(아직 우리 우주에 없음): 흐린 가수 행성 + 보라 점선(회전 없음). "+"는 마우스를 올렸을 때만 */}
             {level !== 'far' && placedGhosts.map(x => (
-              <g key={`gh${x.artistId}`} className={g.ghost} data-artist={x.artistId} transform={`translate(${x.wx} ${x.wy})`}
+              <g key={`gh${x.artistId}`} className={`${g.ghost} ${focusId != null ? g.dimmed : ''}`} data-artist={x.artistId} transform={`translate(${x.wx} ${x.wy})`}
                 role="button" tabIndex={0} aria-label={`${x.name}: 아직 우리 우주에 없는 비슷한 가수. 누르면 노래 찾기`} onKeyDown={onKey(x.artistId)}
                 onPointerEnter={e => { if (e.pointerType === 'mouse') setHint({ id: x.artistId, auto: false }) }}
                 onPointerLeave={() => setHint(h => (h?.id === x.artistId ? null : h))}
@@ -335,9 +341,10 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
               // 연출: 4-f 첫 행성 · 새 행성(또는 준비 끝) · 멀리서 새 위성이 생긴 행성은 물결로 알림
               const fc = faces.byId.get(p.artistId)
               const born = fresh.planets.has(p.artistId)
+              const lit = planetLit(p, focusId)
               const ping = !born && level === 'far' && p.songs.some(x => fresh.tracks.has(songKey(p.artistId, x.trackId)) || fresh.gold.has(songKey(p.artistId, x.trackId)))
               return (
-                <g key={p.artistId} className={`${g.planetNode} ${p.preparing ? g.preparingNode : ''} ${selectedId === p.artistId ? g.selectedNode : ''}`} data-artist={p.artistId} aria-current={selectedId === p.artistId ? 'true' : undefined}
+                <g key={p.artistId} className={`${g.planetNode} ${p.preparing ? g.preparingNode : ''} ${selectedId === p.artistId ? g.selectedNode : ''} ${lit ? '' : g.dimmed}`} data-artist={p.artistId} aria-current={selectedId === p.artistId ? 'true' : undefined}
                   transform={`translate(${p.wx} ${p.wy})`} role="button" tabIndex={0} onKeyDown={onKey(p.artistId)}
                   aria-label={`${p.name}, 노래 ${p.songs.length}곡${who ? `, ${who}` : ''}${p.people.shared ? `, 같이 담은 노래 ${p.people.shared}곡` : ''}${p.preparing ? ', 우주에 올리는 중' : ''}`}>
                   <circle className={g.planetHit} r={Math.max(ro, r + 10 * u)} />
@@ -346,6 +353,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                   {p.preparing && <circle className={g.prepRing} r={r + 5 * u} strokeWidth={1.2 * u} strokeDasharray={`${2 * u} ${5 * u}`} />}
                   <g className={born ? (fresh.first ? g.firstPlanet : g.bornPlanet) : undefined}>
                   {level !== 'far' && <Orbits roomId={roomId} artistId={p.artistId} rings={p.rings} r={radius.get(p.artistId)!} u={u} grow={grow} members={members} near={level === 'near'} fresh={fresh} spin={inView.has(p.artistId)}
+                    focus={lit ? focusId : null}
                     covers={level === 'near' && inView.has(p.artistId) ? p.covers : undefined} />}
                   {/* I-44 ② 장르 구역 색 얇은 빛 테두리 */}
                   {!p.preparing && fc && <>
@@ -466,13 +474,15 @@ function fitInsets(wrap: HTMLElement | null, maxSongs: number, rings: boolean): 
  * 궤도·위성 (규칙 ⑫). 크기는 화면 px로 계산하고 u(세계/px)를 곱해 그린다.
  * 금빛 궤도 = 같이 담은 노래, 사람 궤도 = 그 사람 색 위성(혼자 담은 노래). 가까이(near)에선 위성을 조금 크게.
  */
-function Orbits({ roomId, artistId, rings, r, u, grow, members, near, fresh, spin, covers }: {
+function Orbits({ roomId, artistId, rings, r, u, grow, members, near, fresh, spin, covers, focus = null }: {
   roomId: string
   artistId: number; rings: Ring[]; r: number; u: number; grow: number; members: Map<number, MemberView>; near: boolean; fresh: Fresh
   /** 화면 안이면 돈다 */
   spin: boolean
   /** I-44 ④ 가까이(near)·화면 안일 때만: 곡 → 앨범 표지. 있으면 위성을 작은 표지로, 테두리 = 담은 사람(금빛 = 같이 담은 곡) */
   covers?: Map<number, ImgSource[]>
+  /** I-26: 이 사람이 담지 않은 위성·궤도는 흐리게 (행성 전체가 흐린 경우엔 null로 받아 겹쳐 흐리지 않는다) */
+  focus?: number | null
 }) {
   const color = (id: number) => memberColor(members.get(id)?.colorIdx ?? 0).bg
   const k = (near ? 1.3 : 1) * grow
@@ -484,14 +494,14 @@ function Orbits({ roomId, artistId, rings, r, u, grow, members, near, fresh, spi
         const flash = gold && ring.sats.some(s => fresh.gold.has(songKey(artistId, s.trackId)))
         return (
           <SpinRing key={i} artistId={artistId} ring={i} guard={rr + 8 * k * u} on={spin}>
-            <circle r={rr} fill="none" className={`${gold ? g.goldRing : g.personRing} ${flash ? g.goldFlash : ''}`}
+            <circle r={rr} fill="none" className={`${gold ? g.goldRing : g.personRing} ${flash ? g.goldFlash : ''} ${ringLit(ring, focus) ? '' : g.dimmedRing}`}
               stroke={gold ? undefined : color(ring.memberIds[0])} strokeWidth={(gold ? 1 : 0.8) * u} />
             {ring.sats.map(sat => {
               const key = songKey(artistId, sat.trackId)
               const cx = Math.cos(sat.angle) * rr, cy = Math.sin(sat.angle) * rr
               const sr = satelliteRadius(sat, ring.kind) * k * u
               return (
-                <g key={sat.trackId}>
+                <g key={sat.trackId} className={songLit(sat.memberIds, focus) ? g.satNode : `${g.satNode} ${g.dimmed}`}>
                   {/* 4-e 새 위성: 튀어나오듯 / 4-h 겹친 순간: 금빛 반짝임 */}
                   {(() => {
                     const dot = (

@@ -8,6 +8,7 @@ import { Avatar, AvatarRoom } from '../components/Avatar'
 import { Wordmark } from '../components/Wordmark'
 import { GalaxyView } from '../galaxy/GalaxyView'
 import { useFreshMarks } from '../galaxy/fresh'
+import { keepFocus, toggleFocus } from '../galaxy/focus'
 import { itemKey, SearchPanel } from './SearchPanel'
 import { MineTab } from './MineTab'
 import { PeopleSheet } from './PeopleSheet'
@@ -83,6 +84,10 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
     setSheetRaw(prev => (prev?.kind === 'artist' || prev?.kind === 'me' ? null : prev))
     setParams({ tab: t }, { replace: true })
   }
+  // I-26 PC: 지도에서 이 사람 노래만 밝게 (참가자 탭·색 안내가 같이 쓴다). 휴대폰 배치에선 쓰지 않는다
+  const [focusId, setFocusId] = useState<number | null>(null)
+  const onFocus = useCallback((id: number) => setFocusId(cur => toggleFocus(cur, id)), [])
+  const clearFocus = useCallback(() => setFocusId(null), [])
   // 담기·빼기가 일어날 때마다 올린다 → 내 노래·참가자·가수 판이 다시 받는다
   const [version, setVersion] = useState(0)
   const [summary, setSummary] = useState<RoomSummary | null>(null)
@@ -227,6 +232,19 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   }
 
   const members = map?.members ?? []
+  // 좁은 화면으로 바뀌거나 선택된 사람이 방을 나가면 푼다
+  const memberIdsKey = members.map(m => m.id).join(',')
+  useEffect(() => { if (!wide) setFocusId(null) }, [wide])
+  useEffect(() => { setFocusId(cur => keepFocus(cur, memberIdsKey ? memberIdsKey.split(',').map(Number) : [])) }, [memberIdsKey])
+  // Esc: 열린 판·대화상자가 있으면 그것부터 닫히게(Sheet가 Esc를 받는다) 두고, 없을 때만 선택을 푼다
+  const sheetOpen = useRef(false)
+  sheetOpen.current = sheet != null
+  useEffect(() => {
+    if (focusId == null) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !sheetOpen.current) setFocusId(null) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [focusId])
   const isHost = me?.member.role === 'HOST'
   const badge = me?.gift ? giftLine(me.gift).badge : null
   const counts = mapCounts(map)
@@ -253,7 +271,8 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
     </section>
   )
   const galaxy = map
-    ? <GalaxyView map={map} roomId={roomId} fresh={fresh} meId={me?.member.id ?? -1} fill={wide} selectedId={wide && sheet?.kind === 'artist' ? sheet.id : null} onAddFirst={goSearch} onSelectArtist={id => setSheet({ kind: 'artist', id })}
+    ? <GalaxyView map={map} roomId={roomId} fresh={fresh} meId={me?.member.id ?? -1} fill={wide} selectedId={wide && sheet?.kind === 'artist' ? sheet.id : null} onAddFirst={goSearch}
+      focusId={wide ? focusId : null} onFocus={wide ? onFocus : undefined} onClearFocus={clearFocus} onSelectArtist={id => setSheet({ kind: 'artist', id })}
       onSelectGhost={(id, name) => { setArtistPage({ artistId: id, name, fromMap: true, songCountInRoom: 0 }); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }} />
     : <p className={sh.center} role="status">우주를 불러오는 중…</p>
   const pendingKeys = new Set(pending.map(p => p.key))
@@ -279,7 +298,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const mineTab = <MineTab roomId={roomId} me={me} map={map} version={version} onChanged={changed} onError={handle} show={show} onOpenGift={boxId => setSheet({ kind: 'gift', boxId })} />
   const peopleSheet = (
     <PeopleSheet roomId={roomId} capacity={summary?.capacity ?? 5} version={version} isHost={isHost}
-      onClose={() => setSheet(null)} onInvite={invite} onError={handle}
+      onClose={() => setSheet(null)} onInvite={invite} onError={handle} focusId={focusId} onFocus={wide ? onFocus : undefined}
       onOpenMe={() => setSheet({ kind: 'me' })} onManage={m => setSheet({ kind: 'member', member: m })} onSettings={() => { refreshSummary(); setSheet({ kind: 'settings' }) }} />
   )
   const meSheet = sheet?.kind === 'me' && me && (

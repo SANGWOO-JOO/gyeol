@@ -144,3 +144,21 @@
 .fillVeil { fill: #6a6488; opacity: .85; transform-box: fill-box; transform-origin: top; animation: fillUp 1.3s cubic-bezier(.4, 0, .2, 1) .15s both; }
 @keyframes fillUp { from { transform: scaleY(1); } to { transform: scaleY(0); } }
 @media (prefers-reduced-motion: reduce) { .fillVeil { animation: none; display: none; } }
+
+/* I-26 사람 선택(4-PC″): 그 사람 노래만 밝게. 그룹 opacity만 바꿔 공전·확대 계산은 그대로 */
+.planetNode, .ghost, .satNode, .goldRing, .personRing { transition: opacity .25s ease; }
+.dimmed { opacity: .16; }
+.ghost.dimmed { opacity: .1; }
+.goldRing.dimmedRing, .personRing.dimmedRing { opacity: .08; animation: none; }
+/* 색 안내의 사람: 누르면 선택 (참가자 탭과 같은 상태) */
+.legend .legendPerson {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; margin: -4px -6px; border-radius: 999px;
+  border: 1px solid transparent; background: none; color: inherit; font: inherit; cursor: pointer; pointer-events: auto;
+}
+.legend .legendPerson:hover { background: rgba(255, 255, 255, .06); color: var(--r-text); }
+.legend .legendPerson:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 1px; }
+.legend .legendPerson[aria-pressed='true'] { border-color: var(--legend-c); background: rgba(255, 255, 255, .08); color: var(--r-text); font-weight: 700; }
+.legendDim { opacity: .45; }
+@media (prefers-reduced-motion: reduce) {
+  .planetNode, .ghost, .satNode, .goldRing, .personRing { transition: none; }
+}
