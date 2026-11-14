@@ -254,11 +254,18 @@ export function rememberJoin(j: JoinedResponse, roomName: string) {
   keyStore.save({ roomId: j.roomId, key: j.key, memberId: j.member.id, nickname: j.member.nickname, roomName })
 }
 
-/** 참가자 색 (colorIdx 0~4). 바탕색과 그 위 글자색 */
+/** "같이 담은 노래" 금빛. 사람 색으로는 쓰지 않는다 (11-14) */
+export const SHARED_GOLD = '#FFE3B8'
+
+/**
+ * 참가자 색 (colorIdx 0~4). 바탕색과 그 위 글자색.
+ * 11-14: 3번(연노랑 #FFE3B8)이 "같이" 금빛과 같아서 오키드로 바꿨다. 노랑·주황·살구 계열은 쓰지 않는다
+ * (정상·적록·청황 색약 시뮬레이션 모두에서 금빛과 색 거리 ΔE 50 이상, 다른 네 색과 21 이상)
+ */
 export const MEMBER_COLORS: { bg: string; fg: string }[] = [
   { bg: '#B9A2FF', fg: '#221a47' },
   { bg: '#E3A6B8', fg: '#3a1424' },
-  { bg: '#FFE3B8', fg: '#3d2a10' },
+  { bg: '#D864B5', fg: '#2a0a22' },
   { bg: '#9ED8C8', fg: '#0f3329' },
   { bg: '#A8C8FF', fg: '#122a4d' },
 ]

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { MemberView, RoomMap } from '../roomApi'
-import { memberColor } from '../roomApi'
+import { memberColor, SHARED_GOLD } from '../roomApi'
 import { coverSources, sourcesOf, useImageChain, type ImgSource } from '../images'
 import { planetPeople } from '../roomLogic'
 import { SAT_GROW_MAX, fitInside, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type Insets, type View } from './galaxyMath'
@@ -548,7 +548,7 @@ function Orbits({ roomId, artistId, rings, radii, u, grow, members, near, fresh,
               stroke={gold ? undefined : color(ring.memberIds[0])} strokeWidth={(gold ? 1 : 0.8) * u} />
             {ring.sats.map(sat => {
               const key = songKey(artistId, sat.trackId)
-              const tip = (el: Element) => { const t = titles?.get(sat.trackId); if (t) onSatTip?.({ title: t, color: gold ? '#FFE3B8' : color(sat.memberIds[0]), gold, el: el.firstElementChild ?? el }) }
+              const tip = (el: Element) => { const t = titles?.get(sat.trackId); if (t) onSatTip?.({ title: t, color: gold ? SHARED_GOLD : color(sat.memberIds[0]), gold, el: el.firstElementChild ?? el }) }
               const cx = Math.cos(sat.angle) * rr, cy = Math.sin(sat.angle) * rr
               const sr = satelliteRadius(sat, ring.kind) * k * u
               return (
@@ -564,7 +564,7 @@ function Orbits({ roomId, artistId, rings, radii, u, grow, members, near, fresh,
                     )
                     const srcs = covers?.get(sat.trackId)
                     if (!srcs || srcs.length === 0) return dot
-                    return <SatCover roomId={roomId} sources={srcs} cx={cx} cy={cy} cr={COVER_R * sg * u} pad={COVER_PAD * u} ring={gold ? '#FFE3B8' : color(sat.memberIds[0])} dot={dot}
+                    return <SatCover roomId={roomId} sources={srcs} cx={cx} cy={cy} cr={COVER_R * sg * u} pad={COVER_PAD * u} ring={gold ? SHARED_GOLD : color(sat.memberIds[0])} dot={dot}
                       className={fresh.tracks.has(key) || fresh.gold.has(key) ? g.satBorn : undefined} />
                   })()}
                   {fresh.gold.has(key) && <Sparkle x={cx} y={cy} u={u} />}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { roomApi, RoomApiError, type ArtistView, type MemberView, type RoomMap } from '../roomApi'
-import { memberColor } from '../roomApi'
+import { memberColor, SHARED_GOLD } from '../roomApi'
 import { songOwners, sourceName } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { Sheet } from './Sheet'
@@ -89,7 +89,7 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
   // 우리 방 몫: 얼굴 둘레 고리 조각(사람 색, 같이 담은 몫은 금빛) + 이름 아래 숫자 알약
   const ringParts = [
     ...sum.solo.map(x => ({ color: memberColor(members.get(x.memberId)?.colorIdx ?? 0).bg, count: x.count })),
-    ...(sum.shared > 0 ? [{ color: '#FFE3B8', count: sum.shared }] : []),
+    ...(sum.shared > 0 ? [{ color: SHARED_GOLD, count: sum.shared }] : []),
   ]
   const gColor = genreColor(galaxyName, planet?.galaxyId ?? null)
   // 배너 그림: 판 응답의 얼굴(PHOTO 사진 → COVER) → 지도 얼굴 규칙(방 곡 표지) → 장르색 + 이니셜
