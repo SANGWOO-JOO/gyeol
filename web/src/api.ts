@@ -24,7 +24,7 @@ export interface UploadTicket { uploadId: string; url: string; method: 'PUT'; he
 export interface TopSong { trackId: number | null; title: string; artist: string | null; release: { title: string | null; year: number | null } | null; coverUrl: string | null; plays: number; performance: 'INSTRUMENTAL' | 'COVER' | null; originalArtist: string | null; storedCover: boolean; channelOnly: boolean }
 export interface TopArtist {
   artistId: number | null; name: string; plays: number
-  imageSource: 'COMMONS' | 'YOUTUBE' | null; imageUrl: string | null; imagePage: string | null; imageAuthor: string | null; imageLicense: string | null; imageVersion: number | null; channelImageId: number | null
+  imageSource: 'COMMONS' | null; imageUrl: string | null; imagePage: string | null; imageAuthor: string | null; imageLicense: string | null; imageVersion: number | null; channelImageId: number | null
   coverTrackId: number | null; coverStored: boolean; coverUrl: string | null
 }
 export interface RankPage<T> { items: T[]; page: number; size: number; total: number }
