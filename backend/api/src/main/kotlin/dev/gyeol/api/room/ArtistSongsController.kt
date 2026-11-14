@@ -27,7 +27,8 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /** artistId가 없으면 우리 DB에 아직 없는 가수(Last.fm 이름만) */
-data class ArtistHeader(val artistId: Long?, val name: String, val aliases: List<String>)
+/** photo: Commons 사진과 저작자 표시 (I-44, 우리 가수이고 사진이 있을 때만) */
+data class ArtistHeader(val artistId: Long?, val name: String, val aliases: List<String>, val photo: PhotoView? = null)
 
 /**
  * 가수 화면 한 줄. item·mine·sameSong은 방 검색과 같은 모양(웹이 담기·"담음"·친구 금빛을 그대로 쓴다).
@@ -53,6 +54,7 @@ class ArtistSongsService(
     private val songs: RoomSongRepository,
     private val rooms: RoomRepository,
     private val latest: ArtistLatestService,
+    private val faces: ArtistFaces,
     private val releases: dev.gyeol.core.identify.ArtistReleaseRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -84,7 +86,7 @@ class ArtistSongsService(
 
     fun songs(ctx: RoomContext, artistId: Long?, name: String?, sort: String?, page: Int?): ArtistSongsPage {
         val p = (page ?: 1).coerceAtLeast(1)
-        val header = header(artistId, name)
+        val header = header(artistId, name).let { h -> h.copy(photo = h.artistId?.let { faces.photo(ctx.room.publicId, it) }) }
         return when (sort ?: "popular") {
             "popular" -> {
                 if (p > MAX_PAGES) return ArtistSongsPage(header, "popular", p, PAGE_SIZE, false, emptyList())

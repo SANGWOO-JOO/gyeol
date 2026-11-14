@@ -58,14 +58,16 @@ data class MapResponse(
     val rev: Long, val placeholder: Boolean, val members: List<MemberView>, val planets: List<Planet>,
     val galaxies: List<GalaxyView> = emptyList(), val ghosts: List<Ghost> = emptyList(),
 )
-data class Planet(val artistId: Long, val name: String, val x: Double, val y: Double, val songs: List<MapSongView>, val galaxyId: Long? = null, val preparing: Boolean = false)
+data class Planet(val artistId: Long, val name: String, val x: Double, val y: Double, val songs: List<MapSongView>, val galaxyId: Long? = null, val preparing: Boolean = false, val face: Face? = null)
 data class GalaxyView(val id: Long, val name: String?, val x: Double, val y: Double)
-data class Ghost(val artistId: Long, val name: String, val x: Double, val y: Double, val near: Long)
+data class Ghost(val artistId: Long, val name: String, val x: Double, val y: Double, val near: Long, val galaxyId: Long? = null, val face: Face? = null)
 
 /** 행성 자세히 (4′): 설명·근거, 방 안 노래, 가까운 가수 */
 data class ArtistView(
     val artistId: Long, val name: String, val description: String?, val evidence: List<EvidenceView>,
     val songs: List<MapSongView>, val nearby: List<NearbyView>, val preparing: Boolean,
+    /** I-44: 지도와 같은 얼굴, 사진은 Commons일 때만(저작자 표시) */
+    val face: Face? = null, val photo: PhotoView? = null,
 )
 data class EvidenceView(val id: Long, val source: String, val url: String)
 data class NearbyView(val artistId: Long, val name: String, val inRoom: Boolean)
@@ -87,6 +89,7 @@ class RoomSongService(
     private val gifts: GiftRepository,
     private val merger: dev.gyeol.api.search.TrackMerger,
     private val trackSearch: dev.gyeol.core.identify.TrackSearchRepository,
+    private val faces: ArtistFaces,
 ) {
     private val p get() = props.room
 
@@ -213,8 +216,18 @@ class RoomSongService(
             val (x, y) = at?.let { it.x to it.y } ?: placeholderXY(a)
             Planet(a.artistId, a.artistName, x, y, list.map { MapSongView(it.trackId, it.title, it.coverUrl, it.memberIds) }, at?.galaxyId, at == null)
         }
+        val ghosts = ghosts(version, byArtist.keys, byArtist)
+        // 얼굴 (I-44): 행성은 사진 → 방 곡 표지(가장 먼저 담긴 곡부터) → 없음, 흐린 행성은 사진 → 없음. 사진은 한 번에 읽는다
+        val face = faces.faces(
+            ctx.room.publicId,
+            planets.associate { pl -> pl.artistId to (pl.galaxyId to pl.songs.firstNotNullOfOrNull { it.coverUrl }) } +
+                ghosts.associate { g -> g.artistId to (g.galaxyId to null) },
+        )
         val galaxies = maps.galaxies(pos.values.mapNotNull { it.galaxyId }.toSet()).map { GalaxyView(it.id, it.name, it.cx, it.cy) }
-        return MapResponse(ctx.room.mapRev, version == null, members, planets, galaxies, ghosts(version, byArtist.keys, byArtist))
+        return MapResponse(
+            ctx.room.mapRev, version == null, members, planets.map { it.copy(face = face[it.artistId]) }, galaxies,
+            ghosts.map { it.copy(face = face[it.artistId]) },
+        )
     }
 
     /**
@@ -233,7 +246,7 @@ class RoomSongService(
             val (v, byRaw) = maps.placeVector(artistId) ?: continue
             val take = minOf(per, GHOSTS_TOTAL - out.size)
             maps.nearestPlaced(version, v, take, inRoom + out.keys, byRaw).forEach { n ->
-                out[n.artistId] = Ghost(n.artistId, n.name, n.x, n.y, artistId)
+                out[n.artistId] = Ghost(n.artistId, n.name, n.x, n.y, artistId, n.galaxyId)
             }
         }
         return out.values.toList()
@@ -250,7 +263,12 @@ class RoomSongService(
         val nearby = if (!placed) emptyList() else maps.placeVector(artistId)?.let { (v, byRaw) ->
             maps.nearestPlaced(version!!, v, 5, listOf(artistId), byRaw).map { NearbyView(it.artistId, it.name, it.artistId in roomArtists) }
         }.orEmpty()
-        return ArtistView(d.artistId, d.name, d.description, evidence, roomSongs.map { MapSongView(it.trackId, it.title, it.coverUrl, it.memberIds) }, nearby, !placed)
+        val galaxy = version?.let { maps.positions(it, listOf(artistId))[artistId]?.galaxyId }
+        val face = faces.faces(ctx.room.publicId, mapOf(artistId to (galaxy to roomSongs.firstNotNullOfOrNull { it.coverUrl })))[artistId]
+        return ArtistView(
+            d.artistId, d.name, d.description, evidence, roomSongs.map { MapSongView(it.trackId, it.title, it.coverUrl, it.memberIds) }, nearby, !placed,
+            face, faces.photo(ctx.room.publicId, artistId),
+        )
     }
 
     /** 자리를 아직 못 잡은 가수의 임시 좌표: 가수 mbid로 0~1 사이 고정 위치 */
@@ -259,7 +277,7 @@ class RoomSongService(
 }
 
 @RestController
-class RoomSongController(private val service: RoomSongService) {
+class RoomSongController(private val service: RoomSongService, private val faces: ArtistFaces) {
 
     @GetMapping("/api/rooms/{rid}/search")
     fun search(@PathVariable rid: String, @RoomMember ctx: RoomContext, @RequestParam q: String?): RoomSearchResponse = service.search(ctx, q)
@@ -287,10 +305,10 @@ class RoomSongController(private val service: RoomSongService) {
     @GetMapping("/api/rooms/{rid}/artists/{artistId}")
     fun artist(@PathVariable rid: String, @PathVariable artistId: Long, @RoomMember ctx: RoomContext): ArtistView = service.artist(ctx, artistId)
 
-    /** 몇 초마다 새로고침. 바뀐 게 없으면(map_rev 같음) 304 */
+    /** 몇 초마다 새로고침. 바뀐 게 없으면(map_rev와 가수 사진 상태가 같음) 304. 사진이 늘면 얼굴이 바뀌므로 ETag에 섞는다 (I-44) */
     @GetMapping("/api/rooms/{rid}/map")
     fun map(@PathVariable rid: String, @RoomMember ctx: RoomContext, @RequestHeader(HttpHeaders.IF_NONE_MATCH, required = false) etag: String?): ResponseEntity<MapResponse> {
-        val tag = "\"${ctx.room.mapRev}\""
+        val tag = "\"${ctx.room.mapRev}-${faces.stamp()}\""
         if (etag == tag) return ResponseEntity.status(HttpStatus.NOT_MODIFIED).eTag(tag).build()
         return ResponseEntity.ok().eTag(tag).body(service.map(ctx))
     }

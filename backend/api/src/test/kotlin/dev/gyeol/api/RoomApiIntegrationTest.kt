@@ -325,10 +325,16 @@ class RoomApiIntegrationTest {
         val req = call("POST", songsPath, mapOf("title" to "새 노래", "artist" to "가수 A"), host.key)
         assertEquals(202, req.status)
         val requestId = req.body!!["requestId"].asLong()
+        // 같은 큐에 다른 테스트의 메시지(COVER·SCAN 등)가 10개 넘게 있을 수 있어 찾을 때까지 받는다
         val msg = sqs().use { c ->
             val url = c.getQueueUrl { it.queueName(SONG_QUEUE) }.queueUrl()
-            c.receiveMessage { it.queueUrl(url).maxNumberOfMessages(10).waitTimeSeconds(5) }.messages()
-        }.map { json.readTree(it.body()) }.single { it.path("requestId").asLong(-1) == requestId }
+            var found: tools.jackson.databind.JsonNode? = null
+            repeat(20) {
+                if (found == null) found = c.receiveMessage { it.queueUrl(url).maxNumberOfMessages(10).waitTimeSeconds(2) }.messages()
+                    .map { json.readTree(it.body()) }.firstOrNull { it.path("requestId").asLong(-1) == requestId }
+            }
+            found ?: error("IDENTIFY 메시지 없음")
+        }
         assertEquals("IDENTIFY", msg["type"].asString())
         assertEquals("IDENTIFYING", call("GET", "/api/rooms/${host.rid}/song-requests/$requestId", key = host.key).body!!["status"].asString())
         assertEquals(404, call("GET", "/api/rooms/${host.rid}/song-requests/$requestId", key = minji.key).status, "남의 요청은 못 본다")
@@ -1057,5 +1063,74 @@ class RoomApiIntegrationTest {
         val g6 = ghosts()
         assertEquals(6, g6.size)
         assertEquals(setOf(near["a1"], near["a2"], near["a3"], near["b1"], near["b2"], near["b3"]), g6.toSet())
+        // 활성 판을 남기면 "판 없음(placeholder)"을 기대하는 다른 테스트가 깨진다
+        jdbc.sql("UPDATE map_version SET active = false WHERE id = :v").param("v", version).update()
+    }
+
+    @Test
+    fun `I-44 얼굴 - 사진(Commons만)·방 곡 표지·없음, 사진은 방 열쇠로만, 사진이 늘면 ETag가 바뀜, 가수 판·가수 화면 저작자 표시`() {
+        val host = newRoom()
+        jdbc.sql("UPDATE map_version SET active = false").update()
+        val version = jdbc.sql("INSERT INTO map_version (params, artist_count, active) VALUES ('{}', 4, true) RETURNING id").query(Long::class.java).single()
+        val galaxy = jdbc.sql("INSERT INTO galaxy (map_version, label, cx, cy) VALUES (:v, 0, 0.5, 0.5) RETURNING id").param("v", version).query(Long::class.java).single()
+        fun artistWithTrack(name: String): Pair<Long, Long> { val t = track("$name 노래", name); return t to songs.trackArtist(t)!! }
+        fun vec(axis: Int, k: Int) = dev.gyeol.api.room.vecOf(axis, k)
+        val (tp, photoArtist) = artistWithTrack("얼굴사진"); val (tc, coverArtist) = artistWithTrack("얼굴표지"); val (tn, noneArtist) = artistWithTrack("얼굴없음")
+        val (_, youtubeArtist) = artistWithTrack("얼굴유튜브")
+        val (_, ghostPhoto) = artistWithTrack("흐린사진")
+        listOf(photoArtist to 0, coverArtist to 7, noneArtist to 8, youtubeArtist to 9).forEach { (id, k) ->
+            maps.saveVector(id, "fake", vec(3, k), null, vec(3, k), "x"); maps.savePosition(version, id, 0.1, 0.1, galaxy, "UMAP")
+        }
+        maps.saveVector(ghostPhoto, "fake", vec(3, 1), null, vec(3, 1), "x"); maps.savePosition(version, ghostPhoto, 0.2, 0.2, galaxy, "UMAP")
+        jdbc.sql("UPDATE track SET cover_url = 'https://coverartarchive.org/release/x/front-250' WHERE id = :t").param("t", tc).update()
+        listOf(tp, tc, tn).forEach { call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to it), host.key) }
+        val youtubeTrack = jdbc.sql("SELECT id FROM track WHERE artist_id = :a").param("a", youtubeArtist).query(Long::class.java).single()
+        call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to youtubeTrack), host.key)
+
+        val etag0 = call("GET", "/api/rooms/${host.rid}/map", key = host.key).headers["etag"]!!.single()
+        // worker 흉내: Commons 사진 둘(행성·흐린 행성), YouTube 프로필 하나(지도에서는 안 씀)
+        listOf(photoArtist, ghostPhoto).forEach { id ->
+            val key = "artists/$id"
+            s3().use { it.putObject({ r -> r.bucket(COVERS).key(key).contentType("image/jpeg") }, software.amazon.awssdk.core.sync.RequestBody.fromBytes(byteArrayOf(9, 8, 7))) }
+            jdbc.sql("INSERT INTO artist_image (artist_id, source, s3_key, page_url, author, license) VALUES (:a, 'COMMONS', :k, 'https://commons.wikimedia.org/wiki/File:x.jpg', '작가', 'CC BY-SA 4.0')")
+                .param("a", id).param("k", key).update()
+        }
+        jdbc.sql("INSERT INTO artist_image (artist_id, source, url) VALUES (:a, 'YOUTUBE', 'https://yt3.ggpht.com/x')").param("a", youtubeArtist).update()
+
+        val res = call("GET", "/api/rooms/${host.rid}/map", key = host.key, headers = mapOf("If-None-Match" to etag0))
+        assertEquals(200, res.status, "사진이 늘면 ETag가 바뀐다")
+        val faces = res.body!!["planets"].toList().associate { it["artistId"].asLong() to it["face"] }
+        faces[photoArtist]!!.let {
+            assertEquals("PHOTO", it["kind"].asString())
+            assertEquals("/api/rooms/${host.rid}/artists/$photoArtist/image", it["url"].asString())
+            assertEquals("작가", it["author"].asString()); assertEquals("CC BY-SA 4.0", it["license"].asString())
+            assertEquals("https://commons.wikimedia.org/wiki/File:x.jpg", it["pageUrl"].asString())
+        }
+        assertEquals("COVER", faces[coverArtist]!!["kind"].asString())
+        assertEquals("https://coverartarchive.org/release/x/front-250", faces[coverArtist]!!["url"].asString())
+        assertEquals("NONE", faces[noneArtist]!!["kind"].asString())
+        assertTrue(faces[noneArtist]!!["url"].isNull)
+        assertEquals("NONE", faces[youtubeArtist]!!["kind"].asString(), "YouTube 프로필은 지도 얼굴로 안 씀")
+        assertEquals(galaxy, faces[noneArtist]!!["galaxyId"].asLong())
+        val ghost = res.body!!["ghosts"].toList().single { it["artistId"].asLong() == ghostPhoto }
+        assertEquals("PHOTO", ghost["face"]["kind"].asString())
+
+        // 사진: 방 열쇠가 있어야, Commons 사진이 없는 가수는 404
+        val imgPath = "/api/rooms/${host.rid}/artists/$photoArtist/image"
+        val img = http.send(HttpRequest.newBuilder(URI("http://localhost:$port$imgPath")).header("X-Room-Key", host.key).build(), HttpResponse.BodyHandlers.ofByteArray())
+        assertEquals(200, img.statusCode())
+        assertEquals(listOf<Byte>(9, 8, 7), img.body().toList())
+        assertEquals(401, call("GET", imgPath).status)
+        assertEquals(404, call("GET", "/api/rooms/${host.rid}/artists/$youtubeArtist/image", key = host.key).status)
+
+        // 가수 판·가수 화면
+        val panel = call("GET", "/api/rooms/${host.rid}/artists/$photoArtist", key = host.key).body!!
+        assertEquals("PHOTO", panel["face"]["kind"].asString())
+        assertEquals("작가", panel["photo"]["author"].asString())
+        assertEquals("COVER", call("GET", "/api/rooms/${host.rid}/artists/$coverArtist", key = host.key).body!!["face"]["kind"].asString())
+        assertTrue(call("GET", "/api/rooms/${host.rid}/artists/$coverArtist", key = host.key).body!!["photo"].isNull)
+        val screen = call("GET", "/api/rooms/${host.rid}/artists/$photoArtist/songs?sort=latest", key = host.key).body!!
+        assertEquals("CC BY-SA 4.0", screen["artist"]["photo"]["license"].asString())
+        jdbc.sql("UPDATE map_version SET active = false WHERE id = :v").param("v", version).update()
     }
 }

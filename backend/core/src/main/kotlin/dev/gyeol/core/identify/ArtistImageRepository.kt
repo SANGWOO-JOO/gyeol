@@ -9,6 +9,9 @@ data class ArtistImageTarget(val artistId: Long, val mbid: String, val videoId: 
 /** [titles]: 그 채널에서 많이 들은 곡 제목 (같은 이름 가수가 여럿일 때 확인용) */
 data class ChannelImageTarget(val channel: String, val videoId: String?, val titles: List<String> = emptyList())
 
+/** 지도 얼굴용 Commons 사진 (I-44): S3 키와 저작자 표시 */
+data class CommonsPhoto(val artistId: Long, val s3Key: String, val author: String?, val license: String?, val pageUrl: String?)
+
 data class ArtistImage(val source: String, val s3Key: String? = null, val url: String? = null, val pageUrl: String? = null, val author: String? = null, val license: String? = null)
 
 @Repository
@@ -90,4 +93,34 @@ class ArtistImageRepository(private val jdbc: JdbcClient) {
         ).param("a", artistId).param("s", image.source).param("k", image.s3Key).param("u", image.url)
             .param("p", image.pageUrl).param("au", image.author).param("l", image.license).update()
     }
+
+    /** Commons 사진이 있는 가수만 (YOUTUBE·NONE은 빠짐, I-44 지도 얼굴은 Commons만) */
+    fun commonsPhotos(artistIds: Collection<Long>): Map<Long, CommonsPhoto> {
+        if (artistIds.isEmpty()) return emptyMap()
+        return jdbc.sql("SELECT artist_id, s3_key, author, license, page_url FROM artist_image WHERE artist_id = ANY (:ids) AND source = 'COMMONS' AND s3_key IS NOT NULL")
+            .param("ids", artistIds.toTypedArray())
+            .query { rs, _ -> CommonsPhoto(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5)) }
+            .list().associateBy { it.artistId }
+    }
+
+    /** 사진 상태가 바뀌었는지 보는 표지 (지도 ETag에 섞는다): Commons 수와 마지막 확인 시각 */
+    fun commonsStamp(): String =
+        jdbc.sql("SELECT count(*) || '-' || COALESCE(extract(epoch FROM max(checked_at))::bigint, 0) FROM artist_image WHERE source = 'COMMONS'")
+            .query(String::class.java).single()
+
+    /**
+     * 지도 가수 일괄 채우기 대상 (I-44): 활성 지도 판에 자리 잡은 가수 중 사진을 한 번도 확인하지 않은 가수.
+     * videoId는 없다(Commons만 찾는다)
+     */
+    fun mapTargets(limit: Int): List<ArtistImageTarget> =
+        jdbc.sql(
+            """
+            SELECT a.id, a.mbid::text FROM artist_position p
+            JOIN map_version v ON v.id = p.map_version AND v.active
+            JOIN artist a ON a.id = p.artist_id
+            LEFT JOIN artist_image ai ON ai.artist_id = a.id
+            WHERE ai.artist_id IS NULL AND a.mbid IS NOT NULL
+            ORDER BY a.id LIMIT :l
+            """.trimIndent(),
+        ).param("l", limit).query { rs, _ -> ArtistImageTarget(rs.getLong(1), rs.getString(2), null) }.list()
 }
