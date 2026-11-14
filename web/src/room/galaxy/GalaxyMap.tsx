@@ -3,7 +3,7 @@ import type { MemberView, RoomMap } from '../roomApi'
 import { memberColor } from '../roomApi'
 import { coverSources, sourcesOf, useImageChain, type ImgSource } from '../images'
 import { planetPeople } from '../roomLogic'
-import { fitInside, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type Insets, type View } from './galaxyMath'
+import { SAT_GROW_MAX, fitInside, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type Insets, type View } from './galaxyMath'
 import { NO_FRESH, songKey, type Fresh } from './fresh'
 import { genreColor, pillWidth, planetFace } from './faces'
 import { planetLit, ringLit, songLit } from './focus'
@@ -384,12 +384,6 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                       </g>
                     )
                   })()}
-                  {p.people.shared > 0 && level !== 'far' && (
-                    <g transform={`translate(${r * 0.78} ${-r * 0.78})`}>
-                      <circle r={7 * grow * u} fill="#FFE3B8" stroke="#141225" strokeWidth={u} />
-                      <text y={3 * grow * u} fontSize={9 * grow * u} fontWeight={700} textAnchor="middle" fill="#3B2A10">{p.people.shared}</text>
-                    </g>
-                  )}
                   </g>
                 </g>
               )
@@ -486,7 +480,8 @@ function Orbits({ roomId, artistId, rings, r, u, grow, members, near, fresh, spi
   focus?: number | null
 }) {
   const color = (id: number) => memberColor(members.get(id)?.colorIdx ?? 0).bg
-  const k = (near ? 1.3 : 1) * grow
+  const sg = Math.min(grow, SAT_GROW_MAX) // 위성은 행성보다 덜 커지게
+  const k = (near ? 1.3 : 1) * sg
   return (
     <g aria-hidden="true" className={g.orbits}>
       {rings.map((ring, i) => {
@@ -511,7 +506,7 @@ function Orbits({ roomId, artistId, rings, r, u, grow, members, near, fresh, spi
                     )
                     const srcs = covers?.get(sat.trackId)
                     if (!srcs || srcs.length === 0) return dot
-                    return <SatCover roomId={roomId} sources={srcs} cx={cx} cy={cy} cr={6.5 * grow * u} pad={1.6 * u} ring={gold ? '#FFE3B8' : color(sat.memberIds[0])} dot={dot}
+                    return <SatCover roomId={roomId} sources={srcs} cx={cx} cy={cy} cr={6.5 * sg * u} pad={1.6 * u} ring={gold ? '#FFE3B8' : color(sat.memberIds[0])} dot={dot}
                       className={fresh.tracks.has(key) || fresh.gold.has(key) ? g.satBorn : undefined} />
                   })()}
                   {fresh.gold.has(key) && <Sparkle x={cx} y={cy} u={u} />}

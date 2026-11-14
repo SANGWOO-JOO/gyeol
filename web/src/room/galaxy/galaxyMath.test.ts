@@ -109,8 +109,12 @@ describe('빽빽할 때 확대 단계', () => {
 describe('I-37 확대 체감', () => {
   it('처음 맞춘 배율보다 확대하면 √로 커지고 상한에서 멈춘다, 축소 쪽은 1', () => {
     expect(zoomGrow(2.4, 2.4)).toBe(1)
-    expect(zoomGrow(4.8, 2.4)).toBeCloseTo(Math.SQRT2)
-    expect(zoomGrow(6, 0.5)).toBe(GROW_MAX)
+    expect(zoomGrow(4.8, 2.4)).toBeCloseTo(Math.pow(2, 0.7))
+    expect(zoomGrow(20, 0.5)).toBe(GROW_MAX)
+    // 11-14 최대 확대: 처음 맞춤이 2.4(작은 방)여도 상한 20까지 가면 4배 넘게 커진다
+    expect(zoomGrow(MAX_SCALE, 2.4)).toBeGreaterThan(4)
+    // 행성 사이 거리(배율 비례)가 행성 크기보다 빨리 벌어진다: 2배 확대에 크기는 2배 미만
+    expect(zoomGrow(2, 0.5) / zoomGrow(1, 0.5)).toBeLessThan(2)
     expect(zoomGrow(0.3, 0.6)).toBe(1)
     expect(zoomGrow(1, 0)).toBe(1)
   })

@@ -3,7 +3,8 @@
 
 export const WORLD = 1000
 export const MIN_SCALE = 0.15
-export const MAX_SCALE = 6
+/** 확대 상한 (11-14 사용자 "줌인이 더 되면"): 6 → 20. 처음 맞춤 배율이 큰 작은 방에서도 확대 체감이 끝까지 가도록 */
+export const MAX_SCALE = 20
 
 export interface View { scale: number; tx: number; ty: number }
 export interface Size { width: number; height: number }
@@ -135,12 +136,17 @@ export const GALAXY_PX = 13
 /**
  * 확대 체감 (I-37): 처음 맞춘 배율보다 확대하면 행성·위성·글자도 완만하게(√) 커진다. 축소 쪽은 1 그대로(최솟값 규칙),
  * 너무 커지지 않게 GROW_MAX에서 멈춘다.
+ * 11-14: 최대 확대 때 얼굴이 알아볼 만큼(PC 지름 약 150px) 커지게 상한 1.7 → 5, 곡선 √ → 0.7제곱.
+ * 0.7 < 1이라 확대할수록 행성 사이 거리(배율에 비례)가 행성 크기보다 빨리 벌어져 서로 겹치지 않는다.
  */
-export const GROW_MAX = 1.7
+export const GROW_MAX = 5
+export const GROW_POW = 0.7
 export function zoomGrow(scale: number, fitScale: number): number {
   if (!(fitScale > 0)) return 1
-  return Math.min(GROW_MAX, Math.max(1, Math.sqrt(scale / fitScale)))
+  return Math.min(GROW_MAX, Math.max(1, Math.pow(scale / fitScale, GROW_POW)))
 }
+/** 위성(점·표지)은 행성보다 덜 커지게: 표지 지름 약 45px에서 멈춘다 */
+export const SAT_GROW_MAX = 2.6
 
 /** 공전 (I-38): 궤도 한 바퀴 30~60초, 궤도마다 속도·방향을 조금씩 다르게 (행성·궤도 번호로 정해 늘 같다) */
 export function orbitSpin(artistId: number, ring: number): { seconds: number; reverse: boolean } {
