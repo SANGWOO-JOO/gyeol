@@ -33,11 +33,22 @@ export function names(list: string[]): string {
 }
 
 /** 담긴 뒤 알림 (4-e, 겹치면 4-h ⑨) */
-export function addedMessage(song: { artist: string; sharedCount: number }, sameSong: string[] = []): { title: string; gold: boolean } {
+export function addedMessage(song: { artist: string; sharedCount: number; title?: string }, sameSong: string[] = [], newArtist = false): { title: string; gold: boolean; sub?: string } {
   if (song.sharedCount >= 2) {
     return { title: sameSong.length > 0 ? `${names(sameSong)}과 같은 노래를 골랐어요` : `${song.sharedCount}명이 같은 노래를 골랐어요`, gold: true }
   }
+  // I-52 (캔버스 4-g 문구): 공용 지도에 없던 가수. 진행 카드 없이 알림 문구만, 점선 고리 행성이 준비 중을 보여 준다
+  if (newArtist) return { title: '처음 보는 아티스트예요', gold: false, sub: `${song.artist}의 자리를 우주에 만드는 중이에요${song.title ? ` · ${song.title}` : ''}` }
   return { title: `${song.artist} 곁에 내 노래가 떴어요`, gold: false }
+}
+
+/**
+ * I-52 처음 보는 가수인지: 담은 직후 받은 지도에서 이 곡이 들어 있는 행성이 준비 중(preparing = 공용 지도에 아직 자리가 없어
+ * 자리를 만드는 중)이면 true. 담기 응답에는 가수 id·준비 상태가 없어서 지도로 판단한다. 지도를 못 받았으면 false(일반 알림)
+ */
+export function isNewArtist(map: Pick<RoomMap, 'planets'> | null | undefined, trackId: number): boolean {
+  const p = map?.planets.find(x => x.songs.some(s => s.trackId === trackId))
+  return !!p?.preparing
 }
 
 /** 식별 실패 (4-i ⑪): 담지 않는다. 화면은 안내 한 줄 + 다른 이름으로 찾아보기·닫기 */

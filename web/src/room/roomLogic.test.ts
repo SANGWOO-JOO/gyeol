@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, isNewArtist, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -97,6 +97,27 @@ describe('names', () => {
   it('셋부터는 줄인다', () => {
     expect(names(['민지'])).toBe('민지님')
     expect(names(['민지', '지훈', 'Sam'])).toBe('민지님 외 2명')
+  })
+})
+
+describe('I-52 처음 보는 가수', () => {
+  const map = { planets: [
+    { artistId: 1, name: '실리카겔', x: 0, y: 0, galaxyId: null, preparing: true, songs: [{ trackId: 10, title: 'NO PAIN', coverUrl: null, memberIds: [1] }] },
+    { artistId: 2, name: '아이유', x: 0, y: 0, galaxyId: 3, preparing: false, songs: [{ trackId: 20, title: '밤편지', coverUrl: null, memberIds: [1] }] },
+  ] }
+  it('담은 곡의 행성이 준비 중이면 처음 보는 가수', () => {
+    expect(isNewArtist(map, 10)).toBe(true)
+    expect(isNewArtist(map, 20)).toBe(false)
+  })
+  it('지도를 못 받았거나 곡이 아직 지도에 없으면 일반 알림', () => {
+    expect(isNewArtist(null, 10)).toBe(false)
+    expect(isNewArtist(map, 99)).toBe(false)
+  })
+  it('문구: 4-g 표현, 같이 담은 노래(금빛)가 먼저', () => {
+    expect(addedMessage({ artist: 'Silica Gel', title: 'NO PAIN', sharedCount: 1 }, [], true))
+      .toEqual({ title: '처음 보는 아티스트예요', gold: false, sub: 'Silica Gel의 자리를 우주에 만드는 중이에요 · NO PAIN' })
+    expect(addedMessage({ artist: 'Silica Gel', sharedCount: 2 }, ['민지'], true).gold).toBe(true)
+    expect(addedMessage({ artist: '아이유', sharedCount: 1 }, [], false).sub).toBeUndefined()
   })
 })
 

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { keyStore } from '../keyStore'
-import { roomApi, RoomApiError, type MeView, type MemberRow, type RoomMap, type RoomSummary, type RoomSearchItem, type SongView } from '../roomApi'
-import { addedMessage, addErrorText, failText, giftLine, mapCounts } from '../roomLogic'
+import { roomApi, RoomApiError, type MeView, type MemberRow, type RoomMap, type RoomSummary, type RoomSearchItem, type SongView, type GiftNotice } from '../roomApi'
+import { giftNoticeToast } from '../giftNotice'
+import { addedMessage, addErrorText, failText, giftLine, isNewArtist, mapCounts } from '../roomLogic'
 import { useRoomTheme } from '../components/RoomPage'
 import { Avatar, AvatarRoom } from '../components/Avatar'
 import { Wordmark } from '../components/Wordmark'
@@ -103,11 +104,13 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
     return false
   }, [roomId, onLostKey])
 
-  const refreshMap = useCallback(async (force = false) => {
+  /** 새로 받은 지도 (바뀌지 않았거나 실패하면 null) */
+  const refreshMap = useCallback(async (force = false): Promise<RoomMap | null> => {
     try {
       const r = await roomApi.map(roomId, force ? null : etag.current)
-      if (r) { etag.current = r.etag; setMap(r.map) }
+      if (r) { etag.current = r.etag; setMap(r.map); return r.map }
     } catch (err) { handle(err) }
+    return null
   }, [roomId, handle])
 
   const refreshMe = useCallback(async () => {
@@ -145,16 +148,18 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
     return () => clearInterval(t)
   }, [refreshMap])
 
-  const announceAdded = useCallback((song: SongView, sameSong: string[]) => {
-    const msg = addedMessage(song, sameSong)
+  const announceAdded = useCallback(async (song: SongView, sameSong: string[]) => {
     setAdded(prev => new Map(prev).set(`t${song.trackId}`, song.id))
+    // 알림 문구는 담은 직후 지도로 정한다 (I-52 처음 보는 가수 = 이 곡의 행성이 준비 중). 지도는 어차피 다시 받는다
+    setVersion(v => v + 1); refreshMe(); refreshSummary()
+    const fresh = await refreshMap(true)
+    const msg = addedMessage(song, sameSong, isNewArtist(fresh, song.trackId))
     show({
       title: msg.title, tone: msg.gold ? 'gold' : 'normal', cover: { roomId, coverPath: song.coverPath, coverUrl: song.coverUrl },
-      sub: `${song.title} · ${song.artist}`,
+      sub: msg.sub ?? `${song.title} · ${song.artist}`,
       action: { label: '되돌리기', run: () => undo(song) },
     })
-    changed()
-  }, [show, changed])
+  }, [show, refreshMap, refreshMe, refreshSummary])
 
   async function undo(song: SongView) {
     try {
@@ -167,6 +172,15 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
     }
   }
 
+  // I-51 상자 알림: 바로 담김(201)과 식별 끝(song-requests) 두 곳에서 같이 쓴다. 같은 상자는 한 번만
+  const giftShown = useRef(new Set<number>())
+  const notifyGift = useCallback((gift: GiftNotice | null | undefined) => {
+    const t = giftNoticeToast(gift, giftShown.current)
+    if (!t || !gift) return
+    giftShown.current.add(gift.boxId)
+    setTimeout(() => show({ ...t, tone: 'gold' }), 1500)
+  }, [show])
+
   async function add(r: RoomSearchItem) {
     const key = itemKey(r.item)
     setBusy(prev => new Set(prev).add(key))
@@ -175,7 +189,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       if (res.status === 'ADDED' && res.song) {
         setAdded(prev => new Map(prev).set(key, res.song!.id))
         announceAdded(res.song, r.sameSong)
-        if (res.gift?.status === 'WAITING') setTimeout(() => show({ title: `${res.gift!.milestone}곡 선물 상자가 생겼어요`, sub: '오늘 선물은 이미 받아서 내일 열려요', tone: 'gold' }), 1500)
+        notifyGift(res.gift)
       } else if (res.requestId != null) {
         setPending(prev => [...prev, { requestId: res.requestId!, key, title: r.item.title, artist: r.item.artist, sameSong: r.sameSong }])
         show({ title: '노래를 찾고 있어요', sub: `${r.item.title} · 찾으면 바로 우주에 떠요` })
@@ -202,7 +216,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
           if (r.status === 'DONE' && r.song) {
             setAdded(prev => new Map(prev).set(p.key, r.song!.id))
             if (r.failReason === 'ALREADY_ADDED') show({ title: '이미 담은 노래예요', sub: r.song.title })
-            else announceAdded(r.song, p.sameSong)
+            else { announceAdded(r.song, p.sameSong); notifyGift(r.gift) }
           } else {
             setToast(null) // "찾고 있어요" 알림이 남아 있으면 못 찾음 안내와 어긋난다
             setNotFound({ title: p.title, text: failText(r.failReason) })
@@ -216,7 +230,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       if (!ac.signal.aborted) setPollTick(n => n + 1)
     }, 2000)
     return () => { clearTimeout(t); ac.abort() }
-  }, [pending, pollTick, roomId, show, announceAdded, handle])
+  }, [pending, pollTick, roomId, show, announceAdded, notifyGift, handle])
 
   async function invite() {
     const url = `${location.origin}/rooms/${roomId}`
