@@ -392,3 +392,6 @@
   - 활성 지도 판 가수 1,471명 중 미확인 0명이다. COMMONS 874(59%)·NONE 592·YOUTUBE 5다. 표 전체(지도 밖 포함)는 COMMONS 888·NONE 592·YOUTUBE 6이다.
   - 실패: DLQ 0, MusicBrainz 거절 0. worker ERROR 2건(10:40·11:01)은 fetcher의 Wikimedia 503(UPSTREAM_UNAVAILABLE)이다. 두 메시지 모두 600초 뒤 다시 받아 끝났다.
   - 방 8(jj7un3uFPx) 지도: 행성 37개 = PHOTO 31·COVER 6, 흐린 행성 6개 = PHOTO 5·NONE 1이다. PHOTO 사진 주소 36개가 모두 200이다(임시 기기 열쇠는 넣었다가 지웠다, 남은 행 0).
+- 작성자 주소 줄이기(11-14, 관리 세션 요청): `CommonsAuthor.clean`이 작성자 안의 주소를 표시용 이름으로 바꾼다. YouTube 채널(`/@이름`·`/c/이름`·`/user/이름`)은 "@이름"이고, 그 밖은 도메인(www.·m. 뺀 호스트)이다. 텍스트와 섞여 있으면 주소 부분만 바꾼다. 원본 링크는 pageUrl에 남아 있다.
+  - 테스트: api `CommonsAuthorTest`에 1개를 더했다(기존 YouTube /user 기대값을 "@x"로 바꿈). api 72개(건너뜀 1)·worker 79개 통과.
+  - 로컬(11:46:12 api·worker 재시작 뒤): IVE(1810) 지도 face와 가수 판 photo의 author가 "@_TV10"이다. 주소가 든 COMMONS 작성자 18건 모두 주소가 이름·도메인으로 바뀐다. 다만 Commons 원문이 긴 설명인 몇 건("[facebook.com …" 위키 링크 괄호, 저장 시 잘린 "see http:/")은 문장이 그대로 남는다.
