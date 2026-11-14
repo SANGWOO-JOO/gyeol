@@ -40,7 +40,11 @@ class IdentifyPlanner(
         val groups = repo.playGroups(sessionId)
             .groupBy { AliasKey.of(it.title, it.channel) }
             // 대소문자만 다른 같은 키는 재생 수를 합치고, 가장 많이 들은 표기를 대표로
-            .map { (key, gs) -> key to gs.maxBy { it.plays }.copy(plays = gs.sumOf { it.plays }) }
+            // I-48 4-2: 판정 없는 묶음이 하나라도 있으면 판정 시각 없음(계속 보관), 모두 판정 경로면 가장 늦은 판정 시각
+            .map { (key, gs) ->
+                val cat = if (gs.any { it.categoryCheckedAt == null }) null else gs.maxOf { it.categoryCheckedAt!! }
+                key to gs.maxBy { it.plays }.copy(plays = gs.sumOf { it.plays }, categoryCheckedAt = cat)
+            }
             .sortedWith(compareByDescending<Pair<String, PlayGroup>> { it.second.plays }.thenBy { it.first })
             .take(props.identify.topN)
         repo.insertTargets(sessionId, groups)
@@ -55,6 +59,7 @@ class IdentifyPlanner(
             if (alias != null && alias.isFresh(retryBefore)) {
                 tx.executeWithoutResult {
                     if (repo.finishTarget(sessionId, t.key, TargetStatus.DONE)) alias.trackId?.let { repo.linkListens(t, it); repo.linkSeeds(t, it) }
+                    repo.touchAliasCategory(t.key, t.categoryCheckedAt) // I-48 4-2: 판정 없는 세션이 맞히면 계속 보관으로
                 }
                 alias.trackId?.let { hitTracks += it }
                 hits++

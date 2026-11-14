@@ -36,6 +36,8 @@ class GuessPlanner(
 
     fun plan(sessionId: Long) {
         val g = props.guess
+        // I-48 4-2: 다시 뽑지 않고 재사용하는 추측·메들리에도 이 세션의 판정 근거를 합친다
+        repo.touchCategories(sessionId)
         val targets = repo.targets(sessionId, g.minPlays, g.maxVideos, g.retry.toDays().toInt())
         targets.chunked(g.batch).forEach { items -> sqs.send { it.queue(g.queue).payload(json.writeValueAsString(GuessMessage(items))) } }
         log.info("가수·곡 뽑기 계획: 세션 {}, 영상 {}개", sessionId, targets.size)
@@ -74,7 +76,7 @@ class GuessService(
                 m.items.forEach { item ->
                     val i = medleyIdx.getOrNull(item.index) ?: return@forEach
                     val songs = CleanedValidator.medley(raws[i], item.songs).map { (a, s) -> MedleySong(a ?: byIndex[i]?.artist, s) }
-                    if (songs.isNotEmpty()) medleys.save(msg.items[i].title, msg.items[i].channel, songs)
+                    if (songs.isNotEmpty()) medleys.save(msg.items[i].title, msg.items[i].channel, songs, msg.items[i].categoryCheckedAt)
                 }
             }.onFailure { log.warn("메들리 곡을 받지 못했습니다: {}", it.message) }
         }
@@ -83,11 +85,11 @@ class GuessService(
             val accepted = answer.takeIf { it.version in singable }?.let { CleanedValidator.accept(raws[i], it) }?.takeIf { ArtistPlacement.ok(t.title, t.channel, it) }
             if (answer.version == Version.INSTRUMENTAL) {
                 val names = CleanedValidator.performanceNames(raws[i], answer)
-                repo.save(TitleGuess(t.title, t.channel, names?.second, null, names?.first, null, answer.version.name))
+                repo.save(TitleGuess(t.title, t.channel, names?.second, null, names?.first, null, answer.version.name), t.categoryCheckedAt)
                 return@forEachIndexed
             }
             if (accepted != null) kept++
-            repo.save(TitleGuess(t.title, t.channel, accepted?.artist, accepted?.artistAlt, accepted?.title, accepted?.titleAlt, answer.version.name))
+            repo.save(TitleGuess(t.title, t.channel, accepted?.artist, accepted?.artistAlt, accepted?.title, accepted?.titleAlt, answer.version.name), t.categoryCheckedAt)
         }
         log.info("가수·곡 뽑기: 영상 {}개 중 {}개 사용, 모델 {}, 토큰 {}/{}", raws.size, kept, result.model, result.inputTokens, result.outputTokens)
     }

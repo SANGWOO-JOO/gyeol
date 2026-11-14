@@ -109,6 +109,7 @@ class IdentifyService(
             // 다른 세션이 그사이 같은 곡을 찾았을 수 있다
             val cached = repo.findAlias(t.key)?.takeIf { it.isFresh(retryBefore) }
             if (cached != null) {
+                tx.executeWithoutResult { repo.touchAliasCategory(t.key, t.categoryCheckedAt) }
                 sink.finish(t, cached.trackId); cached.trackId?.let(found::add); continue
             }
             val query = RuleIdentifier.query(t.title, t.channel, t.source)
@@ -121,7 +122,7 @@ class IdentifyService(
                     continue
                 }
                 val id = tx.execute { repo.upsertTrack(hit) }!!
-                tx.executeWithoutResult { repo.saveAlias(t.key, id, AliasMethod.RULE, official) }
+                tx.executeWithoutResult { repo.saveAlias(t.key, id, AliasMethod.RULE, official, categoryCheckedAt = t.categoryCheckedAt) }
                 sink.finish(t, id); found += id
                 continue
             }
@@ -138,7 +139,7 @@ class IdentifyService(
                 if (info == null) { sink.finish(t, null); continue }
             }
             val trackId = info?.let { found -> tx.execute { repo.upsertTrack(found) } }
-            tx.executeWithoutResult { repo.saveAlias(t.key, trackId, AliasMethod.RULE, query, reason = if (trackId == null) "NOT_IN_MUSICBRAINZ" else null) }
+            tx.executeWithoutResult { repo.saveAlias(t.key, trackId, AliasMethod.RULE, query, reason = if (trackId == null) "NOT_IN_MUSICBRAINZ" else null, categoryCheckedAt = t.categoryCheckedAt) }
             sink.finish(t, trackId); trackId?.let(found::add)
         }
         if (forLlm.isNotEmpty()) found += identifyWithLlm(forLlm, sink)
@@ -162,7 +163,7 @@ class IdentifyService(
             if (again.model != "fake") llmCalls.record("TITLE_CLEANUP", LlmUsage(again.model, invalid.size, again.inputTokens, again.outputTokens, again.latencyMs))
             again.items.forEach { a -> invalid.getOrNull(a.index)?.let { r -> byIndex[r.index] = a.copy(index = r.index) } }
         }
-        val medleyIds = medley(targets.indices.filter { byIndex[it]?.version == Version.MEDLEY }.map { raws[it] to byIndex[it] })
+        val medleyIds = medley(targets.indices.filter { byIndex[it]?.version == Version.MEDLEY }.map { Triple(raws[it], byIndex[it], targets[it].categoryCheckedAt) })
         return medleyIds + targets.mapIndexedNotNull { i, t ->
             val answer = byIndex[i]
             // 식별할 종류일 때만 검증한다 (곡이 아닌 영상은 곡명이 비어 있는 게 정상)
@@ -194,7 +195,7 @@ class IdentifyService(
                     Triple(hit?.first, hit?.second ?: tries.firstOrNull()?.let { Query(it.first!!, it.second!!, false) }, if (hit == null) "NOT_IN_MUSICBRAINZ" else null)
                 }
             }
-            tx.executeWithoutResult { repo.saveAlias(t.key, trackId, AliasMethod.LLM, query, titleAlt = cleaned?.titleAlt, reason = reason) }
+            tx.executeWithoutResult { repo.saveAlias(t.key, trackId, AliasMethod.LLM, query, titleAlt = cleaned?.titleAlt, reason = reason, categoryCheckedAt = t.categoryCheckedAt) }
             sink.finish(t, trackId)
             trackId
         }
@@ -204,9 +205,9 @@ class IdentifyService(
      * 메들리 영상은 제목에 적힌 곡을 뽑아 곡마다 식별해 둔다 (메들리를 재생하면 든 곡을 모두 들은 것으로 본다).
      * 가수는 곡에 적힌 가수 → 영상에서 읽은 가수 순으로 찾고, 못 찾은 곡은 이름만 남겨 통계가 세션의 확인된 곡과 맞춘다.
      */
-    private fun medley(videos: List<Pair<RawTitle, CleanedTitle?>>): List<Long> {
+    private fun medley(videos: List<Triple<RawTitle, CleanedTitle?, java.time.Instant?>>): List<Long> {
         if (videos.isEmpty()) return emptyList()
-        val asked = videos.mapIndexed { i, (r, _) -> r.copy(index = i) }
+        val asked = videos.mapIndexed { i, (r, _, _) -> r.copy(index = i) }
         val answer = try {
             cleaner.medleySongs(asked)
         } catch (e: RuntimeException) {
@@ -216,7 +217,7 @@ class IdentifyService(
         if (answer.model != "fake") llmCalls.record("MEDLEY_SONGS", LlmUsage(answer.model, asked.size, answer.inputTokens, answer.outputTokens, answer.latencyMs))
         val found = mutableListOf<Long>()
         answer.items.forEach { item ->
-            val (raw, cleaned) = videos.getOrNull(item.index) ?: return@forEach
+            val (raw, cleaned, category) = videos.getOrNull(item.index) ?: return@forEach
             val channel = raw.channel ?: return@forEach
             val videoArtist = cleaned?.let { listOfNotNull(it.artist, it.artistAlt) }.orEmpty()
             val songs = CleanedValidator.medley(raw, item.songs).map { (artist, song) ->
@@ -226,7 +227,7 @@ class IdentifyService(
                 trackId?.let(found::add)
                 MedleySong(artist ?: videoArtist.firstOrNull(), song, trackId)
             }
-            if (songs.isNotEmpty()) tx.executeWithoutResult { medleys.save(raw.title, channel, songs) }
+            if (songs.isNotEmpty()) tx.executeWithoutResult { medleys.save(raw.title, channel, songs, category) }
         }
         return found
     }
@@ -284,9 +285,9 @@ class IdentifyService(
             val hit = hits[i]
             val kept = if (hit == null && fallback != null) tx.execute { repo.upsertTrack(fallback) }!! else null
             when {
-                hit != null -> tx.executeWithoutResult { repo.saveAlias(t.key, hit.first, AliasMethod.LLM, hit.second, reason = "RESPELLED") }
-                kept != null -> tx.executeWithoutResult { repo.saveAlias(t.key, kept, AliasMethod.RULE, q) }
-                else -> tx.executeWithoutResult { repo.saveAlias(t.key, null, AliasMethod.RULE, q, reason = "NOT_IN_MUSICBRAINZ") }
+                hit != null -> tx.executeWithoutResult { repo.saveAlias(t.key, hit.first, AliasMethod.LLM, hit.second, reason = "RESPELLED", categoryCheckedAt = t.categoryCheckedAt) }
+                kept != null -> tx.executeWithoutResult { repo.saveAlias(t.key, kept, AliasMethod.RULE, q, categoryCheckedAt = t.categoryCheckedAt) }
+                else -> tx.executeWithoutResult { repo.saveAlias(t.key, null, AliasMethod.RULE, q, reason = "NOT_IN_MUSICBRAINZ", categoryCheckedAt = t.categoryCheckedAt) }
             }
             val trackId = hit?.first ?: kept
             sink.finish(t, trackId)

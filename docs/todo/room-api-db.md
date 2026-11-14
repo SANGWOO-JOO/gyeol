@@ -590,3 +590,7 @@
   - fetcher 3개: IU 유형 원곡 선택, 질의에 Japanese Version이면 언어판, 언어판뿐이면 표시
   - worker 1개: LLM 경로 다시 찾기, 가짜 LLM이라 비용 없음
   - 결과: fetcher 57·worker 96·api 99(건너뜀 1) 통과. 19:33:13 api·worker·fetcher 재시작.
+
+### I-48 4-2 방안 A 구현: 판정 경로 제목 29일 뒤 삭제 (11-15, 사용자 승인)
+- 자세한 기록은 `docs/todo/youtube-derived-title-expiry.md` "구현 기록"에 있다. V34, 저장 경로 판정 시각, `CleanupService.deleteApiDerived`, 색인 재생성, filter.ts 불변식 주석.
+- 테스트: worker `YoutubeDerivedExpiryTest` 6개. worker 101·api 99(건너뜀 1) 통과. 01:17:40 api·worker 재시작.

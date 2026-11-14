@@ -14,7 +14,8 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier
 import java.time.Instant
 
-data class CleanupResult(val files: Int, val listens: Int, val sessions: Int, val videoChecks: Int = 0, val rooms: Int = 0, val drafts: Int = 0)
+/** [apiDerived]: I-48 4-2로 지운 판정 경로 행 수 (별칭·추측·메들리·식별 대상 합) */
+data class CleanupResult(val files: Int, val listens: Int, val sessions: Int, val videoChecks: Int = 0, val rooms: Int = 0, val drafts: Int = 0, val apiDerived: Int = 0)
 
 /**
  * 보관 기간이 지난 데이터를 지운다 (화면 안내 "30일 보관", 설계 "청취 기록 원본 7일").
@@ -38,6 +39,9 @@ class CleanupService(
     private val rooms: RoomRepository,
     private val drafts: RoomDraftRepository,
     private val gifts: GiftRepository,
+    private val identify: dev.gyeol.core.identify.IdentifyRepository,
+    private val search: dev.gyeol.core.identify.TrackSearchRepository,
+    private val guessesRepo: dev.gyeol.core.identify.TitleGuessRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -48,6 +52,7 @@ class CleanupService(
         val sessions = repeatUntilDone { sessions.deleteExpired(now, BATCH) }
         // YouTube API 정책: 판정 결과(카테고리)는 30일 안에 지운다 (L2-3b). 기준은 조회와 같은 29일 (I-48)
         val checks = videoChecks.deleteOlderThan(now.minus(VideoCheckRepository.RETENTION))
+        val derived = deleteApiDerived(now)
         // 음악 방: 방장·관리자가 지운 방은 7일 뒤 완전 삭제 (11-13 결정 2)
         // 캐릭터 그림(S3)을 먼저 지운다. 하나라도 실패하면 이번에는 방을 지우지 않는다 (키를 잃으면 그림이 고아로 남음)
         val purgedRooms = if (deleteCharacterImages(now)) rooms.purgeHidden(now) else 0
@@ -55,9 +60,24 @@ class CleanupService(
         // 감사 기록은 1년 보관 (11-13 ⑥ 결정)
         val oldAudit = rooms.deleteOldAudit(now.minus(java.time.Duration.ofDays(365)))
         if (oldAudit > 0) log.info("1년 지난 감사 기록 {}건 삭제", oldAudit)
-        val result = CleanupResult(files, listens, sessions, checks, purgedRooms, purgedDrafts)
+        val result = CleanupResult(files, listens, sessions, checks, purgedRooms, purgedDrafts, derived)
         log.info("정리 완료: 원본 파일 {}개, 청취 기록 {}건, 세션 {}개, 음악 판정 {}건, 방 {}개, 방 만들기 {}건, {}ms", files, listens, sessions, checks, purgedRooms, purgedDrafts, (System.nanoTime() - started) / 1_000_000)
         return result
+    }
+
+    /**
+     * I-48 4-2: YouTube 카테고리 판정을 거쳐서만 들어온 제목에서 나온 전역 행을 판정 뒤 [VideoCheckRepository.RETENTION](29일)에 지운다.
+     * 지운 별칭의 YouTube 표기가 검색 색인에 남지 않게 그 곡들만 색인을 다시 만든다. 곡·가수·방 노래는 지우지 않는다
+     */
+    private fun deleteApiDerived(now: Instant): Int {
+        val before = now.minus(VideoCheckRepository.RETENTION)
+        val tracks = identify.deleteExpiredAliases(before)
+        tracks.forEach(search::rebuild)
+        val (guesses, medleySongs) = guessesRepo.deleteExpired(before)
+        val targets = identify.deleteExpiredTargets(before)
+        val total = tracks.size + guesses + medleySongs + targets
+        if (total > 0) log.info("판정 경로 행 정리: 별칭 곡 {}개 색인 다시, 추측 {}건, 메들리 곡 {}건, 식별 대상 {}건", tracks.size, guesses, medleySongs, targets)
+        return total
     }
 
     private fun deleteCharacterImages(now: Instant): Boolean {

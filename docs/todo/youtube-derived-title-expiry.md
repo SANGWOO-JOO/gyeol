@@ -1,4 +1,4 @@
-# I-48 4-2 방안 A 설계 메모: 판정 경로로 들어온 제목을 29일 뒤 지우기 (11-14, 승인 전 구현 안 함)
+# I-48 4-2 방안 A 설계 메모: 판정 경로로 들어온 제목을 29일 뒤 지우기 (11-14 설계, **11-15 구현 완료 — 아래 '구현 기록' 참고**)
 
 ## 결론
 - 판정 경로로 들어온 행은 **서버가 이미 알아볼 수 있다**. 조건은 `listen_event.source='YOUTUBE' AND channel NOT LIKE '% - Topic'`이다. 그래서 web은 고치지 않는다.
@@ -89,3 +89,44 @@
 - `track.plays_total`: 판정분 재생 수가 더해진 누적 숫자다. 출처를 나눠 두지 않아 빼낼 수 없다. API 값 자체가 아니라 사용자 재생 횟수라 이번 범위에서는 뺀다.
 - `track`·`artist`: 판정분 덕에 식별된 곡이라도 값은 MusicBrainz 데이터라 남긴다.
 - `track_descriptor`·`track_vector`: 별칭 표기를 입력에 쓴 LLM 설명이다. 로컬에서는 LLM이 꺼져 있다. 원칙상 파생 데이터로 볼 여지가 있어, 관리 세션이 정책 원문을 확인할 때 같이 판단하기를 권한다.
+
+
+## 구현 기록 (11-15)
+- 마이그레이션은 **V34**(`V34__youtube_derived_expiry.sql`)다. 메모의 V31·V32·V33 표기는 모두 V34로 읽는다. V31~V33은 다른 작업이 썼다.
+- 저장 경로
+  - `IdentifyRepository.playGroups`가 묶음마다 판정 시각을 계산한다. 판정 경로뿐이면 `max(video_check.checked_at)`, video_check가 없으면 지금이다.
+  - `IdentifyPlanner`는 같은 키의 묶음을 합칠 때 하나라도 null이면 null로 둔다.
+  - `insertTargets`·`targets`가 `identify_target.category_checked_at`을 읽고 쓴다.
+  - `saveAlias(…, categoryCheckedAt)`(6곳)는 ON CONFLICT 합치기: 한 번 null이면 null, 아니면 greatest다.
+  - 캐시 맞힘(`IdentifyPlanner`, `IdentifyService.identifyTargets`)은 `touchAliasCategory`로 합친다.
+  - 메들리(`MedleyRepository.save`, 식별 경로·추측 경로)는 기존 행과 합쳐 저장한다.
+  - 추측(`TitleGuessRepository.targets`·`save`)
+  - 재사용 경로는 `GuessPlanner.plan`이 세션마다 `touchCategories(sessionId)`로 추측·메들리 행을 합친다(판정 없는 재생이 있으면 null).
+  - Last.fm 추천 후보(`Recommend.kt`)와 방 담기 별칭은 판정과 무관해 null(계속 보관)이다.
+- 정리: `CleanupService.deleteApiDerived`(매일 04:00)가 기준 `VideoCheckRepository.RETENTION`(29일)으로 지운다.
+  - 별칭: 지우고 `track_id`를 받아 `TrackSearchRepository.rebuild`(색인 비우고 다시)
+  - 추측·메들리·식별 대상
+  - `CleanupResult.apiDerived`는 색인을 다시 만든 곡 수 + 지운 추측·메들리 곡·식별 대상 행 수의 합이다.
+- web: `web/src/takeout/filter.ts`에 불변식 주석만 달았다(로직 그대로).
+- 기존 로컬 행 채우기: V34 안에서 했다(전·후 같은 수, 실행 전 롤백 시험으로 셈).
+
+  | 테이블 | 전체 | 판정 시각 있음 |
+  |---|---|---|
+  | identify_target | 621 | 64 |
+  | title_alias | 431 | 32 |
+  | title_guess | 257 | 207 |
+  | medley_song | 50 | 50 |
+
+  - 가장 이른 판정 시각이 11-10이라 실제 삭제는 12-09부터다.
+- 메모와 달라진 점
+  - 로컬 대상 수가 메모(별칭 65, 식별 대상 130)보다 적다. 별칭은 Topic 아닌 키 65개 중 33개가 음악 앱 대상(판정 없는 근거)과 같은 키라 null이다. 식별 대상은 재생 기록이 남은 세션이 2개뿐이라 재생으로 판단한 수가 적다.
+  - 재생이 없는 세션의 식별 대상은 출처(YOUTUBE이고 Topic 아님)로 판단하고 시각은 `updated_at`이다.
+  - 판정 경로인데 video_check 행이 없으면 실행 중에는 지금, 채우기에서는 세션 생성 시각을 쓴다.
+- 테스트: worker `YoutubeDerivedExpiryTest` 6개
+  - playGroups 표시
+  - 별칭 합치기·touch
+  - 29일 정리와 색인 재생성(곡 유지)
+  - 재사용 경로 touch
+  - V34 채우기 규칙
+  - 채우기 두 번 실행
+- 결과: worker 101·api 99(건너뜀 1) 통과. 11-15 01:17:40 api·worker 재시작, V34 적용.

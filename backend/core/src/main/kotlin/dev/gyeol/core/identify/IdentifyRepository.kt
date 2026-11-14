@@ -3,6 +3,7 @@ package dev.gyeol.core.identify
 import dev.gyeol.core.listen.Source
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.stereotype.Repository
+import java.sql.Timestamp
 import java.time.Instant
 import java.util.UUID
 
@@ -33,9 +34,28 @@ data class Alias(val key: String, val status: AliasStatus, val trackId: Long?, v
 }
 
 /** 세션의 고유 (제목, 채널)과 재생 수 */
-data class PlayGroup(val title: String, val channel: String?, val source: Source, val plays: Int)
+/**
+ * [categoryCheckedAt] (I-48 4-2): 이 묶음이 YouTube 카테고리 판정을 거쳐서만 들어왔으면 그 판정 시각, 판정 없는 근거(음악 앱·Topic)가 있으면 null.
+ * 판정 경로 = listen_event.source YOUTUBE이고 채널이 " - Topic"이 아님 (web/src/takeout/filter.ts 불변식)
+ */
+data class PlayGroup(val title: String, val channel: String?, val source: Source, val plays: Int, val categoryCheckedAt: Instant? = null)
 
-data class Target(val sessionId: Long, val key: String, val title: String, val channel: String?, val source: Source, val plays: Int, val status: TargetStatus)
+data class Target(
+    val sessionId: Long, val key: String, val title: String, val channel: String?, val source: Source, val plays: Int, val status: TargetStatus,
+    /** I-48 4-2: [PlayGroup.categoryCheckedAt]과 같은 뜻. 이 대상에서 만든 별칭·추측·메들리에 그대로 남긴다 */
+    val categoryCheckedAt: Instant? = null,
+)
+
+/**
+ * I-48 4-2: 판정 시각 합치기. 한 번이라도 판정 없는 근거(null)가 있으면 null(계속 보관), 아니면 더 늦은 판정 시각.
+ * SQL 쪽은 [categoryMergeSql]과 같은 규칙이다
+ */
+fun mergeCategory(old: Instant?, new: Instant?, oldExists: Boolean = true): Instant? =
+    if (!oldExists) new else if (old == null || new == null) null else maxOf(old, new)
+
+/** ON CONFLICT에서 쓰는 같은 규칙 ({t}는 기존 행 테이블 이름) */
+fun categoryMergeSql(table: String) =
+    "CASE WHEN $table.category_checked_at IS NULL OR EXCLUDED.category_checked_at IS NULL THEN NULL ELSE greatest($table.category_checked_at, EXCLUDED.category_checked_at) END"
 
 /** 고른 곡 카드에 붙일 원곡 음반 정보 */
 data class SeedCard(val releaseTitle: String?, val releaseYear: Int?, val coverUrl: String?)
@@ -57,23 +77,48 @@ class IdentifyRepository(private val jdbc: JdbcClient, private val search: Track
             }.optional().orElse(null)
 
     /** [titleAlt]: LLM이 준 다른 언어 표기, [reason]: 못 찾은 이유 (L2-3a) */
-    fun saveAlias(key: String, trackId: Long?, method: AliasMethod, query: Query?, titleAlt: String? = null, reason: String? = null) {
+    /**
+     * [categoryCheckedAt] (I-48 4-2): 이 별칭을 만든 대상이 판정 경로로만 들어왔으면 판정 시각, 아니면 null.
+     * 기존 행과 합칠 때 판정 없는 근거가 한 번이라도 있으면 null(계속 보관), 아니면 더 늦은 시각 ([categoryMergeSql])
+     */
+    fun saveAlias(key: String, trackId: Long?, method: AliasMethod, query: Query?, titleAlt: String? = null, reason: String? = null, categoryCheckedAt: Instant? = null) {
         jdbc.sql(
             """
-            INSERT INTO title_alias (alias_key, track_id, status, method, query_artist, query_title, query_title_alt, reason, checked_at)
-            VALUES (:k, :t, :s, :m, :qa, :qt, :alt, :r, now())
+            INSERT INTO title_alias (alias_key, track_id, status, method, query_artist, query_title, query_title_alt, reason, checked_at, category_checked_at)
+            VALUES (:k, :t, :s, :m, :qa, :qt, :alt, :r, now(), :cat)
             ON CONFLICT (alias_key) DO UPDATE SET track_id = EXCLUDED.track_id, status = EXCLUDED.status, method = EXCLUDED.method,
                 query_artist = EXCLUDED.query_artist, query_title = EXCLUDED.query_title,
-                query_title_alt = EXCLUDED.query_title_alt, reason = EXCLUDED.reason, checked_at = now()
+                query_title_alt = EXCLUDED.query_title_alt, reason = EXCLUDED.reason, checked_at = now(),
+                category_checked_at = ${categoryMergeSql("title_alias")}
             """.trimIndent(),
         )
             .param("k", key).param("t", trackId).param("s", (if (trackId != null) AliasStatus.MATCHED else AliasStatus.NOT_FOUND).name)
             .param("m", method.name).param("qa", query?.artist).param("qt", query?.title)
-            .param("alt", titleAlt).param("r", reason?.take(32))
+            .param("alt", titleAlt).param("r", reason?.take(32)).param("cat", categoryCheckedAt?.let(Timestamp::from))
             .update()
         // 사용자가 본 YouTube 표기(제목·가수)도 검색 색인에 (L2-4)
         if (trackId != null) search.reindex(trackId)
     }
+
+    /** I-48 4-2: 캐시를 맞힌 대상의 판정 시각을 별칭에 합친다 (판정 없는 대상이면 null로 바뀌어 계속 보관) */
+    fun touchAliasCategory(key: String, categoryCheckedAt: Instant?) {
+        jdbc.sql(
+            """
+            UPDATE title_alias SET category_checked_at = CASE WHEN category_checked_at IS NULL OR CAST(:cat AS timestamptz) IS NULL THEN NULL
+                ELSE greatest(category_checked_at, CAST(:cat AS timestamptz)) END
+            WHERE alias_key = :k AND category_checked_at IS NOT NULL
+            """.trimIndent(),
+        ).param("k", key).param("cat", categoryCheckedAt?.let(Timestamp::from)).update()
+    }
+
+    /** I-48 4-2: 판정 시각이 [before]보다 오래된 별칭을 지우고, 그 별칭이 가리키던 곡 id를 돌려준다 (검색 색인을 다시 만들 곡) */
+    fun deleteExpiredAliases(before: Instant): List<Long> =
+        jdbc.sql("DELETE FROM title_alias WHERE category_checked_at < :b RETURNING track_id").param("b", Timestamp.from(before))
+            .query { rs, _ -> rs.getObject(1) as Long? }.list().filterNotNull().distinct()
+
+    /** I-48 4-2: 판정 시각이 [before]보다 오래된 식별 대상 행 (세션 만료 30일보다 먼저) */
+    fun deleteExpiredTargets(before: Instant): Int =
+        jdbc.sql("DELETE FROM identify_target WHERE category_checked_at < :b").param("b", Timestamp.from(before)).update()
 
     /** 가수·곡을 넣거나(이미 있으면 갱신) 곡 id를 돌려준다. 같은 녹음은 여러 키가 함께 쓴다 */
     fun upsertTrack(t: TrackInfo): Long {
@@ -109,31 +154,35 @@ class IdentifyRepository(private val jdbc: JdbcClient, private val search: Track
     fun playGroups(sessionId: Long): List<PlayGroup> =
         jdbc.sql(
             """
-            SELECT title, channel, max(source) AS source, count(*) AS plays
-            FROM listen_event WHERE session_id = :sid GROUP BY title, channel
+            SELECT l.title, l.channel, max(l.source) AS source, count(*) AS plays,
+                   -- I-48 4-2: 판정 경로(YOUTUBE이고 Topic 아님)로만 들어온 묶음이면 판정 시각 (video_check가 없으면 지금)
+                   CASE WHEN bool_and(l.source = 'YOUTUBE' AND l.channel IS NOT NULL AND l.channel NOT LIKE '% - Topic')
+                        THEN coalesce(max(vc.checked_at), now()) END AS category_checked_at
+            FROM listen_event l LEFT JOIN video_check vc ON vc.video_id = l.video_id
+            WHERE l.session_id = :sid GROUP BY l.title, l.channel
             """.trimIndent(),
         ).param("sid", sessionId)
-            .query { rs, _ -> PlayGroup(rs.getString(1), rs.getString(2), Source.valueOf(rs.getString(3)), rs.getInt(4)) }.list()
+            .query { rs, _ -> PlayGroup(rs.getString(1), rs.getString(2), Source.valueOf(rs.getString(3)), rs.getInt(4), rs.getTimestamp(5)?.toInstant()) }.list()
 
     /** 이미 있으면 그대로 둔다 (계획이 두 번 돌아도 같은 결과) */
     fun insertTargets(sessionId: Long, targets: List<Pair<String, PlayGroup>>) {
         targets.forEach { (key, g) ->
             jdbc.sql(
                 """
-                INSERT INTO identify_target (session_id, alias_key, title, channel, source, plays)
-                VALUES (:sid, :k, :t, :c, :s, :p) ON CONFLICT (session_id, alias_key) DO NOTHING
+                INSERT INTO identify_target (session_id, alias_key, title, channel, source, plays, category_checked_at)
+                VALUES (:sid, :k, :t, :c, :s, :p, :cat) ON CONFLICT (session_id, alias_key) DO NOTHING
                 """.trimIndent(),
             ).param("sid", sessionId).param("k", key).param("t", g.title).param("c", g.channel).param("s", g.source.name).param("p", g.plays)
-                .update()
+                .param("cat", g.categoryCheckedAt?.let(Timestamp::from)).update()
         }
     }
 
     fun targets(sessionId: Long, keys: Collection<String>): List<Target> {
         if (keys.isEmpty()) return emptyList()
-        return jdbc.sql("SELECT session_id, alias_key, title, channel, source, plays, status FROM identify_target WHERE session_id = :sid AND alias_key IN (:keys) ORDER BY plays DESC, alias_key")
+        return jdbc.sql("SELECT session_id, alias_key, title, channel, source, plays, status, category_checked_at FROM identify_target WHERE session_id = :sid AND alias_key IN (:keys) ORDER BY plays DESC, alias_key")
             .param("sid", sessionId).param("keys", keys)
             .query { rs, _ ->
-                Target(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), Source.valueOf(rs.getString(5)), rs.getInt(6), TargetStatus.valueOf(rs.getString(7)))
+                Target(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), Source.valueOf(rs.getString(5)), rs.getInt(6), TargetStatus.valueOf(rs.getString(7)), rs.getTimestamp(8)?.toInstant())
             }.list()
     }
 

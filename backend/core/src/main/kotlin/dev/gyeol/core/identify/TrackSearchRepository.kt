@@ -30,6 +30,12 @@ class TrackSearchRepository(private val jdbc: JdbcClient) {
     }
 
 
+    /** I-48 4-2: 지운 별칭의 YouTube 표기가 남지 않게 곡 색인을 비우고 다시 만든다 */
+    fun rebuild(trackId: Long) {
+        jdbc.sql("DELETE FROM track_search_term WHERE track_id = :id").param("id", trackId).update()
+        reindex(trackId)
+    }
+
     /** 곡의 모든 표기를 색인에 넣는다 (이미 있는 표기는 그대로) */
     fun reindex(trackId: Long) {
         val (titles, artists) = jdbc.sql(

@@ -83,6 +83,9 @@ export function filterTakeout(data: unknown): FilterResult {
     // 삭제·비공개 영상: 채널이 없거나 제목 자리에 주소만 남음
     if (!channel || !title || /^https?:\/\//.test(title)) { removed++; continue }
 
+    // 불변식 (I-48 4-2, 서버가 기대함): 판정 없이 올라가는 YOUTUBE 항목은 " - Topic" 채널뿐이다.
+    // source 'YOUTUBE'이고 Topic이 아닌 항목은 YouTube 카테고리 판정(video-check)을 통과한 영상뿐이어야 한다.
+    // 서버는 이 조건으로 판정 경로 제목을 알아보고 29일 뒤 지운다 (IdentifyRepository.playGroups). 바꾸면 서버도 같이 바꿀 것
     const musicApp = x.header === 'YouTube Music' || (x.titleUrl ?? '').includes('music.youtube.com')
     const topic = channel.endsWith(' - Topic')
     if (!musicApp && !topic) {
