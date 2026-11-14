@@ -473,3 +473,11 @@
 - fetcher: `/internal/lastfm/search` limit 상한 20 → 50(`SearchController.LASTFM_MAX`). Last.fm에 보내는 limit은 `max(30, limit)`. 11-14 무료 호출 1번으로 track.search limit=50이 50개를 주는 것을 확인했다(itemsPerPage 50).
 - Last.fm 추가 호출: 검색어마다 10분에 최대 1번(2쪽을 처음 열 때, 캐시 `q|50`). 3~5쪽은 0번.
 - 테스트: api `RoomApiIntegrationTest` 더보기 1개(4쪽, 중복 없음, 마지막 쪽 hasMore=false, 1쪽 = page 없는 응답, page 0·6은 400, 5쪽은 빈 목록에 false), fetcher `LastFmClientTest` 1개(limit=50 요청, 51 거절). fetcher 53·worker 83·api 83(건너뜀 1) 통과. 17:08:51 api·fetcher 재시작.
+
+### 방 검색 가수 카드 보강: displayName·face (11-14, 사용자 승인)
+- `RoomSearchResponse.artist`(ArtistCard)에 두 필드를 더했다. 기존 필드(artistId·name·aliases·songCountInRoom·onMap)는 그대로다.
+  - `displayName`: 우리 DB `artist.name`(지도 행성·가수 판과 같은 이름). DB에 없는 가수는 null.
+  - `face`: 지도 `Face`와 같은 규칙과 같은 계산(가수 판 `artist()`와 같음). 사진이면 PHOTO(방 주소·저작자·라이선스·pageUrl), 아니면 방에 담긴 그 가수 곡 중 먼저 담긴 곡의 표지로 COVER(coverPath 우선), 둘 다 없으면 NONE. DB에 없는 가수는 `NONE`.
+- `name`을 바꾸지 않은 이유: `name`은 검색 결과에 실제로 보이는 표기(예: YOUNHA)다. 웹은 이 값을 가수 화면 이름 주소(`artist-songs?name=`)와 aliases 계산에 쓴다. 바꾸면 이름 주소 판정과 결과 줄 표기가 어긋날 수 있다. 그래서 표시용 `displayName`을 따로 더했다.
+- 효과: 웹이 `face.kind == "PHOTO"`일 때만 `/image`를 부르면 사진 없는 가수의 404 요청이 사라진다.
+- 테스트: api `RoomApiIntegrationTest` 2개(지도+사진 가수: displayName·PHOTO·galaxyId·출처 / DB만 있는 가수: NONE→곡 담은 뒤 COVER). api 85(건너뜀 1) 통과. 17:12:23 api 재시작.

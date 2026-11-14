@@ -50,7 +50,13 @@ data class RoomSearchItem(val item: TrackItem, val mine: Boolean, val sameSong: 
 /**
  * 가수 카드 (I-30 ①): 검색어가 가수와 맞으면 결과 맨 위에 하나. artistId가 없으면 우리 DB에 아직 없는 가수(Last.fm 이름만, 인기순만 열 수 있음)
  */
-data class ArtistCard(val artistId: Long?, val name: String, val aliases: List<String>, val songCountInRoom: Int, val onMap: Boolean)
+data class ArtistCard(
+    val artistId: Long?, val name: String, val aliases: List<String>, val songCountInRoom: Int, val onMap: Boolean,
+    /** 지도 행성·가수 판과 같은 이름(우리 DB artist.name). DB에 없는 가수(artistId 없음)는 null. [name]은 검색 결과 표기라 그대로 둔다 */
+    val displayName: String? = null,
+    /** 지도 얼굴과 같은 규칙: PHOTO(사진 주소·출처) → COVER(방에 담긴 그 가수 곡 표지) → NONE. DB에 없는 가수는 NONE */
+    val face: Face? = null,
+)
 /**
  * 더보기: [page] 1~5, 한 쪽 10곡. [hasMore]는 다음 쪽이 있을 수 있는지 (1쪽은 10곡이 꽉 찼으면 true, 2쪽 이후는 이어 붙인 목록 기준).
  * 가수 카드([artist])는 1쪽에만
@@ -164,14 +170,20 @@ class RoomSongService(
         if (artist != null) {
             val shown = items.filter { it.artistId == artist.id }.groupingBy { it.artist }.eachCount().maxByOrNull { it.value }?.key ?: artist.name
             val version = maps.activeVersion()
+            val at = version?.let { maps.positions(it, listOf(artist.id))[artist.id] }
+            val roomSongs = songs.mapSongs(ctx.room.id).filter { it.artistId == artist.id }
+            // 얼굴은 가수 판(artist)과 같은 계산: 사진 → 방 곡 표지(먼저 담긴 곡부터) → 없음
+            val face = faces.faces(
+                ctx.room.publicId,
+                mapOf(artist.id to (at?.galaxyId to roomSongs.map { it.view(ctx.room.publicId) }.firstNotNullOfOrNull { it.coverPath ?: it.coverUrl })),
+            )[artist.id]
             return ArtistCard(
-                artist.id, shown, names(artist).filter { it != shown }.distinct(),
-                songs.mapSongs(ctx.room.id).count { it.artistId == artist.id },
-                version != null && maps.positions(version, listOf(artist.id)).isNotEmpty(),
+                artist.id, shown, names(artist).filter { it != shown }.distinct(), roomSongs.size, at != null,
+                displayName = artist.name, face = face,
             )
         }
         val remote = items.filter { it.artistId == null && dev.gyeol.core.identify.SearchText.norm(it.artist) == qn }
-        return remote.takeIf { it.size >= half }?.let { ArtistCard(null, it.first().artist, emptyList(), 0, false) }
+        return remote.takeIf { it.size >= half }?.let { ArtistCard(null, it.first().artist, emptyList(), 0, false, face = Face("NONE", null, null)) }
     }
 
     /** DB 곡은 바로 담고(201), Last.fm 곡은 식별을 맡긴다(202). 하루 한도는 둘 다 여기서 센다 */

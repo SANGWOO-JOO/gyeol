@@ -1276,4 +1276,54 @@ class RoomApiIntegrationTest {
         // 10곡이 안 되는 검색은 1쪽 hasMore=false
         assertTrue(!call("GET", "/api/rooms/${host.rid}/search?q=%EC%83%88%20%EB%85%B8%EB%9E%98", key = host.key).body!!["hasMore"].asBoolean())
     }
+
+    @Test
+    fun `가수 카드 보강 - 지도에 있는 가수는 지도 이름(displayName)과 사진 얼굴, name은 검색 표기 그대로`() {
+        val host = newRoom()
+        val younha = ArtistInfo(UUID.randomUUID(), "윤하카드", "Younha", listOf("YOUNHACARD"))
+        val t = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "사건의 지평선", younha, UUID.randomUUID(), UUID.randomUUID(), "음반", "2022-03-30", "Single"))
+        val aid = songs.trackArtist(t)!!
+        jdbc.sql("UPDATE map_version SET active = false").update()
+        val version = jdbc.sql("INSERT INTO map_version (params, artist_count, active) VALUES ('{}', 1, true) RETURNING id").query(Long::class.java).single()
+        val galaxy = jdbc.sql("INSERT INTO galaxy (map_version, label, name, cx, cy) VALUES (:v, 0, '발라드', 0.5, 0.5) RETURNING id").param("v", version).query(Long::class.java).single()
+        maps.savePosition(version, aid, 0.5, 0.5, galaxy, "UMAP")
+        jdbc.sql("INSERT INTO artist_image (artist_id, source, s3_key, page_url, author, license) VALUES (:a, 'COMMONS', 'artists/card', 'https://commons.wikimedia.org/wiki/File:y.jpg', '사진가', 'CC BY 4.0')")
+            .param("a", aid).update()
+
+        val card = call("GET", "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("YOUNHACARD", "UTF-8"), key = host.key).body!!["artist"]
+        assertEquals(aid, card["artistId"].asLong())
+        assertTrue(card["onMap"].asBoolean())
+        assertEquals("윤하카드", card["displayName"].asString(), "지도 행성과 같은 DB 이름")
+        assertTrue(card.has("name") && card.has("aliases"), "기존 필드는 그대로")
+        val face = card["face"]
+        assertEquals("PHOTO", face["kind"].asString())
+        assertEquals("/api/rooms/${host.rid}/artists/$aid/image", face["url"].asString())
+        assertEquals(galaxy, face["galaxyId"].asLong())
+        assertEquals("사진가", face["author"].asString())
+        assertEquals("CC BY 4.0", face["license"].asString())
+        jdbc.sql("UPDATE map_version SET active = false WHERE id = :v").param("v", version).update()
+    }
+
+    @Test
+    fun `가수 카드 보강 - DB에만 있는 가수는 사진이 없으면 방 곡 표지 얼굴, 방에 곡도 없으면 NONE`() {
+        val host = newRoom()
+        val a = ArtistInfo(UUID.randomUUID(), "표지카드가수", "Cover Card", emptyList())
+        val t = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "표지 노래", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
+        val aid = songs.trackArtist(t)!!
+        val q = "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("표지카드가수", "UTF-8")
+
+        val none = call("GET", q, key = host.key).body!!["artist"]
+        assertEquals(aid, none["artistId"].asLong())
+        assertTrue(!none["onMap"].asBoolean())
+        assertEquals("표지카드가수", none["displayName"].asString())
+        assertEquals("NONE", none["face"]["kind"].asString())
+        assertTrue(none["face"]["url"].isNull, "사진 없는 가수에 /image 주소를 주지 않는다")
+
+        jdbc.sql("UPDATE track SET cover_url = 'https://coverartarchive.org/release/x/front-250' WHERE id = :t").param("t", t).update()
+        assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to t), host.key).status)
+        val cover = call("GET", q, key = host.key).body!!["artist"]
+        assertEquals(1, cover["songCountInRoom"].asInt())
+        assertEquals("COVER", cover["face"]["kind"].asString())
+        assertEquals("https://coverartarchive.org/release/x/front-250", cover["face"]["url"].asString())
+    }
 }
