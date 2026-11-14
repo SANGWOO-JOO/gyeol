@@ -13,7 +13,7 @@ const row = (over: Partial<AdminRoomRow>): AdminRoomRow => ({
 
 describe('auditLine', () => {
   it('누가 무엇을 했는지 한국어로', () => {
-    expect(auditLine(audit({}), now)).toEqual({ when: '11-13 14:02', text: '방장 · 참가자 새 암호 발급' })
+    expect(auditLine(audit({}), now)).toEqual({ when: '11-13 14:02', text: '방장 · 참가자 새 비밀번호 발급' })
   })
   it('닉네임 변경·사유를 덧붙이고, 모르는 동작은 코드 그대로', () => {
     expect(auditLine(audit({ actorType: 'ADMIN', action: 'ADMIN_MEMBER_RENAME', detail: { oldNickname: '민지', newNickname: '민지2' } }), now).text)

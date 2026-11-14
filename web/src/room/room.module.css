@@ -96,7 +96,7 @@
 
 .avatar { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: 700; flex: none; }
 
-/* 숫자 칸 (암호 4자리·코드 6자리): 진짜 입력란 하나를 칸 위에 투명하게 겹친다 */
+/* 숫자 칸 (비밀번호 4자리·코드 6자리): 진짜 입력란 하나를 칸 위에 투명하게 겹친다 */
 .code { position: relative; }
 .codeInput {
   position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; margin: 0;

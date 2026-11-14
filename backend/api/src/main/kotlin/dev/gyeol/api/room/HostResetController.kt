@@ -25,9 +25,9 @@ data class HostResetSent(val codeExpiresAt: Instant, val resendAfter: Instant)
 data class HostResetVerify(val code: String?, val newPin: String?)
 
 /**
- * 방장 암호 재설정 (room-api-db.md 3절, 화면 6-d): 열쇠 없이 방 링크만으로 부른다.
+ * 방장 비밀번호 재설정 (room-api-db.md 3절, 화면 6-d): 열쇠 없이 방 링크만으로 부른다.
  * 1) 방장 등록 이메일로 6자리 코드 (email_code purpose HOST_RESET, 방마다 최신 코드 하나)
- * 2) 코드 + 새 4자리 → 방장 암호 교체(틀린 횟수·잠금도 풂) → 방장의 다른 기기 열쇠 모두 폐기(I-10) → 이 기기 열쇠 발급(다시 들어오기와 같은 응답)
+ * 2) 코드 + 새 4자리 → 방장 비밀번호 교체(틀린 횟수·잠금도 풂) → 방장의 다른 기기 열쇠 모두 폐기(I-10) → 이 기기 열쇠 발급(다시 들어오기와 같은 응답)
  * 막는 장치: 코드 5번 틀리면 그 코드 잠금, 다시 받기 1분, 같은 이메일 1시간 5통·같은 IP 1시간 20통(방 만들기와 같은 mail_send_log), IP 분당 제한
  */
 @Service

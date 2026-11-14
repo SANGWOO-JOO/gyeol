@@ -7,7 +7,7 @@ import s from '../room.module.css'
 import o from '../components/outside.module.css'
 
 /**
- * 6-d 방장 암호 재설정: 등록 이메일로 6자리 코드 → 코드 + 새 4자리 → 바로 방으로.
+ * 6-d 방장 비밀번호 재설정: 등록 이메일로 6자리 코드 → 코드 + 새 4자리 → 바로 방으로.
  * 이메일 주소는 화면에 보이지 않는다 (API도 돌려주지 않음, room-api-db.md 2절).
  */
 export function HostReset({ summary, onBack, onJoined }: { summary: RoomSummary; onBack: () => void; onJoined: () => void }) {
@@ -38,7 +38,7 @@ export function HostReset({ summary, onBack, onJoined }: { summary: RoomSummary;
 
   async function verify() {
     if (code.length !== 6) { setError({ field: 'code', text: '코드 6자리를 입력해 주세요' }); return }
-    if (!/^\d{4}$/.test(pin)) { setError({ field: 'pin', text: '새 암호 숫자 4자리를 정해 주세요' }); return }
+    if (!/^\d{4}$/.test(pin)) { setError({ field: 'pin', text: '새 비밀번호 숫자 4자리를 정해 주세요' }); return }
     setBusy(true); setError(null)
     try {
       const joined = await roomApi.hostResetVerify(summary.roomId, code, pin)
@@ -50,7 +50,7 @@ export function HostReset({ summary, onBack, onJoined }: { summary: RoomSummary;
       else if (err.code === 'CODE_MISMATCH') {
         const n = err.num('attemptsLeft')
         setError({ field: 'code', text: n !== null && n > 0 ? `코드가 맞지 않아요 · ${n}번 더 시도할 수 있어요` : '코드가 맞지 않아요. 코드를 다시 받아 주세요' })
-      } else setError({ field: err.code === 'VALIDATION' && /암호/.test(err.message) ? 'pin' : 'code', text: err.message })
+      } else setError({ field: err.code === 'VALIDATION' && /비밀번호/.test(err.message) ? 'pin' : 'code', text: err.message })
     } finally {
       setBusy(false)
     }
@@ -60,9 +60,9 @@ export function HostReset({ summary, onBack, onJoined }: { summary: RoomSummary;
   const resendIn = sent ? (Date.parse(sent.resendAfter) - now) / 1000 : 0
 
   return (
-    <RoomPage label="방장 암호 재설정">
+    <RoomPage label="방장 비밀번호 재설정">
       <header className={s.top}>
-        <div className={s.topLeft}><BackButton onClick={onBack} /><span className={s.step}>방장 암호 재설정</span></div>
+        <div className={s.topLeft}><BackButton onClick={onBack} /><span className={s.step}>방장 비밀번호 재설정</span></div>
       </header>
 
       {!sent ? (
@@ -97,8 +97,8 @@ export function HostReset({ summary, onBack, onJoined }: { summary: RoomSummary;
           </div>
 
           <div className={s.field}>
-            <label htmlFor="reset-pin" className={s.label}>새 4자리 암호</label>
-            <CodeInput id="reset-pin" length={4} mask value={pin} onChange={setPin} label="새 4자리 암호" invalid={error?.field === 'pin'} />
+            <label htmlFor="reset-pin" className={s.label}>새 4자리 비밀번호</label>
+            <CodeInput id="reset-pin" length={4} mask value={pin} onChange={setPin} label="새 4자리 비밀번호" invalid={error?.field === 'pin'} />
             <span className={s.hint}>은행·카드 비밀번호처럼 다른 곳에서 쓰는 숫자는 피해 주세요</span>
           </div>
 
@@ -106,7 +106,7 @@ export function HostReset({ summary, onBack, onJoined }: { summary: RoomSummary;
 
           <div className={s.bottom}>
             <button type="button" className={`${s.primary} ${o.cta}`} style={{ height: 54, fontSize: 16 }} onClick={verify} disabled={busy || left <= 0}>
-              {busy ? <><Spinner /> 확인하는 중…</> : '새 암호로 들어가기'}
+              {busy ? <><Spinner /> 확인하는 중…</> : '새 비밀번호로 들어가기'}
             </button>
           </div>
         </>

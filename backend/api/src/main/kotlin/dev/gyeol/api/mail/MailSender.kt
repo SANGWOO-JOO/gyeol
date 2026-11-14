@@ -7,6 +7,6 @@ package dev.gyeol.api.mail
  * 한계: 메일은 나갔는데 커밋이 실패하는 경우(사용자는 다시 받기로 새 코드를 받는다)가 남고, SES 호출 동안 DB 연결을 잡는다.
  */
 interface MailSender {
-    /** [purpose]: CREATE(방 만들기 인증) · HOST_RESET(방장 암호 재설정) */
+    /** [purpose]: CREATE(방 만들기 인증) · HOST_RESET(방장 비밀번호 재설정) */
     fun sendCode(to: String, purpose: String, code: String)
 }

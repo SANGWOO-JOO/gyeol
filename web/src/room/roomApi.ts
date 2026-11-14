@@ -207,13 +207,13 @@ export const roomApi = {
   mySongs: (roomId: string, cursor: number | null, limit = 30, signal?: AbortSignal, sort: 'recent' | 'genre' | 'artist' = 'recent', snapshot: number | null = null) =>
     call<MySongsPage>(`/rooms/${rid(roomId)}/me/songs?limit=${limit}${cursor != null ? `&cursor=${encodeURIComponent(String(cursor))}` : ''}${sort !== 'recent' ? `&sort=${sort}` : ''}${snapshot != null ? `&snapshot=${snapshot}` : ''}`, { roomId, signal }),
   artist: (roomId: string, artistId: number, signal?: AbortSignal) => call<ArtistView>(`/rooms/${rid(roomId)}/artists/${artistId}`, { roomId, signal }),
-  // ── 5단계: 내 정보·방장 메뉴·방장 암호 재설정 ──
+  // ── 5단계: 내 정보·방장 메뉴·방장 비밀번호 재설정 ──
   rename: (roomId: string, nickname: string) => call<MemberView>(`/rooms/${rid(roomId)}/me`, { method: 'PATCH', roomId, body: { nickname } }),
   resetPin: (roomId: string, memberId: number) => call<{ memberId: number; pin: string }>(`/rooms/${rid(roomId)}/members/${memberId}/pin`, { method: 'POST', roomId, body: {} }),
   kick: (roomId: string, memberId: number) => call<void>(`/rooms/${rid(roomId)}/members/${memberId}`, { method: 'DELETE', roomId }),
   patchRoom: (roomId: string, patch: { name?: string; closed?: boolean }) => call<RoomSummary>(`/rooms/${rid(roomId)}`, { method: 'PATCH', roomId, body: patch }),
   deleteRoom: (roomId: string) => call<void>(`/rooms/${rid(roomId)}`, { method: 'DELETE', roomId }),
-  /** 방장 암호 재설정: 등록 이메일로 코드 (주소는 응답에 없음) */
+  /** 방장 비밀번호 재설정: 등록 이메일로 코드 (주소는 응답에 없음) */
   hostReset: (roomId: string) => call<{ codeExpiresAt: string; resendAfter: string }>(`/rooms/${rid(roomId)}/host-reset`, { method: 'POST', body: {} }),
   hostResetVerify: (roomId: string, code: string, newPin: string) =>
     call<JoinedResponse>(`/rooms/${rid(roomId)}/host-reset/verify`, { method: 'POST', body: { code, newPin } }),

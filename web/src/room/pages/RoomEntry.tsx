@@ -12,7 +12,7 @@ import { iAm, minutesText } from '../text'
 import s from '../room.module.css'
 import o from '../components/outside.module.css'
 
-// /rooms/:rid — 이 기기에 열쇠가 있으면 방, 없으면 초대받은 화면(5)·다시 들어오기(6-a)·암호를 잊었을 때(6-b)·들어갈 수 없는 방(6-g)
+// /rooms/:rid — 이 기기에 열쇠가 있으면 방, 없으면 초대받은 화면(5)·다시 들어오기(6-a)·비밀번호를 잊었을 때(6-b)·들어갈 수 없는 방(6-g)
 
 type View =
   | { kind: 'invite' }
@@ -168,8 +168,8 @@ function Invite({ summary, onJoined, onPick, onBlocked }: {
             aria-invalid={error?.field === 'nickname' || undefined} onChange={e => setNickname(e.target.value)} />
         </div>
         <div className={s.field}>
-          <label htmlFor="inv-pin" className={s.label}>4자리 암호</label>
-          <CodeInput id="inv-pin" length={4} mask value={pin} onChange={setPin} label="4자리 암호" invalid={error?.field === 'pin'} />
+          <label htmlFor="inv-pin" className={s.label}>4자리 비밀번호</label>
+          <CodeInput id="inv-pin" length={4} mask value={pin} onChange={setPin} label="4자리 비밀번호" invalid={error?.field === 'pin'} />
           <span className={s.hint}>다른 기기에서 다시 들어올 때 써요 · 다른 곳 비밀번호는 피해 주세요</span>
         </div>
         {error && <p className={s.error} role="alert">{error.text}</p>}
@@ -212,7 +212,7 @@ function Rejoin({ summary, member, onJoined, onBack, onForgot }: {
       if (!(err instanceof RoomApiError)) setError('들어가지 못했어요. 잠시 뒤 다시 시도해 주세요.')
       else if (err.code === 'PIN_MISMATCH') {
         const n = err.num('attemptsLeft')
-        setError(n !== null && n > 0 ? `암호가 맞지 않아요 · ${n}번 더 시도할 수 있어요` : '암호가 맞지 않아요')
+        setError(n !== null && n > 0 ? `비밀번호가 맞지 않아요 · ${n}번 더 시도할 수 있어요` : '비밀번호가 맞지 않아요')
       } else if (err.code === 'PIN_LOCKED') {
         const sec = err.num('retryAfterSeconds') ?? 600
         setLockedUntil(Date.now() + sec * 1000)
@@ -229,13 +229,13 @@ function Rejoin({ summary, member, onJoined, onBack, onForgot }: {
         <div className={s.topLeft}><BackButton onClick={onBack} /><span className={s.step}>다시 들어오기</span></div>
       </header>
       <section className={s.section}>
-        <h1 className={s.title} style={{ fontSize: 24 }}>{member.nickname}님,<br />4자리 암호를 입력해 주세요</h1>
+        <h1 className={s.title} style={{ fontSize: 24 }}>{member.nickname}님,<br />4자리 비밀번호를 입력해 주세요</h1>
         <p className={s.lead}>{member.role === 'HOST' ? '우주를 만들 때 정한 숫자예요.' : '처음 참가할 때 정한 숫자예요.'}</p>
       </section>
       <form className={s.section} style={{ alignItems: 'center', gap: 14 }} onSubmit={e => { e.preventDefault(); submit() }}>
         <Avatar nickname={member.nickname} colorIdx={member.colorIdx} size={64} />
         <div style={{ width: '100%' }}>
-          <CodeInput length={4} mask value={pin} onChange={setPin} label={`${member.nickname}님의 4자리 암호`} invalid={!!error} autoFocus onComplete={v => submit(v)} />
+          <CodeInput length={4} mask value={pin} onChange={setPin} label={`${member.nickname}님의 4자리 비밀번호`} invalid={!!error} autoFocus onComplete={v => submit(v)} />
         </div>
         {error && <p className={s.error} role="alert" style={{ textAlign: 'center' }}>{error}</p>}
         <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
@@ -244,26 +244,26 @@ function Rejoin({ summary, member, onJoined, onBack, onForgot }: {
         <button type="button" className={`${s.primary} ${o.cta}`} style={{ height: 54, fontSize: 16 }} disabled={pin.length !== 4 || busy || locked} onClick={() => submit()}>
           {busy ? <><Spinner /> 확인하는 중…</> : '들어가기'}
         </button>
-        <button type="button" className={s.ghost} onClick={onForgot}>암호를 잊었어요</button>
+        <button type="button" className={s.ghost} onClick={onForgot}>비밀번호를 잊었어요</button>
         <span className={`${s.hint} ${s.center}`}>5번 틀리면 10분 뒤에 다시 할 수 있어요</span>
       </div>
     </RoomPage>
   )
 }
 
-/** 6-b 참가자 암호를 잊었을 때 (방장이면 이메일 재설정 6-d로) */
+/** 6-b 참가자 비밀번호를 잊었을 때 (방장이면 이메일 재설정 6-d로) */
 function Forgot({ summary, member, onBack, onHostReset }: { summary: RoomSummary; member: MemberView; onBack: () => void; onHostReset: () => void }) {
   const host = hostOf(summary)
   const isHost = member.role === 'HOST'
   return (
-    <RoomPage label="암호를 잊었어요">
+    <RoomPage label="비밀번호를 잊었어요">
       <header className={s.top}>
-        <div className={s.topLeft}><BackButton onClick={onBack} /><span className={s.step}>암호를 잊었어요</span></div>
+        <div className={s.topLeft}><BackButton onClick={onBack} /><span className={s.step}>비밀번호를 잊었어요</span></div>
       </header>
       {isHost ? (
         <>
           <section className={s.section}>
-            <h1 className={s.title} style={{ fontSize: 24 }}>등록한 이메일로<br />새 암호를 정해요</h1>
+            <h1 className={s.title} style={{ fontSize: 24 }}>등록한 이메일로<br />새 비밀번호를 정해요</h1>
             <p className={s.lead}>우주를 만들 때 인증한 이메일로 6자리 코드를 보내 드려요.</p>
           </section>
           <div className={s.bottom}>
@@ -273,16 +273,16 @@ function Forgot({ summary, member, onBack, onHostReset }: { summary: RoomSummary
       ) : (
         <>
           <section className={s.section}>
-            <h1 className={s.title} style={{ fontSize: 24 }}>방장 {host?.nickname ?? ''}님께<br />새 암호를 부탁해 주세요</h1>
-            <p className={s.lead}>{host?.nickname ?? '방장'}님이 4자리 새 암호를 만들어 보내 줄 거예요. 받은 숫자로 바로 들어오면 돼요.</p>
+            <h1 className={s.title} style={{ fontSize: 24 }}>방장 {host?.nickname ?? ''}님께<br />새 비밀번호를 부탁해 주세요</h1>
+            <p className={s.lead}>{host?.nickname ?? '방장'}님이 4자리 새 비밀번호를 만들어 보내 줄 거예요. 받은 숫자로 바로 들어오면 돼요.</p>
           </section>
           <ol className={`${s.note} ${o.notice}`} style={{ margin: 0, paddingLeft: 34, fontSize: 14, lineHeight: 1.7, color: 'var(--r-silver)' }}>
-            <li>카톡 등으로 {host?.nickname ?? '방장'}님께 "암호 잊었어" 말하기</li>
+            <li>카톡 등으로 {host?.nickname ?? '방장'}님께 "비밀번호 잊었어" 말하기</li>
             <li>{host?.nickname ?? '방장'}님이 보내 준 4자리 받기</li>
             <li>"{iAm(member.nickname)}"에서 그 숫자 입력</li>
           </ol>
           <div className={s.bottom}>
-            <button type="button" className={`${s.primary} ${o.cta}`} style={{ height: 54, fontSize: 16 }} onClick={onBack}>새 암호 받았어요</button>
+            <button type="button" className={`${s.primary} ${o.cta}`} style={{ height: 54, fontSize: 16 }} onClick={onBack}>새 비밀번호 받았어요</button>
           </div>
         </>
       )}

@@ -27,7 +27,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
-/** 4자리 암호·메일 코드 해시 (BCrypt). 원문은 저장·로그 출력하지 않는다 */
+/** 4자리 비밀번호·메일 코드 해시 (BCrypt). 원문은 저장·로그 출력하지 않는다 */
 @Component
 class PinHasher {
     private val encoder = BCryptPasswordEncoder(10)

@@ -97,7 +97,7 @@ class RoomService(
             if (fails >= p.pinMaxFails) {
                 throw ApiException(HttpStatus.LOCKED, "PIN_LOCKED", "5번 틀려서 잠시 잠겼어요", mapOf("retryAfterSeconds" to p.pinLock.seconds))
             }
-            throw ApiException(HttpStatus.UNAUTHORIZED, "PIN_MISMATCH", "암호가 맞지 않아요", mapOf("attemptsLeft" to (p.pinMaxFails - fails)))
+            throw ApiException(HttpStatus.UNAUTHORIZED, "PIN_MISMATCH", "비밀번호가 맞지 않아요", mapOf("attemptsLeft" to (p.pinMaxFails - fails)))
         }
         rooms.resetPinFailures(member.id)
         return issueKey(room.publicId, member.id, member.view())
@@ -143,11 +143,11 @@ class RoomService(
             ?: throw ApiException(HttpStatus.NOT_FOUND, "MEMBER_NOT_FOUND", "이 우주에 없는 사람이에요")
     }
 
-    /** 참가자 새 암호: 서버가 랜덤 4자리를 만들어 바로 그 사람의 암호로 (⑭). 응답에서 한 번만 보여 준다 */
+    /** 참가자 새 비밀번호: 서버가 랜덤 4자리를 만들어 바로 그 사람의 비밀번호로 (⑭). 응답에서 한 번만 보여 준다 */
     @Transactional
     fun resetPin(ctx: RoomContext, memberId: Long): NewPin {
         val t = target(ctx, memberId)
-        if (t.role == Role.HOST) throw ApiException.validation("방장 암호는 이메일로 다시 정해요")
+        if (t.role == Role.HOST) throw ApiException.validation("방장 비밀번호는 이메일로 다시 정해요")
         val pin = pins.randomPin()
         rooms.setPin(t.id, pins.hash(pin))
         rooms.audit("HOST", ctx.member.id, ctx.room.id, "PIN_RESET", t.id)

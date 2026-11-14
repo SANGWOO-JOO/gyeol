@@ -93,7 +93,7 @@ export function PeopleSheet({ roomId, capacity, version, isHost, onClose, onInvi
             const menu = m.me
               ? <button type="button" className={ps.more} aria-label="내 정보 열기" onClick={onOpenMe}>{more}</button>
               : isHost
-                ? <button type="button" className={ps.more} aria-label={`${m.nickname}님 관리: 새 암호, 내보내기`} onClick={() => onManage(m)}>{more}</button>
+                ? <button type="button" className={ps.more} aria-label={`${m.nickname}님 관리: 새 비밀번호, 내보내기`} onClick={() => onManage(m)}>{more}</button>
                 : <span className={ps.moreSpace} aria-hidden="true" />
             return (
               <li key={m.id} className={`${ps.card} ${on ? ps.cardOn : ''}`} style={{ ['--person-c' as string]: c }}>

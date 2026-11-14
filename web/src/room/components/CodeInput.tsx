@@ -2,7 +2,7 @@ import { useId } from 'react'
 import s from '../room.module.css'
 
 /**
- * 숫자 칸 입력 (암호 4자리·인증 코드 6자리).
+ * 숫자 칸 입력 (비밀번호 4자리·인증 코드 6자리).
  * 진짜 <input> 하나를 칸 위에 투명하게 겹쳐서 붙여넣기·자동완성(one-time-code)·화면 읽기 프로그램이 그대로 동작한다.
  */
 export function CodeInput({

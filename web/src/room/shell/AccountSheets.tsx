@@ -93,7 +93,7 @@ export function MeSheet({ roomId, me, onClose, onRenamed, onLeft, onError, show 
           <span className={a.icon}><Icon d={KEY} /></span>
           <span className={a.grow}>
             이 기기에서 나가기
-            <small>친구 폰이나 PC에서 들어왔다면 눌러 주세요. 내 노래는 그대로 남고, 다시 들어올 땐 "{iAm(me.member.nickname)}"와 4자리 암호면 돼요</small>
+            <small>친구 폰이나 PC에서 들어왔다면 눌러 주세요. 내 노래는 그대로 남고, 다시 들어올 땐 "{iAm(me.member.nickname)}"와 4자리 비밀번호면 돼요</small>
           </span>
           {leaving ? <Spinner size={16} /> : <Icon d={<path d="M9 6l6 6-6 6" />} size={16} />}
         </button>
@@ -176,7 +176,7 @@ export function MemberSheet({ roomId, member, onClose, onKicked, onError, show }
       const r = await roomApi.resetPin(roomId, member.id)
       setPin(r.pin)
     } catch (err) {
-      if (!onError(err)) show({ title: '새 암호를 만들지 못했어요', sub: errText(err, ''), tone: 'error' })
+      if (!onError(err)) show({ title: '새 비밀번호를 만들지 못했어요', sub: errText(err, ''), tone: 'error' })
     } finally {
       setBusy(null)
     }
@@ -205,20 +205,20 @@ export function MemberSheet({ roomId, member, onClose, onKicked, onError, show }
       head={<RingFace nickname={member.nickname} colorIdx={member.colorIdx} characterId={member.avatarCharacterId} size={56} />}
       sub={<span className={a.sub}><span className={a.chip}><i style={{ background: color }} aria-hidden="true" />노래 {member.songCount}곡</span></span>}>
       <div className={a.card} style={{ ['--tint' as string]: color }}>
-        <h3 className={a.cardHead}><Icon d={LOCK} />새 암호</h3>
+        <h3 className={a.cardHead}><Icon d={LOCK} />새 비밀번호</h3>
         {pin ? (
           <>
-            <div className={a.pin} role="img" aria-label={`새 암호 ${pin.split('').join(' ')}`}>
+            <div className={a.pin} role="img" aria-label={`새 비밀번호 ${pin.split('').join(' ')}`}>
               {pin.split('').map((d, i) => <span key={i} aria-hidden="true">{d}</span>)}
             </div>
-            <p className={a.pinNote}>이 숫자를 {member.nickname}님에게 보내 주세요. 이전 암호는 더 이상 안 되고, 이 화면을 닫으면 다시 볼 수 없어요</p>
+            <p className={a.pinNote}>이 숫자를 {member.nickname}님에게 보내 주세요. 이전 비밀번호는 더 이상 안 되고, 이 화면을 닫으면 다시 볼 수 없어요</p>
             <button type="button" className={a.cta} onClick={copy}>숫자 복사</button>
             <button type="button" className={a.quiet} onClick={newPin} disabled={busy !== null}>{busy === 'pin' ? <Spinner size={14} /> : '다른 숫자로 다시 만들기'}</button>
           </>
         ) : (
           <>
-            <p className={a.cardNote}>{member.nickname}님이 암호를 잊었다면 새 4자리를 만들어 보내 주세요. 틀린 횟수와 잠금도 함께 풀려요</p>
-            <button type="button" className={a.cta} onClick={newPin} disabled={busy !== null}>{busy === 'pin' ? <Spinner /> : '새 암호 만들기'}</button>
+            <p className={a.cardNote}>{member.nickname}님이 비밀번호를 잊었다면 새 4자리를 만들어 보내 주세요. 틀린 횟수와 잠금도 함께 풀려요</p>
+            <button type="button" className={a.cta} onClick={newPin} disabled={busy !== null}>{busy === 'pin' ? <Spinner /> : '새 비밀번호 만들기'}</button>
           </>
         )}
       </div>

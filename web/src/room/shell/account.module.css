@@ -82,7 +82,7 @@
 .cta:disabled { opacity: .6; cursor: default; }
 .quiet { align-self: center; min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--r-text-2); font: inherit; font-size: 14px; cursor: pointer; }
 
-/* 새 암호: 숫자 칸 넷 */
+/* 새 비밀번호: 숫자 칸 넷 */
 .pin { display: flex; justify-content: center; gap: 10px; margin: 4px 0; }
 .pin span {
   width: 54px; height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 16px;

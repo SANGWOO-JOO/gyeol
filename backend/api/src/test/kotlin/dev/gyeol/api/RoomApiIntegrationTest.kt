@@ -284,7 +284,7 @@ class RoomApiIntegrationTest {
     }
 
     @Test
-    fun `다시 들어오기 - 5번 틀리면 잠금, 방장이 새 암호를 주면 그 숫자로 들어오고 잠금도 풀린다`() {
+    fun `다시 들어오기 - 5번 틀리면 잠금, 방장이 새 비밀번호를 주면 그 숫자로 들어오고 잠금도 풀린다`() {
         val host = newRoom()
         val minji = join(host.rid, "민지", "1111").joined()
         val path = "/api/rooms/${host.rid}/session"
@@ -294,10 +294,10 @@ class RoomApiIntegrationTest {
         repeat(3) { call("POST", path, mapOf("memberId" to minji.memberId, "pin" to "2222")) }
         assertEquals(423, call("POST", path, mapOf("memberId" to minji.memberId, "pin" to "2222")).status)
         val locked = call("POST", path, mapOf("memberId" to minji.memberId, "pin" to "1111"))
-        assertEquals(423, locked.status, "잠긴 동안에는 맞는 암호도 거절")
+        assertEquals(423, locked.status, "잠긴 동안에는 맞는 비밀번호도 거절")
         assertTrue(locked.body!!["detail"]["retryAfterSeconds"].asLong() > 0)
 
-        // 참가자는 새 암호를 만들 수 없다
+        // 참가자는 새 비밀번호를 만들 수 없다
         assertEquals(403, call("POST", "/api/rooms/${host.rid}/members/${minji.memberId}/pin", key = minji.key).status)
         val pin = call("POST", "/api/rooms/${host.rid}/members/${minji.memberId}/pin", key = host.key).body!!["pin"].asString()
         assertTrue(Regex("^[0-9]{4}$").matches(pin))
@@ -713,7 +713,7 @@ class RoomApiIntegrationTest {
     }
 
     @Test
-    fun `방장 암호 재설정 - 등록 메일로 코드, 주소는 안 보임, 틀림·잠금·만료·다른 방, 새 암호로 들어오고 열쇠 발급`() {
+    fun `방장 비밀번호 재설정 - 등록 메일로 코드, 주소는 안 보임, 틀림·잠금·만료·다른 방, 새 비밀번호로 들어오고 열쇠 발급`() {
         val email = "reset${UUID.randomUUID().toString().take(6)}@example.com"
         val host = newRoom(email = email, pin = "1234")
         val other = newRoom()
@@ -731,7 +731,7 @@ class RoomApiIntegrationTest {
         val code = mail.outbox[email]!!
         val wrong = if (code == "000000") "111111" else "000000"
 
-        assertEquals(400, call("POST", verifyPath, mapOf("code" to code, "newPin" to "12a4")).status, "새 암호 형식")
+        assertEquals(400, call("POST", verifyPath, mapOf("code" to code, "newPin" to "12a4")).status, "새 비밀번호 형식")
         assertEquals("CODE_EXPIRED", call("POST", "/api/rooms/${other.rid}/host-reset/verify", mapOf("code" to code, "newPin" to "9876")).body!!["code"].asString(), "다른 방에는 이 코드가 없다")
         val mismatch = call("POST", verifyPath, mapOf("code" to wrong, "newPin" to "9876"))
         assertEquals("CODE_MISMATCH", mismatch.body!!["code"].asString())

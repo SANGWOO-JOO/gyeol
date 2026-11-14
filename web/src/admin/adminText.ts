@@ -7,10 +7,10 @@ const ACTIONS: Record<string, string> = {
   ROOM_CLOSE: '새 참가 마감',
   ROOM_OPEN: '새 참가 다시 열기',
   ROOM_DELETE: '우주 삭제 (7일 뒤 완전 삭제)',
-  PIN_RESET: '참가자 새 암호 발급',
+  PIN_RESET: '참가자 새 비밀번호 발급',
   MEMBER_KICK: '참가자 내보내기',
-  HOST_RESET_SENT: '방장 암호 재설정 코드 발송',
-  HOST_PIN_RESET: '방장 암호 재설정',
+  HOST_RESET_SENT: '방장 비밀번호 재설정 코드 발송',
+  HOST_PIN_RESET: '방장 비밀번호 재설정',
   ADMIN_LOGIN: '관리자 로그인',
   ADMIN_LOGIN_FAIL: '관리자 로그인 실패',
   ADMIN_ROOM_HIDE: '관리자가 숨김',
@@ -21,7 +21,7 @@ const ACTIONS: Record<string, string> = {
 }
 const ACTORS: Record<string, string> = { HOST: '방장', MEMBER: '참가자', ADMIN: '관리자', SYSTEM: '시스템' }
 
-/** "11-13 14:02 · 방장 · 참가자 새 암호 발급 (민지)" */
+/** "11-13 14:02 · 방장 · 참가자 새 비밀번호 발급 (민지)" */
 export function auditLine(a: AuditView, now: Date = new Date()): { when: string; text: string } {
   const d = a.detail ?? {}
   const str = (k: string) => (typeof d[k] === 'string' ? (d[k] as string) : null)

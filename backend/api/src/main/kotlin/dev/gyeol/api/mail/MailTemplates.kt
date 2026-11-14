@@ -13,7 +13,7 @@ object MailTemplates {
         val minutes = ttl.toMinutes()
         val (subject, lead) = when (purpose) {
             "CREATE" -> "[내 음악 결] 방 만들기 인증 코드 $code" to "우주(방)를 만들려면 아래 인증 코드를 입력해 주세요."
-            "HOST_RESET" -> "[내 음악 결] 방장 암호 재설정 코드 $code" to "방장 암호를 다시 정하려면 아래 코드를 입력해 주세요."
+            "HOST_RESET" -> "[내 음악 결] 방장 비밀번호 재설정 코드 $code" to "방장 비밀번호를 다시 정하려면 아래 코드를 입력해 주세요."
             else -> throw IllegalArgumentException("알 수 없는 메일 용도: $purpose")
         }
         val ignore = "직접 요청하지 않았다면 이 메일은 무시해 주세요. 코드를 다른 사람에게 알려 주지 마세요."

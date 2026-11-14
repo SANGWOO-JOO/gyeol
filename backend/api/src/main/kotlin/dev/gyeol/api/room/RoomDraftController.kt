@@ -38,7 +38,7 @@ object RoomInput {
 
     fun name(raw: String?): String = raw?.trim()?.takeIf { it.length in 1..30 } ?: throw ApiException.validation("우주 이름은 1~30자예요")
     fun nickname(raw: String?): String = raw?.trim()?.takeIf { it.length in 1..12 } ?: throw ApiException.validation("닉네임은 1~12자예요")
-    fun pin(raw: String?): String = raw?.takeIf { PinHasher.PIN.matches(it) } ?: throw ApiException.validation("암호는 숫자 4자리예요")
+    fun pin(raw: String?): String = raw?.takeIf { PinHasher.PIN.matches(it) } ?: throw ApiException.validation("비밀번호는 숫자 4자리예요")
     fun email(raw: String?): String = raw?.trim()?.lowercase()?.takeIf { it.length <= 254 && EMAIL.matches(it) } ?: throw ApiException.validation("이메일 형식을 확인해 주세요")
 }
 
