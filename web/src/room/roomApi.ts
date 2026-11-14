@@ -58,7 +58,7 @@ export interface Ghost { artistId: number; name: string; x: number; y: number; n
 export interface RoomMap { rev: number; placeholder: boolean; members: MemberView[]; planets: Planet[]; galaxies: Galaxy[]; ghosts: Ghost[] }
 
 export interface MemberRow { id: number; nickname: string; role: Role; colorIdx: number; songCount: number; me: boolean; avatarCharacterId?: number | null }
-export interface MySong { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; coverPath?: string | null; addedAt: string; sharedWith: number; /** sort=genre|artist일 때 묶음 (11-14, 모양은 mineGroups.MySongGroup) */ group?: import('./shell/mineGroups').MySongGroup | null }
+export interface MySong { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; coverPath?: string | null; addedAt: string; sharedWith: number; /** 11-14 아티스트별 보조 줄용 (없으면 비움) */ releaseYear?: number | null; album?: string | null; /** sort=genre|artist일 때 묶음 (11-14, 모양은 mineGroups.MySongGroup) */ group?: import('./shell/mineGroups').MySongGroup | null }
 /** genre·artist는 첫 쪽의 snapshot을 다음 쪽에 그대로 보낸다(그사이 담아도 순서 고정). 409 CURSOR_STALE이면 처음부터 */
 export interface MySongsPage { items: MySong[]; nextCursor: number | null; sort?: string; snapshot?: number | null }
 export interface Evidence { id: number; source: string; url: string }

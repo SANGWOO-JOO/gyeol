@@ -3,12 +3,14 @@ import type { MemberView, RoomMap } from '../roomApi'
 import { memberColor, SHARED_GOLD } from '../roomApi'
 import { coverSources, sourcesOf, useImageChain, type ImgSource } from '../images'
 import { planetPeople } from '../roomLogic'
-import { SAT_GROW_MAX, fitInside, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type Insets, type View } from './galaxyMath'
+import { SAT_GROW_MAX, fitInside, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type Insets, type View } from './galaxyMath'
 import { NO_FRESH, songKey, type Fresh } from './fresh'
 import { genreColor, pillWidth, planetFace } from './faces'
 import { SAT_TIP_MAX, satTipPosition, satTipWidth } from './satTip'
 import { keepCenterShift } from '../shell/panelPref'
+import { OrbitIcon } from '../shell/RoomIcons'
 import { bucketMinScale, declutter, declutterBucket } from './declutter'
+import { cometPath, decorDelay, hashSeed, newSongs, parallaxPositions, songKeys, STAR_LAYERS, starTileUrl, twinkles } from './cosmos'
 import { planetLit, ringLit, songLit } from './focus'
 import { COVER_PAD, COVER_R, orbitLayout, RING_GAP, ringRadii, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
@@ -18,6 +20,9 @@ import g from './galaxy.module.css'
  * 확대·이동 중에는 React를 다시 그리지 않고 그룹 변환만 바꾸고, 멈춘 뒤(0.15초) 그 배율에 맞춰
  * 행성·글자를 화면에서 읽을 수 있는 크기로 다시 그린다. 이름은 겹치지 않는 것만 보인다.
  */
+/** 성운 반지름(세계 단위, 지도 폭 1000 기준) */
+const NEBULA_R = 120
+
 export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fresh = NO_FRESH, selectedId = null, focusId = null, onEmptyTap }: {
   map: RoomMap; meId: number; roomId: string; onSelectArtist?: (artistId: number) => void; fresh?: Fresh
   /** 근처 가수(유령 행성)를 눌렀을 때 → 가수 화면 (I-40). 없으면 onSelectArtist */
@@ -59,12 +64,31 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
     }
     return { byId: out, colors }
   }, [map.planets, map.galaxies])
+  // 성운 색: 구역 장르색(같은 색은 그라데이션 하나)
+  const { nebulaColors, nebulaIdx } = useMemo(() => {
+    const cs: string[] = []
+    for (const x of galaxies) { const c = genreColor(x.name, x.id); if (!cs.includes(c)) cs.push(c) }
+    return { nebulaColors: cs, nebulaIdx: new Map(cs.map((c, i) => [c, i])) }
+  }, [galaxies])
   const ghosts = useMemo(() => map.ghosts.map(x => ({ ...x, wx: toWorld(x.x), wy: toWorld(x.y) })), [map.ghosts])
-  const starField = useMemo(() => stars(roomId), [roomId])
+  // 배경 (11-14): 겹겹의 별(CSS 배경 타일, 끌 때 시차)·반짝이는 별·옅은 장르 성운·혜성. 움직임 줄이기면 시차·반짝임·혜성 없음
+  const seed = useMemo(() => hashSeed(roomId), [roomId])
+  const reduced = useMemo(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches, [])
+  const bgStyle = useMemo(() => ({
+    backgroundImage: [0, 1, 2].map(i => starTileUrl(seed, i)).join(', ') + ', radial-gradient(120% 90% at 50% 45%, #241f47 0%, #17142d 55%, #100e22 100%)',
+    backgroundSize: STAR_LAYERS.map(L => `${L.tile}px ${L.tile}px`).join(', ') + ', 100% 100%',
+    backgroundRepeat: 'repeat, repeat, repeat, no-repeat',
+    backgroundPosition: parallaxPositions(0, 0) + ', center',
+  }), [seed])
+  const twinkleStars = useMemo(() => twinkles(seed), [seed])
 
+  const reducedRef = useRef(false)
+  reducedRef.current = reduced
   const apply = useCallback((v: View, settleNow = false) => {
     viewRef.current = v
     layerRef.current?.setAttribute('transform', `translate(${v.tx} ${v.ty}) scale(${v.scale})`)
+    // 별 겹 시차 (React를 다시 그리지 않고 배경 위치만)
+    if (wrapRef.current) wrapRef.current.style.backgroundPosition = (reducedRef.current ? parallaxPositions(0, 0) : parallaxPositions(v.tx, v.ty)) + ', center'
     clearTimeout(settleTimer.current)
     if (settleNow) setSettled(v)
     else settleTimer.current = setTimeout(() => setSettled(viewRef.current), 150)
@@ -253,6 +277,57 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bucket, planets, map.galaxies])
   const planetsAt = useMemo(() => planets.map(p => { const q = placedPos.get(p.artistId); return q ? { ...p, wx: q.x, wy: q.y } : p }), [planets, placedPos])
+  // ── 혜성 ──
+  type Comet = { id: number; sx: number; sy: number; ex: number; ey: number; angle: number; color: string; decor?: boolean; artistId?: number }
+  const [comets, setComets] = useState<Comet[]>([])
+  const [flashing, setFlashing] = useState<Set<number>>(new Set())
+  const cometId = useRef(0)
+  const flash = useCallback((artistId: number) => {
+    setFlashing(prev => new Set(prev).add(artistId))
+    setTimeout(() => setFlashing(prev => { const n = new Set(prev); n.delete(artistId); return n }), 900)
+  }, [])
+  const cometDone = (c: Comet) => { setComets(prev => prev.filter(x => x.id !== c.id)); if (c.artistId != null) flash(c.artistId) }
+  // 담기 혜성: 지도를 새로 받아 새 곡을 알았을 때(내가 담은 곡도 담은 뒤 지도를 다시 받는다). 첫 지도는 날리지 않는다. 한 번에 3개까지 차례로
+  const seenSongs = useRef<Set<string> | null>(null)
+  const posRef = useRef(new Map<number, { x: number; y: number }>())
+  posRef.current = new Map(planetsAt.map(p => [p.artistId, { x: p.wx, y: p.wy }]))
+  useEffect(() => {
+    if (!ready) return
+    const fresh = newSongs(seenSongs.current, map.planets, 3)
+    seenSongs.current = songKeys(map.planets)
+    fresh.forEach((n, i) => setTimeout(() => {
+      const w = posRef.current.get(n.artistId)
+      const el = wrapRef.current
+      if (!w || !el) return
+      const v = viewRef.current
+      const target = { x: w.x * v.scale + v.tx, y: w.y * v.scale + v.ty }
+      const view = { width: el.clientWidth, height: el.clientHeight }
+      const inView = target.x > 0 && target.x < view.width && target.y > 0 && target.y < view.height
+      if (reduced || !inView) { flash(n.artistId); return }
+      const p = cometPath(target, view, n.trackId)
+      setComets(prev => [...prev, { id: ++cometId.current, ...p, color: memberColor(members.get(n.memberId)?.colorIdx ?? 0).bg, artistId: n.artistId }])
+    }, i * 450))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map.planets, ready])
+  // 장식 혜성: 30~60초에 한 번, 흐리고 빠르게 화면 위쪽을 스친다
+  useEffect(() => {
+    if (reduced) return
+    let i = 0, t: ReturnType<typeof setTimeout>
+    const next = () => {
+      t = setTimeout(() => {
+        const el = wrapRef.current
+        if (el && document.visibilityState === 'visible') {
+          const w = el.clientWidth, h = el.clientHeight, k = (i % 4) / 4
+          const sx = -60, sy = h * (0.08 + 0.3 * k), ex = w + 60, ey = sy + h * 0.18
+          setComets(prev => [...prev, { id: ++cometId.current, sx, sy, ex, ey, angle: (Math.atan2(ey - sy, ex - sx) * 180) / Math.PI, color: '#e6dcff', decor: true }])
+        }
+        i++; next()
+      }, decorDelay(seed, i))
+    }
+    next()
+    return () => clearTimeout(t)
+  }, [seed, reduced])
+
   // 근처 가수를 그릴 자리: 방 행성의 바깥 궤도(+위성) 밖으로 밀어낸다 (I-40 2차). 화면 px로 계산해 세계 좌표로 되돌린다
   const placedGhosts = useMemo(() => {
     const obs = planetsAt.map(p => ({ x: p.wx * s + settled.tx, y: p.wy * s + settled.ty, r: outer.get(p.artistId)! + 5 * grow })) // 바깥 궤도 + 위성 반지름
@@ -333,7 +408,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
   const v = viewRef.current
   return (
     <div className={g.mapWrap}>
-      <div ref={wrapRef} className={g.map} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+      <div ref={wrapRef} className={g.map} style={bgStyle} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
         <svg width="100%" height="100%" style={{ opacity: ready ? 1 : 0 }} role="group" aria-label={`우리 음악 은하. 행성 ${planets.length}개. 행성을 누르면 자세히 보여요`}>
           <defs>
             <radialGradient id="gl-planet" cx="35%" cy="30%" r="75%">
@@ -349,10 +424,18 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
               </radialGradient>
             ))}
             <clipPath id="planet-face-clip" clipPathUnits="objectBoundingBox"><circle cx=".5" cy=".5" r=".5" /></clipPath>
+            {nebulaColors.map((c, i) => (
+              <radialGradient key={`n${i}`} id={`neb-${i}`}>
+                <stop offset="0%" stopColor={c} stopOpacity=".16" />
+                <stop offset="55%" stopColor={c} stopOpacity=".06" />
+                <stop offset="100%" stopColor={c} stopOpacity="0" />
+              </radialGradient>
+            ))}
           </defs>
           <g ref={layerRef} transform={`translate(${v.tx} ${v.ty}) scale(${v.scale})`}>
-            <g aria-hidden="true">
-              {starField.map((st, i) => <circle key={i} cx={st.x} cy={st.y} r={st.r * u} fill="#2A2650" opacity={st.o} />)}
+            {/* 장르 성운: 구역마다 그 장르색의 아주 옅은 빛 구름 (세계 좌표라 끌기·확대와 함께) */}
+            <g aria-hidden="true" className={g.nebulae}>
+              {galaxies.map(x => { const c = genreColor(x.name, x.id); return <circle key={x.id} cx={x.wx} cy={x.wy} r={NEBULA_R} fill={`url(#neb-${nebulaIdx.get(c)})`} /> })}
             </g>
             {/* ⑧·I-40 근처 가수(아직 우리 우주에 없음): 흐린 가수 행성 + 보라 점선(회전 없음). "+"는 마우스를 올렸을 때만 */}
             {level !== 'far' && placedGhosts.map(x => (
@@ -386,7 +469,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
               const lit = planetLit(p, focusId)
               const ping = !born && level === 'far' && p.songs.some(x => fresh.tracks.has(songKey(p.artistId, x.trackId)) || fresh.gold.has(songKey(p.artistId, x.trackId)))
               return (
-                <g key={p.artistId} className={`${g.planetNode} ${p.preparing ? g.preparingNode : ''} ${selectedId === p.artistId ? g.selectedNode : ''} ${lit ? '' : g.dimmed}`} data-artist={p.artistId} aria-current={selectedId === p.artistId ? 'true' : undefined}
+                <g key={p.artistId} className={`${g.planetNode} ${p.preparing ? g.preparingNode : ''} ${selectedId === p.artistId ? g.selectedNode : ''} ${lit ? '' : g.dimmed} ${flashing.has(p.artistId) ? g.flash : ''}`} data-artist={p.artistId} aria-current={selectedId === p.artistId ? 'true' : undefined}
                   style={{ transform: `translate(${p.wx}px, ${p.wy}px)` }} role="button" tabIndex={0} onKeyDown={onKey(p.artistId)}
                   aria-label={`${p.name}, 노래 ${p.songs.length}곡${who ? `, ${who}` : ''}${p.people.shared ? `, 같이 담은 노래 ${p.people.shared}곡` : ''}${p.preparing ? ', 우주에 올리는 중' : ''}`}>
                   <circle className={g.planetHit} r={Math.max(ro, r + 10 * u)} />
@@ -437,6 +520,17 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
             </g>
           </g>
         </svg>
+        {!reduced && (
+          <div className={g.twinkles} aria-hidden="true">
+            {twinkleStars.map((t, i) => <i key={i} style={{ left: `${t.left}%`, top: `${t.top}%`, width: t.size, height: t.size, animationDelay: `${t.delay}s`, animationDuration: `${t.dur}s` }} />)}
+          </div>
+        )}
+        <div className={g.comets} aria-hidden="true">
+          {comets.map(c => (
+            <i key={c.id} className={c.decor ? g.cometDecor : g.comet} onAnimationEnd={() => cometDone(c)}
+              style={{ left: c.sx, top: c.sy, ['--dx' as string]: `${c.ex - c.sx}px`, ['--dy' as string]: `${c.ey - c.sy}px`, ['--rot' as string]: `${c.angle}deg`, ['--c' as string]: c.color }} />
+          ))}
+        </div>
         {satTip && tipPos && (
           <div className={g.satTip} role="tooltip" data-gold={satTip.gold || undefined} data-below={tipPos.below || undefined}
             style={{ left: tipPos.left, top: tipPos.top, maxWidth: SAT_TIP_MAX, ['--tip-c' as string]: satTip.color, ['--tail-x' as string]: `${tipPos.tailX}px` }}>
@@ -454,7 +548,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
         <button type="button" className={g.ctrl} aria-label="확대" onClick={() => zoomBy(1.4)}>+</button>
         <button type="button" className={g.ctrl} aria-label="축소" onClick={() => zoomBy(1 / 1.4)}>−</button>
         <button type="button" className={g.ctrl} aria-label="우리 구역으로 돌아가기" onClick={refit}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
+          <OrbitIcon size={20} />
         </button>
       </div>
     </div>

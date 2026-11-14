@@ -86,11 +86,11 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show, on
     }
   }
 
-  // 곡 줄: 장르별은 가수만, 아티스트별은 가수·장르를 빼고(발매 연도·앨범은 응답에 없어 생략), 최근 순은 가수 · 장르
+  // 곡 줄: 장르별은 가수만, 아티스트별은 "발매 연도 · 앨범"(값 있는 것만), 최근 순은 가수 · 장르
   const meId = me?.member.id ?? -1
   const members = map?.members ?? []
   const row = (song: MySong): ReactNode => {
-    const sub = sort === 'genre' ? song.artist : sort === 'artist' ? null : [song.artist, galaxy.get(song.trackId)].filter(Boolean).join(' · ')
+    const sub = sort === 'genre' ? song.artist : sort === 'artist' ? ([song.releaseYear, song.album].filter(Boolean).join(' · ') || null) : [song.artist, galaxy.get(song.trackId)].filter(Boolean).join(' · ')
     const others = song.sharedWith > 0 ? coOwners(map, song.trackId, meId) : []
     const names = others.map(id => members.find(m => m.id === id)?.nickname).filter((n): n is string => !!n)
     return (

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { MemberView, Planet, RoomMap } from '../roomApi'
-import { memberColor } from '../roomApi'
+import { memberColor, SHARED_GOLD } from '../roomApi'
 import { groupByGalaxy, planetPeople } from '../roomLogic'
 import { GalaxyMap } from './GalaxyMap'
 import type { Fresh } from './fresh'
@@ -99,16 +99,40 @@ function PlanetRow({ planet, members, meId, onSelect }: {
   )
 }
 
+/** 범례 그림: 실제 지도처럼 작은 행성 + 궤도 위 위성 점(사람 색·금빛), 비슷한 아티스트는 흐린 행성 */
+function Mini({ dot, ghost }: { dot?: string; ghost?: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" style={{ flex: 'none' }}>
+      {ghost
+        ? <circle cx="9" cy="9" r="5" fill="rgba(156,148,208,.28)" stroke="rgba(230,220,255,.35)" />
+        : <>
+          <ellipse cx="9" cy="9" rx="7.5" ry="3.6" fill="none" stroke="rgba(230,220,255,.35)" transform="rotate(-20 9 9)" />
+          <circle cx="9" cy="9" r="3.2" fill="#3a3270" />
+          <circle cx="15.6" cy="6.6" r="2.2" fill={dot} />
+        </>}
+    </svg>
+  )
+}
+
 /**
- * PC 지도 아래 색 안내 (캔버스 4-PC): 사람 색 · 같이 담은 노래 · 근처 추천 가수.
- * I-26: 사람을 누르면 그 사람 노래만 밝게 (참가자 탭과 같은 상태, 다시 누르면 해제)
+ * PC 지도 아래 색 안내 (캔버스 4-PC, 11-14 유리 알약): 사람(그 색 위성) · 같이 담은 노래(금빛 위성) · 근처 추천 가수(흐린 행성).
+ * I-26: 사람을 누르면 그 사람 노래만 밝게. 접을 수 있다(이 브라우저에 기억)
  */
 function Legend({ members, hasGhosts, focusId, onFocus }: { members: MemberView[]; hasGhosts: boolean; focusId: number | null; onFocus?: (id: number) => void }) {
+  const [closed, setClosed] = useState(() => { try { return localStorage.getItem('gyeol.legendCollapsed') === '1' } catch { return false } })
+  const toggle = () => setClosed(v => { try { localStorage.setItem('gyeol.legendCollapsed', v ? '0' : '1') } catch { /* 기억 못 해도 된다 */ } return !v })
   const dim = focusId != null
+  if (closed) {
+    return (
+      <div data-map-overlay="bottom" className={`${g.legend} ${g.legendClosed}`}>
+        <button type="button" className={g.legendToggle} aria-expanded={false} onClick={toggle}><Mini dot={SHARED_GOLD} />색 안내</button>
+      </div>
+    )
+  }
   return (
-    <div data-map-overlay="bottom" className={g.legend} role={onFocus ? 'group' : undefined} aria-label={onFocus ? '사람 색 안내: 누르면 그 사람 노래만 밝게' : undefined} aria-hidden={onFocus ? undefined : true}>
+    <div data-map-overlay="bottom" className={g.legend} role={onFocus ? 'group' : undefined} aria-label={onFocus ? '사람 색 안내: 누르면 그 사람 노래만 밝게' : undefined}>
       {members.map(m => {
-        const dot = <i style={{ background: memberColor(m.colorIdx).bg }} />
+        const dot = <Mini dot={memberColor(m.colorIdx).bg} />
         if (!onFocus) return <span key={m.id}>{dot}{m.nickname}</span>
         return (
           <button key={m.id} type="button" className={g.legendPerson} aria-pressed={focusId === m.id}
@@ -117,8 +141,11 @@ function Legend({ members, hasGhosts, focusId, onFocus }: { members: MemberView[
           </button>
         )
       })}
-      <span className={dim ? g.legendDim : undefined} aria-hidden="true"><i className={g.legendGold} />같이 담은 노래</span>
-      {hasGhosts && <span className={dim ? g.legendDim : undefined} aria-hidden="true"><i className={g.legendGhost} />비슷한 아티스트</span>}
+      <span className={dim ? g.legendDim : undefined}><Mini dot={SHARED_GOLD} />같이 담은 노래</span>
+      {hasGhosts && <span className={dim ? g.legendDim : undefined}><Mini ghost />비슷한 아티스트</span>}
+      <button type="button" className={g.legendToggle} aria-expanded={true} aria-label="색 안내 접기" onClick={toggle}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg>
+      </button>
     </div>
   )
 }

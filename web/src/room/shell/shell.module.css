@@ -501,3 +501,21 @@ button.groupHead:focus-visible { outline: 2px solid var(--r-accent-strong); outl
 .todayPill i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, rgba(185, 162, 255, .35), rgba(185, 162, 255, .15)); }
 .todayPill span { position: relative; }
 .groupHead { border-radius: 12px; }
+
+/* 지도 화면 크롬 (11-14): 위쪽 띠는 지도가 비쳐 보이는 유리로 지도 위에 얹는다 */
+.wideHeader { position: absolute; top: 0; left: 0; right: 0; z-index: 6; border-bottom: 1px solid rgba(255, 255, 255, .08); background: rgba(20, 18, 40, .5); -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3); }
+.wideBody { height: 100%; }
+.wideBody > .sidePanel { margin-top: 68px; }
+.mapNotices { top: 84px; }
+.wideRoomName { display: inline-flex; align-items: center; gap: 10px; }
+.roomName { display: inline-flex; align-items: center; gap: 8px; }
+.faceRing { display: inline-flex; border-radius: 50%; box-shadow: 0 0 0 2px var(--ring), 0 0 0 4px rgba(20, 18, 40, .9); }
+.faces > .faceRing + .faceRing { margin-left: -6px; }
+.accentPill { color: #16132b; background: linear-gradient(90deg, #b9a2ff, #e6dcff 50%, #e3a6b8); box-shadow: 0 6px 20px rgba(185, 162, 255, .3); }
+.ghostPill { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .14); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+/* 휴대폰 머리·탭바도 같은 유리 톤 */
+.header { background: rgba(20, 18, 40, .72); -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3); border-bottom-color: rgba(255, 255, 255, .07); }
+.tabs { background: rgba(20, 18, 40, .78) !important; -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3); }
+/* 접힌 막대: 고른 탭은 은은하게 빛난다 */
+.railTab[aria-current='page'] { background: rgba(185, 162, 255, .14); box-shadow: 0 0 14px rgba(185, 162, 255, .35), inset 0 0 0 1px rgba(185, 162, 255, .35); color: #fff; }
+.sideRail { background: rgba(20, 18, 40, .65); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }

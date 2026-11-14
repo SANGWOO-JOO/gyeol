@@ -21,6 +21,8 @@ import { PlayTab } from './PlayTab'
 import { Toast, type ToastData } from './Toast'
 import { SheetModeContext } from './Sheet'
 import { useWide } from './useWide'
+import { PeopleIcon, PlayIcon, RecordIcon, RoomPlanet, ScopeIcon } from './RoomIcons'
+import { memberColor } from '../roomApi'
 import { expandsPanel, readCollapsed, writeCollapsed } from './panelPref'
 import s from '../room.module.css'
 import sh from './shell.module.css'
@@ -351,20 +353,19 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   if (wide) {
     const detail = artistSheet || meSheet
     const PANEL_LABEL: Record<PanelTab, string> = { play: '놀이터', search: '검색', mine: '내 노래', people: '참가자' }
-    const tabIcon = (id: Tab) => TABS.find(x => x.id === id)!.icon
-    const PANEL_ICON: Record<PanelTab, ReactNode> = {
-      play: tabIcon('play'), search: tabIcon('search'), mine: tabIcon('mine'),
-      people: <><circle cx="9" cy="8" r="3.2" /><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5" /><circle cx="17" cy="9" r="2.6" /><path d="M16 14.2c2.6.2 4.4 1.8 5 4.8" /></>,
-    }
+    // 결 전용 아이콘 (11-14): 놀이터 = 겹친 두 행성, 검색 = 망원경, 내 노래 = 내 색 레코드판, 참가자 = 궤도 도는 점들
+    const myColor = me ? memberColor(me.member.colorIdx).bg : undefined
+    const PANEL_ICON: Record<PanelTab, ReactNode> = { play: <PlayIcon />, search: <ScopeIcon />, mine: <RecordIcon color={myColor} />, people: <PeopleIcon /> }
     return (
       <AvatarRoom.Provider value={roomId}>
       <div className={sh.wideShell}>
         <header className={sh.wideHeader}>
           <Link to="/" aria-label="첫 화면"><Wordmark size={22} /></Link>
+          <RoomPlanet colors={members.map(m => memberColor(m.colorIdx).bg)} />
           <h1 className={sh.wideRoomName}>{roomName}</h1>
           <span className={sh.counts}>{counts.songs === 0 ? '아직 비어 있어요' : `가수 ${counts.artists}명 · 노래 ${counts.songs}곡`}</span>
           <button type="button" className={sh.faces} style={{ marginLeft: 'auto' }} aria-label={`참가자 ${members.length}명 보기`} onClick={() => setPanel('people')}>
-            {members.map(m => <Avatar key={m.id} nickname={m.nickname} colorIdx={m.colorIdx} characterId={m.avatarCharacterId} size={34} />)}
+            {members.map(m => <span key={m.id} className={sh.faceRing} style={{ ['--ring' as string]: memberColor(m.colorIdx).bg }}><Avatar nickname={m.nickname} colorIdx={m.colorIdx} characterId={m.avatarCharacterId} size={34} /></span>)}
           </button>
           <button type="button" className={sh.ghostPill} onClick={invite}>링크 복사</button>
           <button type="button" className={sh.accentPill} onClick={() => setPanel('search')}>+ 노래 담기</button>
@@ -396,7 +397,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
                   const label = `${PANEL_LABEL[t]}${count != null ? ` ${count}` : ''}${t === 'mine' && badge ? ' · 선물 소식 있음' : ''}`
                   return (
                     <button key={t} type="button" className={sh.railTab} aria-label={`${label} 열기`} title={PANEL_LABEL[t]} aria-current={panelTab === t ? 'page' : undefined} onClick={() => setPanel(t)}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{PANEL_ICON[t]}</svg>
+                      {PANEL_ICON[t]}
                       {t === 'mine' && badge ? <span className={sh.railBadge} aria-hidden="true">{badge}</span>
                         : count != null && <span className={sh.railCount} aria-hidden="true">{count}</span>}
                     </button>
@@ -444,7 +445,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
           <Link to="/" aria-label="첫 화면"><Wordmark size={20} /></Link>
           <div className={sh.headRight}>
             <button type="button" className={sh.faces} aria-label={`참가자 ${members.length}명 보기`} onClick={() => setSheet({ kind: 'people' })}>
-              {members.map(m => <Avatar key={m.id} nickname={m.nickname} colorIdx={m.colorIdx} characterId={m.avatarCharacterId} size={32} />)}
+              {members.map(m => <span key={m.id} className={sh.faceRing} style={{ ['--ring' as string]: memberColor(m.colorIdx).bg }}><Avatar nickname={m.nickname} colorIdx={m.colorIdx} characterId={m.avatarCharacterId} size={32} /></span>)}
             </button>
             <button type="button" className={sh.iconButton} aria-label="친구 초대하기" onClick={invite}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 15V3" /><path d="M7 8l5-5 5 5" /><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></svg>
@@ -452,7 +453,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
           </div>
         </div>
         <div className={sh.titleRow}>
-          <h1 className={sh.roomName}>{roomName}</h1>
+          <h1 className={sh.roomName}><RoomPlanet colors={members.map(m => memberColor(m.colorIdx).bg)} size={22} />{roomName}</h1>
           <span className={sh.counts}>노래 {counts.songs}곡 · 가수 {counts.artists}명</span>
         </div>
       </header>
@@ -476,7 +477,8 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       <nav className={sh.tabs} aria-label="방 메뉴">
         {TABS.map(t => (
           <button key={t.id} type="button" className={sh.tab} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{t.icon}</svg>
+            {t.id === 'play' ? <PlayIcon size={24} /> : t.id === 'search' ? <ScopeIcon size={24} /> : t.id === 'mine' ? <RecordIcon size={24} color={me ? memberColor(me.member.colorIdx).bg : undefined} />
+              : <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{t.icon}</svg>}
             {t.label}
             {t.id === 'mine' && badge && <><span className={sh.tabBadge} aria-hidden="true">{badge}</span><span className={s.srOnly}> · 선물 소식 있음</span></>}
           </button>
