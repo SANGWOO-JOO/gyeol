@@ -10,7 +10,7 @@ import { AllSongsButton } from './AllSongsButton'
 import { Avatar } from '../components/Avatar'
 import { sourcesOf, useImageChain } from '../images'
 import { genreColor, photoCreditText, planetFace } from '../galaxy/faces'
-import { roomSummary, sharedFirst } from './artistSheetLogic'
+import { ringArcs, roomPills, roomSummary, sharedFirst } from './artistSheetLogic'
 import ak from './artistSheet.module.css'
 import type { ToastData } from './Toast'
 import sh from './shell.module.css'
@@ -45,6 +45,7 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
   const [a, setA] = useState<ArtistView | null>(null)
   const [open, setOpen] = useState(false)
   const [nearAll, setNearAll] = useState(false)
+  const [pillsAll, setPillsAll] = useState(false)
   const [failed, setFailed] = useState(false)
   // 내 노래 ✕에 필요한 담은 곡 id (지도·가수 응답에는 trackId만 있다)
   const [mySongIds, setMySongIds] = useState<Map<number, number>>(new Map())
@@ -83,6 +84,8 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
   const songs = a?.songs ?? planet?.songs ?? []
   const sum = roomSummary(songs, memberOrder)
   // 담은 사람이 한 명(같이 담은 곡 없음)이면 막대 없이 글자만
+  // 알약: 사람마다 이 가수 곡 전체 수(같이 담은 곡 포함), 나 먼저·3명까지(+n). 고리는 겹치지 않는 몫(혼자 + 금빛 같이)의 비율 그림
+  const pills = roomPills(songs, memberOrder, meId)
   // 우리 방 몫: 얼굴 둘레 고리 조각(사람 색, 같이 담은 몫은 금빛) + 이름 아래 숫자 알약
   const ringParts = [
     ...sum.solo.map(x => ({ color: memberColor(members.get(x.memberId)?.colorIdx ?? 0).bg, count: x.count })),
@@ -106,11 +109,15 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
         {galaxyName && <span className={ak.genreChip} title={galaxyName}><i style={{ background: gColor }} aria-hidden="true" /><span>{galaxyName}</span></span>}
         {a && sum.total > 0 && (
           <span className={ak.pills} aria-label="우리 방에서 이 가수">
-            {sum.solo.map(x => {
+            {(pillsAll ? pills.people : pills.shown).map(x => {
               const m = members.get(x.memberId)
               return <span key={x.memberId} className={ak.pill}><i style={{ background: memberColor(m?.colorIdx ?? 0).bg }} aria-hidden="true" />{x.memberId === meId ? '나' : m?.nickname} {x.count}</span>
             })}
-            {sum.shared > 0 && <span className={`${ak.pill} ${ak.pillGold}`}><i aria-hidden="true" />같이 {sum.shared}</span>}
+            {pills.hidden > 0 && (
+              <button type="button" className={`${ak.pill} ${ak.pillMore}`} aria-expanded={pillsAll} onClick={() => setPillsAll(v => !v)}
+                aria-label={pillsAll ? '사람 접기' : `${pills.hidden}명 더 보기`}>{pillsAll ? '접기' : `+${pills.hidden}`}</button>
+            )}
+            {pills.shared > 0 && <span className={`${ak.pill} ${ak.pillGold}`}><i aria-hidden="true" />같이 {pills.shared}</span>}
           </span>
         )}
       </>}
@@ -219,8 +226,10 @@ function Banner({ roomId, name, sources, color, photo, credit, ring }: {
   const { src, fail } = useImageChain(roomId, sources)
   const [loaded, setLoaded] = useState<string | null>(null)
   const total = ring.reduce((t, x) => t + x.count, 0)
-  const R = 54, C = 2 * Math.PI * R, gapLen = ring.length > 1 ? 3 : 0
-  let acc = 0
+  const R = 54, C = 2 * Math.PI * R
+  // 조각마다 최소 10°, 틈 3° (사람이 많아도 실처럼 가늘어지지 않게)
+  const arcs = ringArcs(ring.map(x => x.count))
+  const parts = ring.filter(x => x.count > 0)
   return (
     <>
       <div className={ak.banner} aria-hidden="true">
@@ -237,13 +246,10 @@ function Banner({ roomId, name, sources, color, photo, credit, ring }: {
         {total > 0 && (
           <svg className={ak.ring} viewBox="0 0 120 120" aria-hidden="true">
             <circle cx="60" cy="60" r={R} fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="5" />
-            {ring.map((x, i) => {
-              const len = (x.count / total) * C
-              const el = <circle key={i} cx="60" cy="60" r={R} fill="none" stroke={x.color} strokeWidth="5" strokeLinecap="round"
-                strokeDasharray={`${Math.max(0.1, len - gapLen)} ${C}`} strokeDashoffset={-acc} transform="rotate(-90 60 60)" />
-              acc += len
-              return el
-            })}
+            {arcs.map((a, i) => (
+              <circle key={i} cx="60" cy="60" r={R} fill="none" stroke={parts[i].color} strokeWidth="5" strokeLinecap={arcs.length > 1 ? 'round' : 'butt'}
+                strokeDasharray={`${Math.max(0.1, (a.sweep / 360) * C - (arcs.length > 1 ? 5 : 0))} ${C}`} strokeDashoffset={-(a.start / 360) * C} transform="rotate(-90 60 60)" />
+            ))}
           </svg>
         )}
         <div className={ak.face} aria-hidden="true" style={src ? undefined : { background: `radial-gradient(120% 120% at 30% 20%, ${color}, #2e2760 80%)` }}>

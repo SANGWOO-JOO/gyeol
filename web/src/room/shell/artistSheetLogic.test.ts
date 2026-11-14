@@ -20,3 +20,38 @@ describe('사실 줄 칩', () => {
     expect(factChips({ tags: Array.from({ length: 10 }, (_, i) => `t${i}`) })).toHaveLength(8)
   })
 })
+
+import { ringArcs, roomPills } from './artistSheetLogic'
+describe('우리 방 알약·고리', () => {
+  const A = 1, B = 2, C = 3, D = 4, E = 5
+  it('2명: 사람 수는 같이 담은 곡 포함, 같이 n은 한 번', () => {
+    const songs = [{ memberIds: [A] }, { memberIds: [A] }, { memberIds: [A] }, { memberIds: [A] }, { memberIds: [A, B] }, { memberIds: [B, A] }, { memberIds: [B] }, { memberIds: [B] }, { memberIds: [B] }]
+    const r = roomPills(songs, [A, B], A)
+    expect(r.people).toEqual([{ memberId: A, count: 6 }, { memberId: B, count: 5 }])
+    expect(r.shared).toBe(2)
+  })
+  it('4명: 같이 조합 A+B, C+D, A+B+C, 같이만 담은 사람도 알약', () => {
+    const songs = [{ memberIds: [A, B] }, { memberIds: [C, D] }, { memberIds: [A, B, C] }, { memberIds: [A] }, { memberIds: [B] }, { memberIds: [B] }]
+    const r = roomPills(songs, [A, B, C, D], A)
+    expect(r.people).toEqual([{ memberId: A, count: 3 }, { memberId: B, count: 4 }, { memberId: C, count: 2 }, { memberId: D, count: 1 }])
+    expect(r.shown.map(x => x.memberId)).toEqual([A, B, C])
+    expect(r.hidden).toBe(1)
+    expect(r.shared).toBe(3)
+  })
+  it('나 없음: 나 알약 없이 곡 많은 순, 같으면 참가 순', () => {
+    const r = roomPills([{ memberIds: [C] }, { memberIds: [B] }, { memberIds: [B] }, { memberIds: [D] }], [B, C, D], A)
+    expect(r.people.map(x => x.memberId)).toEqual([B, C, D])
+  })
+  it('5명: 3명까지 보이고 +2', () => {
+    const r = roomPills([A, B, C, D, E].map(id => ({ memberIds: [id] })), [A, B, C, D, E], C)
+    expect(r.shown.map(x => x.memberId)).toEqual([C, A, B])
+    expect(r.hidden).toBe(2)
+  })
+  it('고리: 최소 10°, 틈 3°, 합이 한 바퀴', () => {
+    const arcs = ringArcs([100, 1, 1])
+    expect(Math.min(...arcs.map(a => a.sweep))).toBeGreaterThanOrEqual(10 - 1e-9)
+    expect(arcs.reduce((s, a) => s + a.sweep, 0) + 3 * 3).toBeCloseTo(360)
+    expect(ringArcs([5])).toEqual([{ start: 0, sweep: 360 }])
+    expect(ringArcs([])).toEqual([])
+  })
+})
