@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { genreColor, genreFamily, pillWidth, planetFace } from './faces'
+import { genreColor, genreFamily, photoCreditText, pillWidth, planetFace } from './faces'
 
 describe('I-44 장르 계열 색', () => {
   it('구역 이름의 낱말로 계열을 고른다 (먼저 맞는 계열)', () => {
@@ -27,12 +27,20 @@ describe('I-44 장르 계열 색', () => {
 
 describe('I-44 얼굴 고르기', () => {
   const song = (coverUrl: string | null) => ({ trackId: 1, title: 't', coverUrl, memberIds: [1] })
-  it('서버 얼굴 → 담긴 곡 표지 → 장르색', () => {
-    expect(planetFace({ songs: [song('c.jpg')], face: { kind: 'PHOTO', url: 'p.jpg' } })).toEqual({ kind: 'photo', url: 'p.jpg' })
+  it('사진(PHOTO) → 표지(COVER, 없으면 담긴 곡) → 장르색. 사진은 표지를 fallback으로', () => {
+    expect(planetFace({ songs: [song('c.jpg')], face: { kind: 'PHOTO', url: '/api/p' } })).toEqual({ kind: 'photo', url: '/api/p', fallback: 'c.jpg' })
+    expect(planetFace({ songs: [song(null)], face: { kind: 'PHOTO', url: '/api/p' } })).toEqual({ kind: 'photo', url: '/api/p', fallback: null })
     expect(planetFace({ songs: [song('c.jpg')], face: { kind: 'COVER', url: 'x.jpg' } })).toEqual({ kind: 'cover', url: 'x.jpg' })
-    expect(planetFace({ songs: [song(null), song('c.jpg')], face: null })).toEqual({ kind: 'cover', url: 'c.jpg' })
-    expect(planetFace({ songs: [song(null)] })).toEqual({ kind: 'genre' })
-    expect(planetFace({ songs: [song('c.jpg')], face: { kind: 'PHOTO', url: null } })).toEqual({ kind: 'cover', url: 'c.jpg' })
+    expect(planetFace({ songs: [song(null), song('c.jpg')], face: { kind: 'NONE', url: null } })).toEqual({ kind: 'cover', url: 'c.jpg' })
+    expect(planetFace({ songs: [song(null)], face: { kind: 'NONE', url: null } })).toEqual({ kind: 'genre' })
+    expect(planetFace({ songs: [song('c.jpg')] })).toEqual({ kind: 'cover', url: 'c.jpg' })
+  })
+  it('사진 출처 줄: 빈 칸은 빼고, 출처가 없으면 줄도 없음', () => {
+    expect(photoCreditText({ author: '홍길동', license: 'CC BY-SA 4.0' })).toBe('사진: 홍길동 · CC BY-SA 4.0 · Wikimedia Commons')
+    expect(photoCreditText({ author: '', license: 'CC0' })).toBe('사진: CC0 · Wikimedia Commons')
+    expect(photoCreditText({ author: null, license: null })).toBe('사진: Wikimedia Commons')
+    expect(photoCreditText({ author: 'A  b ', license: ' CC0' })).toBe('사진: A b · CC0 · Wikimedia Commons')
+    expect(photoCreditText(null)).toBeNull()
   })
   it('알약 폭: 한글은 넓게, 로마자는 좁게', () => {
     expect(pillWidth('아이유', 11)).toBeGreaterThan(pillWidth('IU', 11))

@@ -25,7 +25,7 @@ export interface TrackItem { title: string; artist: string; mbid: string | null;
 /** mine: 내가 이미 담음 · sameSong: 이 노래를 담은 사람 · sameArtist: 같은 가수의 다른 노래를 담은 사람 */
 export interface RoomSearchItem { item: TrackItem; mine: boolean; sameSong: string[]; sameArtist: string[] }
 /** 검색어가 가수와 맞을 때 결과 맨 위 가수 카드 (I-30 ①). DB에 없는 가수는 artistId 없음 */
-export interface SearchArtist { artistId: number | null; name: string; aliases?: string[] | null; songCountInRoom?: number | null; onMap?: boolean | null }
+export interface SearchArtist { artistId: number | null; name: string; aliases?: string[] | null; songCountInRoom?: number | null; onMap?: boolean | null; /** I-44 가수 화면 머리 사진 출처 */ photo?: PhotoCredit | null }
 export interface SearchResponse { items: RoomSearchItem[]; source: string; artist?: SearchArtist | null }
 /** 가수 화면 (I-30 ②③): 인기순·최신순 20곡씩 */
 export type ArtistSort = 'popular' | 'latest'
@@ -43,13 +43,16 @@ export interface AddSongResponse { status: 'ADDED' | 'IDENTIFYING'; song: SongVi
 export interface RequestView { id: number; status: 'IDENTIFYING' | 'DONE' | 'FAILED'; song: SongView | null; failReason: string | null }
 
 export interface MapSong { trackId: number; title: string; coverUrl: string | null; memberIds: number[] }
+/** I-44 사진 출처 (Wikimedia Commons). 빈 값이 올 수 있다 */
+export interface PhotoCredit { url?: string | null; author?: string | null; license?: string | null; pageUrl?: string | null }
+/** I-44 행성 얼굴. PHOTO url은 방 열쇠가 필요한 /api/rooms/{rid}/artists/{id}/image (없으면 404 → 표지·장르색) */
+export interface Face { kind: 'PHOTO' | 'COVER' | 'NONE' | string; url: string | null; galaxyId?: number | null; author?: string | null; license?: string | null; pageUrl?: string | null }
 export interface Planet {
   artistId: number; name: string; x: number; y: number; songs: MapSong[]; galaxyId: number | null; preparing: boolean
-  /** I-44 행성 얼굴 (작업 세션이 만드는 중, 선택). url이 있으면 사진(PHOTO)·표지로 쓴다 */
-  face?: { kind?: string | null; url?: string | null; credit?: unknown } | null
+  face?: Face | null
 }
 export interface Galaxy { id: number; name: string | null; x: number; y: number }
-export interface Ghost { artistId: number; name: string; x: number; y: number; near: number; /** I-44 ⑤ 얼굴(선택): 사진이 있으면 흐린 흑백으로 */ face?: { kind?: string | null; url?: string | null } | null }
+export interface Ghost { artistId: number; name: string; x: number; y: number; near: number; /** I-44 ⑤ PHOTO면 흐린 흑백 사진, NONE이면 이니셜 (COVER 없음) */ face?: Face | null; galaxyId?: number | null }
 export interface RoomMap { rev: number; placeholder: boolean; members: MemberView[]; planets: Planet[]; galaxies: Galaxy[]; ghosts: Ghost[] }
 
 export interface MemberRow { id: number; nickname: string; role: Role; colorIdx: number; songCount: number; me: boolean; avatarCharacterId?: number | null }
@@ -58,6 +61,8 @@ export interface MySongsPage { items: MySong[]; nextCursor: number | null }
 export interface Evidence { id: number; source: string; url: string }
 export interface ArtistView {
   artistId: number; name: string; description: string | null; evidence: Evidence[]
+  /** I-44 얼굴과 사진 출처(Commons 사진일 때만) */
+  face?: Face | null; photo?: PhotoCredit | null
   songs: MapSong[]; nearby: { artistId: number; name: string; inRoom: boolean }[]; preparing: boolean
 }
 
@@ -80,6 +85,23 @@ export interface GiftBoxDetail {
   box: GiftBoxView; character: CharacterView | null; genreMix?: { galaxy: string; songs: number }[]
   /** ⑯ 변경(11-14): 없을 수 있음 → 표시 생략 */
   imagesLeftToday?: number | null; imageDailyLimit?: number | null; fallbackReason?: 'DAILY_LIMIT' | 'FAILED' | string | null
+}
+
+/**
+ * I-44 가수 사진: 방 열쇠가 있어야 받을 수 있어 SVG <image>에 주소를 바로 넣지 않고 헤더를 붙여 받아 blob 주소로 쓴다
+ * (쿠키가 안 남는 브라우저 대비, 캐릭터 그림과 같은 방식). 못 받으면(401·404) null → 표지·장르색. 실패는 1분 기억해 다시 시도.
+ */
+const photoCache = new Map<string, { at: number; p: Promise<string | null> }>()
+export function roomPhoto(roomId: string, url: string): Promise<string | null> {
+  const hit = photoCache.get(url)
+  if (hit) return hit.p
+  const key = keyStore.get(roomId)?.key
+  const p = fetch(url, { headers: key ? { 'X-Room-Key': key } : {}, credentials: 'same-origin' })
+    .then(res => (res.ok ? res.blob().then(b => URL.createObjectURL(b)) : null))
+    .catch(() => null)
+  photoCache.set(url, { at: Date.now(), p })
+  p.then(u => { if (!u) setTimeout(() => photoCache.delete(url), 60_000) })
+  return p
 }
 
 /** 캐릭터 그림은 같은 방 참가자만 볼 수 있어 열쇠 헤더를 붙여 받고, 화면에는 blob 주소로 넣는다 (쿠키가 안 남는 브라우저 대비) */

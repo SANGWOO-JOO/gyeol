@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { MemberView, RoomMap } from '../roomApi'
-import { memberColor } from '../roomApi'
+import { memberColor, roomPhoto } from '../roomApi'
 import { planetPeople } from '../roomLogic'
 import { fitInside, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type Insets, type View } from './galaxyMath'
 import { NO_FRESH, songKey, type Fresh } from './fresh'
@@ -315,8 +315,9 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                 <circle className={g.ghostHit} r={Math.max(20, ghostR + 8) * u} />
                 <circle className={g.ghostBody} r={ghostR * u} fill="url(#gl-planet)" strokeWidth={1.2 * u} strokeDasharray={`${3 * u} ${3 * u}`} />
                 {/* I-44 ⑤ 사진이 있으면 흑백에 가깝게 흐린 얼굴, 없으면 이니셜 */}
-                {x.face?.url
-                  ? <image className={g.ghostFace} href={x.face.url} x={-ghostR * u} y={-ghostR * u} width={2 * ghostR * u} height={2 * ghostR * u} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
+                {x.face?.kind === 'PHOTO' && x.face.url
+                  ? <FaceImage roomId={roomId} className={g.ghostFace} r={ghostR * u} photo={x.face.url} cover={null}
+                      placeholder={<text className={g.ghostInitial} y={ghostR * 0.33 * u} fontSize={ghostR * 0.9 * u} textAnchor="middle">{Array.from(x.name)[0]}</text>} />
                   : <text className={g.ghostInitial} y={ghostR * 0.33 * u} fontSize={ghostR * 0.9 * u} textAnchor="middle">{Array.from(x.name)[0]}</text>}
                 <g className={g.ghostPlus} transform={`translate(${ghostR * 0.78 * u} ${-ghostR * 0.78 * u})`}>
                   <circle r={6.5 * u} />
@@ -354,7 +355,9 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                   <circle className={g.planetBody} r={r} fill={p.preparing || !fc ? 'none' : `url(#gl-genre-${fc.grad})`} stroke={p.preparing ? '#5E5794' : 'none'}
                     strokeWidth={1.1 * u} strokeDasharray={p.preparing ? `${3 * u} ${4 * u}` : undefined} />
                   {!p.preparing && fc && fc.face.kind !== 'genre' && inView.has(p.artistId) && (
-                    <image className={g.planetFace} href={fc.face.url} x={-r} y={-r} width={2 * r} height={2 * r} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
+                    <FaceImage roomId={roomId} className={g.planetFace} r={r}
+                      photo={fc.face.kind === 'photo' ? fc.face.url : null}
+                      cover={fc.face.kind === 'photo' ? fc.face.fallback : fc.face.url} />
                   )}
                   {born && fresh.fromGhost.has(p.artistId) && !p.preparing && (
                     <g clipPath={`url(#fill-${p.artistId})`} aria-hidden="true">
@@ -405,6 +408,22 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
       </div>
     </div>
   )
+}
+
+/**
+ * 행성 얼굴 그림 (I-44): 가수 사진은 방 열쇠를 붙여 받아 blob으로(roomPhoto), 못 받으면 앨범 표지, 그것도 없으면 아무것도 안 그려
+ * 아래의 장르색 바탕이 보이게. 표지는 공개 주소라 바로 쓴다. placeholder는 사진을 기다리거나 못 받았을 때 대신 그릴 것.
+ */
+function FaceImage({ roomId, photo, cover, r, className, placeholder }: { roomId: string; photo: string | null; cover: string | null; r: number; className: string; placeholder?: ReactNode }) {
+  const [src, setSrc] = useState<string | null | undefined>(photo ? undefined : cover)
+  useEffect(() => {
+    if (!photo) { setSrc(cover); return }
+    let alive = true
+    roomPhoto(roomId, photo).then(u => { if (alive) setSrc(u ?? cover) })
+    return () => { alive = false }
+  }, [roomId, photo, cover])
+  if (!src) return <>{placeholder}</>
+  return <image className={className} href={src} x={-r} y={-r} width={2 * r} height={2 * r} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
 }
 
 /**

@@ -1,5 +1,5 @@
 // I-44 가수 행성 얼굴 (캔버스 4-n·4-n2). 얼굴 고르기와 장르(구역) 색은 화면과 떨어뜨려 테스트한다.
-import type { Planet } from '../roomApi'
+import type { Face, Planet } from '../roomApi'
 
 /**
  * 장르 계열: 구역 이름의 낱말로 고른다(구역 id 해시가 아니라). 위에서부터 먼저 맞는 계열.
@@ -32,17 +32,24 @@ export function genreColor(name: string | null | undefined, galaxyId: number | n
 }
 
 /**
- * 행성 얼굴 대체 순서: 서버가 준 얼굴(가수 사진 PHOTO 또는 COVER) → 방에 담긴 곡 앨범 표지 → 장르색 그라데이션(글자 없음).
- * face 필드는 작업 세션이 만드는 중이라 선택 값. 모양이 달라도 url만 있으면 쓴다.
+ * 행성 얼굴 대체 순서 (I-44): 가수 사진(PHOTO) → 앨범 표지(서버 COVER, 없으면 방에 담긴 곡 표지) → 장르색 그라데이션(글자 없음).
+ * 사진은 못 받을 수 있어(401·404) 표지를 fallback으로 같이 넘긴다.
  */
-export interface PlanetFace { kind?: string | null; url?: string | null; credit?: unknown }
-export type FaceChoice = { kind: 'photo' | 'cover'; url: string } | { kind: 'genre' }
+export type FaceChoice = { kind: 'photo'; url: string; fallback: string | null } | { kind: 'cover'; url: string } | { kind: 'genre' }
 
-export function planetFace(p: Pick<Planet, 'songs'> & { face?: PlanetFace | null }): FaceChoice {
+export function planetFace(p: Pick<Planet, 'songs'> & { face?: Face | null }): FaceChoice {
   const f = p.face
-  if (f?.url) return { kind: f.kind === 'PHOTO' ? 'photo' : 'cover', url: f.url }
-  const cover = p.songs.find(s => s.coverUrl)?.coverUrl
+  const songCover = p.songs.find(s => s.coverUrl)?.coverUrl ?? null
+  const cover = f?.kind === 'COVER' && f.url ? f.url : songCover
+  if (f?.kind === 'PHOTO' && f.url) return { kind: 'photo', url: f.url, fallback: cover }
   return cover ? { kind: 'cover', url: cover } : { kind: 'genre' }
+}
+
+/** 사진 출처 줄 (4-n4): "사진: 작성자 · 라이선스 · Wikimedia Commons", 빈 칸은 뺀다. 출처가 없으면 null */
+export function photoCreditText(c: { author?: string | null; license?: string | null } | null | undefined): string | null {
+  if (!c) return null
+  const clean = (v: string | null | undefined) => v?.replace(/\s+/g, ' ').trim()
+  return '사진: ' + [clean(c.author), clean(c.license), 'Wikimedia Commons'].filter(Boolean).join(' · ')
 }
 
 /** 알약 이름표 폭(px): 글자 폭 추정 + 좌우 여백 */

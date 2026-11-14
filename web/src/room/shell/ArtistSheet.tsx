@@ -4,6 +4,7 @@ import { memberColor } from '../roomApi'
 import { songOwners, sourceName } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { Sheet } from './Sheet'
+import { ArtistFace, PhotoCreditLine } from './ArtistFace'
 import type { ToastData } from './Toast'
 import s from '../room.module.css'
 import sh from './shell.module.css'
@@ -29,6 +30,7 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
 }) {
   const [a, setA] = useState<ArtistView | null>(null)
   const [failed, setFailed] = useState(false)
+  const [photoShown, setPhotoShown] = useState(false)
   // 내 노래 ✕에 필요한 담은 곡 id (지도·가수 응답에는 trackId만 있다)
   const [mySongIds, setMySongIds] = useState<Map<number, number>>(new Map())
 
@@ -66,7 +68,7 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
     <Sheet
       title={name}
       onClose={onClose}
-      head={<span className={sh.orbBig} aria-hidden="true">{Array.from(name)[0] ?? ''}</span>}
+      head={<ArtistFace roomId={roomId} name={name} className={sh.orbBig} photoUrl={a?.face?.kind === 'PHOTO' ? a.face.url : a?.photo?.url} onShown={setPhotoShown} />}
       sub={galaxyName ? <span className={sh.badge} style={{ fontSize: 12, padding: '2px 10px' }}>{galaxyName}</span> : undefined}
     >
       {!a && !failed && <p className={sh.center} role="status"><Spinner size={14} /> 불러오는 중…</p>}
@@ -74,6 +76,7 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
 
       {a && (
         <>
+          {photoShown && <PhotoCreditLine photo={a.photo} />}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div className={sh.sectionHead}>
               <h3>이 아티스트에 담긴 노래</h3>
