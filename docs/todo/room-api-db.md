@@ -491,7 +491,7 @@
 
 ### 검색 때 가수 미리 준비 (B안, 11-14, 사용자 승인)
 - 설계: scratchpad 메모 `search-artist-prepare-design.md`. 1쪽 가수 카드가 `artistId == null`이면 키 `n:{정규화 이름}`, `face == NONE`이면 키 `id:{artistId}`로 room-song 큐에 `PREPARE_SEARCH_ARTIST`를 맡긴다. 응답은 기다리지 않는다.
-- V32 `search_artist_prep`·`search_artist_prep_daily`. V23에 공용 지도용 `artist_prepare`가 이미 있어 이름을 바꿨다. I-48 제목 만료 메모(`docs/todo/youtube-derived-title-expiry.md`)는 V33으로 고쳤다.
+- V32 `search_artist_prep`·`search_artist_prep_daily`. V23에 공용 지도용 `artist_prepare`가 이미 있어 이름을 바꿨다. I-48 제목 만료 메모(`docs/todo/youtube-derived-title-expiry.md`)는 V33으로 고쳤다가, V33을 생일 정리 마이그레이션이 쓰면서 V34로 다시 미뤘다.
   - 맡기기 규칙: 같은 키는 하루 1번, QUEUED·RUNNING이면 다시 맡기지 않는다(1시간 넘게 멈추면 다시). 방당 하루 30명(`PREPARE_PER_ROOM`)까지.
 - worker `ArtistPrepareService`
   - n: Last.fm 인기곡(6) → `find-artist`(이름·별칭 + 제목 3개 검증, 하나로 줄지 않으면 SKIPPED AMBIGUOUS) → 인기곡을 `"{이름} - Topic"` 키로 **`identifyTargets(allowLlm=false)`** 식별, 확정 mbid의 곡만 3곡 → `requestCovers` → Commons 사진(commonsOnly). 곡 사이 2초 쉼.
@@ -553,3 +553,7 @@
   - 결과: 호출 23번(llm_call 1666 → 1689), 토큰 입력 28,523·출력 2,648, 약 $0.04(Haiku 4.5 $1/$5 가정). OK 15명, EMPTY 8명.
   - EMPTY 8명은 근거 번호를 대지 못한 답이라 설명 가드가 버렸다. 그래서 옛 설명(생일 연도 문장)이 남아 있다: STUTS·Lil tachi·유라·조정석·ダズビー·KEIJU·kZm·Tani Yuuki. 새 설명 15명에는 그 문장이 0개다.
   - 테스트: worker `MapIntegrationTest` 1개(지정 가수만, 실패만 한 번 더, 빈 답은 유지, 상한). worker 89 통과. 18:26:54 worker 재시작. LLM_MODE는 fake 그대로다.
+- **마이그레이션 (11-14, 사용자 승인):** `V33__strip_person_begin.sql`. 위 생일 정리와 같은 멱등 UPDATE 한 문장이다(Person·Character 줄의 `; 활동 시작 [0-9?-]+` 삭제, Group 유지).
+  - 지시는 V34였지만 V33으로 했다. Flyway `outOfOrder`가 꺼져 있어 V34를 먼저 두면 나중에 들어올 V33(I-48)이 검증에서 막히기 때문이다. 그래서 I-48 제목 만료 메모는 V34로 고쳤다.
+  - 로컬 적용: 18:35:05 api가 V33을 적용했다. 적용 전·후 대상 0행이고, 가수 조각 전체 텍스트 해시도 같다(0행 변경).
+  - 테스트: worker `MapIntegrationTest` 1개(Person 정리·Character "????" 정리·Group 유지·두 번째 0행). worker 90·api 93(건너뜀 1) 통과. 18:35:00 api·worker 재시작.

@@ -253,6 +253,24 @@ class MapIntegrationTest {
     }
 
     @Test
+    fun `V33 - 사람·캐릭터 줄의 활동 시작(생일)만 지우고 그룹 결성일은 두며, 두 번 돌려도 같다`() {
+        val sql = javaClass.classLoader.getResource("db/migration/V33__strip_person_begin.sql")!!.readText()
+            .lines().filterNot { it.trimStart().startsWith("--") }.joinToString("\n")
+        fun add(text: String): Long = jdbc.sql(
+            "INSERT INTO knowledge_chunk (entity_type, entity_mbid, source, lang, url, license, text) VALUES ('ARTIST', :m, 'MUSICBRAINZ', 'ko', 'u', 'CC0', :t) RETURNING id",
+        ).param("m", UUID.randomUUID()).param("t", text).query(Long::class.java).single()
+        fun text(id: Long) = jdbc.sql("SELECT text FROM knowledge_chunk WHERE id = :i").param("i", id).query(String::class.java).single()
+        val person = add("가수 '윤하V33' (MusicBrainz): 유형 Person; 지역 South Korea; 활동 시작 1988-04-29; 장르·태그 k-pop.")
+        val unknown = add("가수 '칸나V33' (MusicBrainz): 유형 Character; 지역 South Korea; 활동 시작 ????-12-02.")
+        val group = add("가수 '다비치V33' (MusicBrainz): 유형 Group; 활동 시작 2008; 장르·태그 ballad.")
+        jdbc.sql(sql).update()
+        assertEquals("가수 '윤하V33' (MusicBrainz): 유형 Person; 지역 South Korea; 장르·태그 k-pop.", text(person))
+        assertEquals("가수 '칸나V33' (MusicBrainz): 유형 Character; 지역 South Korea.", text(unknown))
+        assertEquals("가수 '다비치V33' (MusicBrainz): 유형 Group; 활동 시작 2008; 장르·태그 ballad.", text(group))
+        assertEquals(0, jdbc.sql(sql).update(), "두 번째는 바꿀 행이 없다")
+    }
+
+    @Test
     fun `설명 다시 만들기 - 지정한 가수만, 실패한 것만 한 번 더, 빈 답은 기존 설명 유지, 호출 상한에서 멈춤`() {
         val ids = (1..4).map { i ->
             val mbid = UUID.randomUUID()
