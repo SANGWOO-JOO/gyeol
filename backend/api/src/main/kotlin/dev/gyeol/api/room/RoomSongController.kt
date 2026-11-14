@@ -172,11 +172,11 @@ class RoomSongService(
             val version = maps.activeVersion()
             val at = version?.let { maps.positions(it, listOf(artist.id))[artist.id] }
             val roomSongs = songs.mapSongs(ctx.room.id).filter { it.artistId == artist.id }
-            // 얼굴은 가수 판(artist)과 같은 계산: 사진 → 방 곡 표지(먼저 담긴 곡부터) → 없음
-            val face = faces.faces(
-                ctx.room.publicId,
-                mapOf(artist.id to (at?.galaxyId to roomSongs.map { it.view(ctx.room.publicId) }.firstNotNullOfOrNull { it.coverPath ?: it.coverUrl })),
-            )[artist.id]
+            // 얼굴은 가수 판(artist)과 같은 계산: 사진 → 방 곡 표지(먼저 담긴 곡부터) → 없음.
+            // 카드만 한 단계 더: 방에 그 가수 곡이 없으면 DB에 표지 저장본이 있는 그 가수 곡(재생 수 많은 곡, 같으면 id 작은 곡). 외부 호출 없음
+            val roomCover = roomSongs.map { it.view(ctx.room.publicId) }.firstNotNullOfOrNull { it.coverPath ?: it.coverUrl }
+            val cover = roomCover ?: songs.artistStoredCoverTrack(artist.id)?.let { covers.path(ctx.room.publicId, it, true) }
+            val face = faces.faces(ctx.room.publicId, mapOf(artist.id to (at?.galaxyId to cover)))[artist.id]
             return ArtistCard(
                 artist.id, shown, names(artist).filter { it != shown }.distinct(), roomSongs.size, at != null,
                 displayName = artist.name, face = face,

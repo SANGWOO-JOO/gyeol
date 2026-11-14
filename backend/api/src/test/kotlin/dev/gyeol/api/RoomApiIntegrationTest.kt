@@ -1305,6 +1305,26 @@ class RoomApiIntegrationTest {
     }
 
     @Test
+    fun `가수 카드 대체 얼굴 - 방에 곡이 없으면 DB 저장 표지(재생 수 많은 곡, 같으면 id 작은 곡), 저장본도 없으면 NONE`() {
+        val host = newRoom()
+        val a = ArtistInfo(UUID.randomUUID(), "저장표지가수", "Stored Cover", emptyList())
+        fun t(title: String) = identify.upsertTrack(TrackInfo(UUID.randomUUID(), title, a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
+        val low = t("저장 노래 1"); val tieA = t("저장 노래 2"); val tieB = t("저장 노래 3"); val noKey = t("저장 노래 4")
+        val aid = songs.trackArtist(low)!!
+        val q = "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("저장표지가수", "UTF-8")
+        assertEquals("NONE", call("GET", q, key = host.key).body!!["artist"]["face"]["kind"].asString(), "저장본이 없으면 NONE")
+
+        jdbc.sql("UPDATE track SET cover_key = 'covers/s-' || id WHERE id IN (:ids)").param("ids", listOf(low, tieA, tieB)).update()
+        jdbc.sql("UPDATE track SET plays_total = CASE WHEN id = :low THEN 1 ELSE 5 END WHERE id IN (:ids)").param("low", low).param("ids", listOf(low, tieA, tieB, noKey)).update()
+        jdbc.sql("UPDATE track SET plays_total = 99 WHERE id = :n").param("n", noKey).update() // 재생 수가 가장 많아도 저장본이 없으면 고르지 않는다
+        val face = call("GET", q, key = host.key).body!!["artist"]["face"]
+        assertEquals("COVER", face["kind"].asString())
+        assertEquals("/api/rooms/${host.rid}/covers/${minOf(tieA, tieB)}", face["url"].asString(), "재생 수 5인 두 곡 중 id가 작은 곡")
+        assertEquals(0, call("GET", q, key = host.key).body!!["artist"]["songCountInRoom"].asInt())
+        assertEquals(aid, call("GET", q, key = host.key).body!!["artist"]["artistId"].asLong())
+    }
+
+    @Test
     fun `가수 카드 보강 - DB에만 있는 가수는 사진이 없으면 방 곡 표지 얼굴, 방에 곡도 없으면 NONE`() {
         val host = newRoom()
         val a = ArtistInfo(UUID.randomUUID(), "표지카드가수", "Cover Card", emptyList())

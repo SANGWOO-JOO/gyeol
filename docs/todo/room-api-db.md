@@ -481,3 +481,9 @@
 - `name`을 바꾸지 않은 이유: `name`은 검색 결과에 실제로 보이는 표기(예: YOUNHA)다. 웹은 이 값을 가수 화면 이름 주소(`artist-songs?name=`)와 aliases 계산에 쓴다. 바꾸면 이름 주소 판정과 결과 줄 표기가 어긋날 수 있다. 그래서 표시용 `displayName`을 따로 더했다.
 - 효과: 웹이 `face.kind == "PHOTO"`일 때만 `/image`를 부르면 사진 없는 가수의 404 요청이 사라진다.
 - 테스트: api `RoomApiIntegrationTest` 2개(지도+사진 가수: displayName·PHOTO·galaxyId·출처 / DB만 있는 가수: NONE→곡 담은 뒤 COVER). api 85(건너뜀 1) 통과. 17:12:23 api 재시작.
+- **대체 얼굴 (11-14, 사용자 승인):** 카드만 한 단계 더 둔다. 사진 → 방 곡 표지 → **DB 저장 표지(그 가수 곡 중 `cover_key`가 있는 곡, `plays_total` 큰 곡, 같으면 id 작은 곡)** → NONE. 새 함수 `RoomSongRepository.artistStoredCoverTrack`을 쓰고, 외부 호출은 없다.
+  - 표지 주소 `/api/rooms/{rid}/covers/{trackId}`는 I-14 때부터 방 곡으로 좁히지 않고, 방 열쇠가 있으면 우리 DB의 저장본 있는 어떤 곡이든 준다. 그래서 고칠 것이 없다.
+  - 안전 근거: 응답은 앨범 표지(Cover Art Archive 공용 이미지) 바이트뿐이다. 누가 어느 방에 담았는지, 업로드 기록은 응답에도 조회 조건에도 없다. 드러나는 것은 "그 곡이 우리 DB에 있다"는 사실뿐인데, 이것은 검색·가수 화면에서 이미 보인다.
+  - 지도 행성·흐린 행성·가수 판(`artist()`)은 `ArtistFaces.faces`를 함께 쓰지만, 대체 단계는 카드 호출 쪽에만 넣었다. 그래서 동작이 그대로다. 가수 화면 머리(`ArtistHeader.photo`)는 사진만 쓴다.
+  - 테스트 1개를 더했다(저장본 없음 NONE → 저장본 있으면 COVER, 동점은 id 작은 곡, 저장본 없는 곡은 재생 수가 많아도 제외). api 86(건너뜀 1)·worker 83 통과. 17:32:48 api 재시작.
+  - 로컬 확인(방 8, 임시 열쇠 넣고 바로 지움): Fin.K.L(artist 48, 방 곡 0, 사진 없음) → COVER `/covers/48`(Blue Rain, plays 160) 200. 유승준(DB 없음) → NONE.
