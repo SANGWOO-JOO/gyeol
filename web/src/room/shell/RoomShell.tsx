@@ -21,6 +21,7 @@ import { PlayTab } from './PlayTab'
 import { Toast, type ToastData } from './Toast'
 import { SheetModeContext } from './Sheet'
 import { useWide } from './useWide'
+import { HeadMenu } from './HeadMenu'
 import { PeopleIcon, PlayIcon, RecordIcon, RoomPlanet, ScopeIcon } from './RoomIcons'
 import { memberColor } from '../roomApi'
 import { expandsPanel, readCollapsed, writeCollapsed } from './panelPref'
@@ -292,8 +293,15 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       </div>
     </section>
   )
+  // 지도 대신 목록 (11-14): 머리 ⋯ 메뉴와 지도 안 건너뛰기 링크가 같이 쓴다
+  const [listView, setListView] = useState(false)
+  const menuItems = [
+    { label: listView ? '지도로 보기' : '목록으로 보기', onSelect: () => { setListView(v => !v); if (!wide) setTab('map') } },
+    ...(isHost ? [{ label: '방 설정', onSelect: () => { refreshSummary(); setSheet({ kind: 'settings' }) } }] : []),
+    { label: '내 정보', onSelect: () => setSheet({ kind: 'me' }) },
+  ]
   const galaxy = map
-    ? <GalaxyView map={map} roomId={roomId} fresh={fresh} meId={me?.member.id ?? -1} fill={wide} selectedId={wide && sheet?.kind === 'artist' ? sheet.id : null} onAddFirst={goSearch}
+    ? <GalaxyView map={map} roomId={roomId} fresh={fresh} asList={listView} onAsList={setListView} meId={me?.member.id ?? -1} fill={wide} selectedId={wide && sheet?.kind === 'artist' ? sheet.id : null} onAddFirst={goSearch}
       focusId={wide ? focusId : null} onFocus={wide ? onFocus : undefined} onClearFocus={clearFocus} onSelectArtist={id => setSheet({ kind: 'artist', id })}
       onSelectGhost={(id, name) => { setCollapsed(false); setArtistPage({ artistId: id, name, fromMap: true, songCountInRoom: 0 }); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }} />
     : <p className={sh.center} role="status">우주를 불러오는 중…</p>
@@ -369,10 +377,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
           </button>
           <button type="button" className={sh.ghostPill} onClick={invite}>링크 복사</button>
           <button type="button" className={sh.accentPill} onClick={() => setPanel('search')}>+ 노래 담기</button>
-          <button type="button" className={sh.moreButton} aria-label={isHost ? '방 설정' : '내 정보'}
-            onClick={() => { if (isHost) { refreshSummary(); setSheet({ kind: 'settings' }) } else setSheet({ kind: 'me' }) }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
-          </button>
+          <HeadMenu className={sh.moreButton} items={menuItems} />
         </header>
         <div className={sh.wideBody}>
           <section className={sh.mapArea} aria-label="우리 지도">
@@ -450,6 +455,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
             <button type="button" className={sh.iconButton} aria-label="친구 초대하기" onClick={invite}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 15V3" /><path d="M7 8l5-5 5 5" /><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" /></svg>
             </button>
+            <HeadMenu className={sh.iconButton} items={menuItems} />
           </div>
         </div>
         <div className={sh.titleRow}>

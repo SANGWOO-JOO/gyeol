@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import type { MemberView, Planet, RoomMap } from '../roomApi'
+import type { MemberView, RoomMap } from '../roomApi'
 import { memberColor, SHARED_GOLD } from '../roomApi'
-import { groupByGalaxy, planetPeople } from '../roomLogic'
 import { GalaxyMap } from './GalaxyMap'
 import type { Fresh } from './fresh'
 import g from './galaxy.module.css'
+import lst from './list.module.css'
+import { GalaxyList } from './GalaxyList'
 import s from '../room.module.css'
 
 const focusName = (members: MemberView[], id: number | null) => {
@@ -36,16 +37,24 @@ export interface GalaxyViewProps {
   onFocus?: (memberId: number) => void
   /** 지도 빈 곳을 눌렀을 때 */
   onClearFocus?: () => void
+  /** 목록으로 보기 (머리 ⋯ 메뉴·건너뛰기 링크가 같이 쓴다). 없으면 이 안에서만 */
+  asList?: boolean
+  onAsList?: (v: boolean) => void
 }
 
-export function GalaxyView({ map, roomId, meId, onSelectArtist, onSelectGhost, onAddFirst, fresh, fill = false, selectedId = null, focusId = null, onFocus, onClearFocus }: GalaxyViewProps) {
-  const [asList, setAsList] = useState(false)
+export function GalaxyView({ map, roomId, meId, onSelectArtist, onSelectGhost, onAddFirst, fresh, fill = false, selectedId = null, focusId = null, onFocus, onClearFocus, asList: asListProp, onAsList }: GalaxyViewProps) {
+  const [asListOwn, setAsListOwn] = useState(false)
+  const asList = asListProp ?? asListOwn
+  const setAsList = (v: boolean) => (onAsList ? onAsList(v) : setAsListOwn(v))
   if (map.planets.length === 0) return <div className={fill ? g.fillCenter : undefined}><EmptyGalaxy onAddFirst={onAddFirst} /></div>
-  const toggle = <button type="button" className={g.viewToggle} data-map-overlay="top" onClick={() => setAsList(v => !v)}>{asList ? '지도로 보기' : '목록으로 보기'}</button>
+  // 지도 위 "목록으로 보기" 칩은 없앴다(11-14): 키보드 첫 Tab에서만 보이는 건너뛰기 링크 + 머리 ⋯ 메뉴
+  const skip = <button type="button" className={lst.skip} onClick={() => setAsList(true)}>지도 대신 목록으로 보기</button>
   if (!asList) {
     return (
       <section aria-label="우리 음악 은하" className={fill ? g.fillMap : undefined} style={fill ? undefined : { display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {toggle}
+        {skip}
+        {/* PC: 지도 위에 얹힌 유리 띠 자리(맞춤·구역 이름이 피한다) */}
+        {fill && <div data-map-overlay="top" aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 68, pointerEvents: 'none' }} />}
         <GalaxyMap map={map} meId={meId} roomId={roomId} onSelectArtist={onSelectArtist} onSelectGhost={onSelectGhost} fresh={fresh} selectedId={selectedId}
           focusId={focusId} onEmptyTap={focusId != null ? onClearFocus : undefined} />
         {fill && <Legend members={map.members} hasGhosts={map.ghosts.length > 0} focusId={focusId} onFocus={onFocus} />}
@@ -54,50 +63,9 @@ export function GalaxyView({ map, roomId, meId, onSelectArtist, onSelectGhost, o
     )
   }
 
-  const members = new Map(map.members.map(m => [m.id, m]))
-  return (
-    <section className={`${g.board} ${fill ? g.fillList : ''}`} aria-label="우리 우주의 가수 목록">
-      {toggle}
-      {groupByGalaxy(map).map(group => (
-        <div key={group.id ?? 'none'} className={g.group}>
-          <h2 className={g.galaxy}>{group.name}</h2>
-          <ul className={g.planets}>
-            {group.planets.map(p => (
-              <PlanetRow key={p.artistId} planet={p} members={members} meId={meId} onSelect={onSelectArtist} />
-            ))}
-          </ul>
-        </div>
-      ))}
-    </section>
-  )
+  return <GalaxyList map={map} roomId={roomId} meId={meId} onSelectArtist={onSelectArtist} onBack={() => setAsList(false)} fill={fill} />
 }
 
-function PlanetRow({ planet, members, meId, onSelect }: {
-  planet: Planet; members: Map<number, MemberView>; meId: number; onSelect?: (id: number) => void
-}) {
-  const { memberIds, shared } = planetPeople(planet)
-  const mine = memberIds.includes(meId)
-  const who = memberIds.map(id => members.get(id)?.nickname).filter(Boolean).join(', ')
-  const label = `${planet.name}, 노래 ${planet.songs.length}곡${who ? `, ${who}` : ''}${shared ? `, 같이 담은 노래 ${shared}곡` : ''}${planet.preparing ? ', 우주에 올리는 중' : ''}`
-  return (
-    <li>
-      <button type="button" className={`${g.planet} ${mine ? g.mine : ''}`} aria-label={label} onClick={() => onSelect?.(planet.artistId)}>
-        <span className={`${g.orb} ${planet.preparing ? g.preparing : ''}`} aria-hidden="true">{Array.from(planet.name)[0]}</span>
-        <span className={g.text}>
-          <span className={g.name}>{planet.name}</span>
-          <span className={g.sub}>{planet.preparing ? '우주에 올리는 중 · 곧 자리를 잡아요' : `노래 ${planet.songs.length}곡`}</span>
-        </span>
-        <span className={g.dots} aria-hidden="true">
-          {memberIds.map(id => {
-            const m = members.get(id)
-            return <span key={id} className={g.dot} style={{ background: memberColor(m?.colorIdx ?? 0).bg }} />
-          })}
-          {shared > 0 && <span className={g.gold}>{shared}</span>}
-        </span>
-      </button>
-    </li>
-  )
-}
 
 /** 범례 그림: 실제 지도처럼 작은 행성 + 궤도 위 위성 점(사람 색·금빛), 비슷한 아티스트는 흐린 행성 */
 function Mini({ dot, ghost }: { dot?: string; ghost?: boolean }) {

@@ -1,0 +1,41 @@
+/* 목록 화면 (11-14): 놀이터 A안·판 탭과 같은 톤. 첫 목적은 접근성 대체 화면 */
+.list { display: flex; flex-direction: column; gap: 18px; }
+.fill { flex: 1; min-height: 0; overflow-y: auto; padding: 84px 28px 28px; background: radial-gradient(120% 90% at 50% 0%, #241f47 0%, #17142d 60%, #100e22 100%); }
+.top { display: flex; justify-content: flex-end; }
+.back { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .12); background: rgba(24, 21, 46, .55); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); color: #e6dcff; font: inherit; font-size: 13px; cursor: pointer; }
+.back:focus-visible, .artistMain:focus-visible, .expand:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+.summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 16px 18px; border-radius: 22px; background: radial-gradient(120% 140% at 0% 0%, #3a3270 0%, #241f47 70%); box-shadow: inset 0 0 0 1px rgba(185, 162, 255, .16); }
+.summary h2 { margin: 0; flex-basis: 100%; font-size: 20px; font-weight: 700; }
+.summary p { margin: 0; font-size: 13px; color: var(--r-text-2); }
+.people { display: inline-flex; margin-left: auto; }
+.ring { display: inline-flex; border-radius: 50%; }
+.ring + .ring { margin-left: -6px; }
+.group { display: flex; flex-direction: column; gap: 8px; }
+.groupHead {
+  position: relative; display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 14px; border-radius: 16px; overflow: hidden; font-size: 15px; font-weight: 700;
+  background: radial-gradient(90% 180% at 0% 50%, color-mix(in srgb, var(--g) 26%, transparent), transparent 70%);
+}
+.groupHead i { width: 10px; height: 10px; border-radius: 50%; background: var(--g); box-shadow: 0 0 10px var(--g); flex: none; }
+.groupHead span { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--r-text-2); }
+.artists { list-style: none; margin: 0; padding: 4px 0; border-radius: 20px; background: var(--r-surface); box-shadow: inset 0 0 0 1px rgba(185, 162, 255, .08); }
+.artist + .artist { border-top: 1px solid rgba(255, 255, 255, .05); }
+.artistRow { display: flex; align-items: center; }
+.artistMain { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 8px 6px 8px 12px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 16px; }
+.artistMain:hover { background: rgba(255, 255, 255, .03); }
+.artistText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.artistText strong { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.owners { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--r-text-2); }
+.owners > span { display: inline-flex; }
+.owners > span > * + * { margin-left: -4px; }
+.owners em { font-style: normal; color: #ffe3b8; font-weight: 600; }
+.face { position: relative; width: 48px; height: 48px; flex: none; }
+.faceRing { position: absolute; inset: 0; width: 100%; height: 100%; }
+.faceImg { position: absolute; inset: 6px; border-radius: 50%; overflow: hidden; background: #2e2a55; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.faceImg img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+.expand { flex: none; width: 44px; height: 44px; margin-right: 4px; border: 0; border-radius: 50%; background: none; color: var(--r-text-2); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.expand:hover { background: rgba(255, 255, 255, .06); color: var(--r-text); }
+.songs { margin: 0 10px 10px; background: rgba(0, 0, 0, .18); }
+/* 지도 첫 Tab: 건너뛰기 링크(평소 숨김, 키보드 포커스 때만 보임) */
+.skip { position: absolute; left: 16px; top: 80px; z-index: 7; padding: 10px 14px; border-radius: 12px; border: 0; background: #e6dcff; color: #16132b; font: inherit; font-weight: 700; cursor: pointer; transform: translateY(-200%); opacity: 0; }
+.skip:focus-visible { transform: none; opacity: 1; outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { .skip { transition: transform .15s, opacity .15s; } }
