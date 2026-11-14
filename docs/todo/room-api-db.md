@@ -395,3 +395,10 @@
 - 작성자 주소 줄이기(11-14, 관리 세션 요청): `CommonsAuthor.clean`이 작성자 안의 주소를 표시용 이름으로 바꾼다. YouTube 채널(`/@이름`·`/c/이름`·`/user/이름`)은 "@이름"이고, 그 밖은 도메인(www.·m. 뺀 호스트)이다. 텍스트와 섞여 있으면 주소 부분만 바꾼다. 원본 링크는 pageUrl에 남아 있다.
   - 테스트: api `CommonsAuthorTest`에 1개를 더했다(기존 YouTube /user 기대값을 "@x"로 바꿈). api 72개(건너뜀 1)·worker 79개 통과.
   - 로컬(11:46:12 api·worker 재시작 뒤): IVE(1810) 지도 face와 가수 판 photo의 author가 "@_TV10"이다. 주소가 든 COMMONS 작성자 18건 모두 주소가 이름·도메인으로 바뀐다. 다만 Commons 원문이 긴 설명인 몇 건("[facebook.com …" 위키 링크 괄호, 저장 시 잘린 "see http:/")은 문장이 그대로 남는다.
+
+### I-47 긴 설명형 작성자 정리 (11-14)
+- `CommonsAuthor.clean`에 네 단계를 더했다: ① 위키 링크 "[주소 텍스트]"·"[[문서|텍스트]]"는 텍스트만 ② 끝이 잘린 "http:/"·"h" 같은 주소 조각 제거 ③ ", see …"와 20자 넘는 괄호 설명(닫히지 않은 괄호는 끝까지, 중첩은 바깥 기준) 제거 ④ 40자(코드포인트) 넘으면 단어 경계에서 자르고 "…".
+- 주소가 든 COMMONS 작성자 18건: 위키 링크·잘린 조각·see·긴 괄호가 남은 행은 0건이다. 예: "Danny Choo (site owner of …)" → "Danny Choo", "Erika_Rodriguez (Kika, … see http:/" → "Erika_Rodriguez".
+- 40자 상한 때문에 "Korea.net / Korean Culture and Information Service (Jeon Han)"은 "Korea.net / Korean Culture and…"가 된다. 원본 링크는 pageUrl에 있다.
+- 테스트: api `CommonsAuthorTest` 1개 추가(기존 40자 넘는 두 기대값 수정). api 73개(건너뜀 1)·worker 79개 통과.
+- 로컬(11:50:24 api·worker 재시작 뒤): 방 8 PHOTO 36개 작성자 최대 36자, "["·"http" 0건이다. IVE는 "@_TV10" 그대로다.

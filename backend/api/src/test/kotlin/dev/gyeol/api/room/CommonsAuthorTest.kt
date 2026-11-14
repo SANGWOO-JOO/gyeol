@@ -16,8 +16,8 @@ class CommonsAuthorTest {
         assertEquals("A & B", CommonsAuthor.clean("Photograph: Uploaded by: A &amp; B"))
         assertEquals("Kim", CommonsAuthor.clean("Photographer : Kim"))
         assertEquals("@x", CommonsAuthor.clean("https://www.youtube.com/user/x/about"))
-        assertEquals("Korea.net / Korean Culture and Information Service (Jeon Han)", CommonsAuthor.clean("Korea.net / Korean Culture and Information Service (Jeon Han)"))
-        assertEquals("The original uploader was Shuohyun at Chinese Wikipedia.", CommonsAuthor.clean("The original uploader was Shuohyun at Chinese Wikipedia."))
+        assertEquals("Korea.net / Korean Culture and…", CommonsAuthor.clean("Korea.net / Korean Culture and Information Service (Jeon Han)"))
+        assertEquals("The original uploader was Shuohyun at…", CommonsAuthor.clean("The original uploader was Shuohyun at Chinese Wikipedia."))
         assertNull(CommonsAuthor.clean("  <span> </span> "))
         assertNull(CommonsAuthor.clean(null))
     }
@@ -32,5 +32,21 @@ class CommonsAuthorTest {
         assertEquals("Kim (flickr.com)", CommonsAuthor.clean("Photo: Kim (https://www.flickr.com/people/kim)"))
         assertEquals("TV10 @_TV10.", CommonsAuthor.clean("TV10 https://www.youtube.com/@_TV10."))
         assertEquals("newsen.com", CommonsAuthor.clean("<a href=\"https://x\">www.newsen.com/news</a>"))
+    }
+
+    @Test
+    fun `I-47 긴 설명형 - 위키 링크·잘린 주소 조각·see·긴 괄호를 지우고 40자 상한`() {
+        assertEquals("李 承儒, AKB48-Taiwan Clubs (ATC) 社長",
+            CommonsAuthor.clean("李 承儒, AKB48-Taiwan Clubs (ATC) 社長 ([https://www.facebook.com/MaedaFantomo 李 承儒's facebook page, flickr account link scre"))
+        assertEquals("Danny Choo", CommonsAuthor.clean("Danny Choo (site owner of www.culturejapan.jp (=dannychoo.com))"))
+        assertEquals("Erika_Rodriguez",
+            CommonsAuthor.clean("Erika_Rodriguez (Kika, a Major staff(owner, regarding to http://about.me/erikarodriguez) of Retornoanime.com, see http:/"))
+        assertEquals("Selena Gomez and the Scene.jpg…",
+            CommonsAuthor.clean("Selena Gomez and the Scene.jpg https://www.flickr.com/photos/canoblesfamily/6508513391/ Selena Gomez and the Scene.jpg h"))
+        assertEquals("Kim Lee", CommonsAuthor.clean("[[User:Kim|Kim Lee]]"))
+        assertEquals("flickr.com", CommonsAuthor.clean("[https://www.flickr.com/photos/x]"))
+        assertEquals("Jeon Han (Korea.net)", CommonsAuthor.clean("Jeon Han (Korea.net), see also http://x"))
+        assertEquals("Park", CommonsAuthor.clean("Park http:/"))
+        assertEquals("Lee See-hoon", CommonsAuthor.clean("Lee See-hoon"))
     }
 }
