@@ -488,3 +488,21 @@
   - 테스트 1개를 더했다(저장본 없음 NONE → 저장본 있으면 COVER, 동점은 id 작은 곡, 저장본 없는 곡은 재생 수가 많아도 제외). api 86(건너뜀 1)·worker 83 통과. 17:32:48 api 재시작.
   - 로컬 확인(방 8, 임시 열쇠 넣고 바로 지움): Fin.K.L(artist 48, 방 곡 0, 사진 없음) → COVER `/covers/48`(Blue Rain, plays 160) 200. 유승준(DB 없음) → NONE.
 - **가수 판에도 같은 대체 (11-14, 사용자 승인):** `artist()`(행성·흐린 행성을 눌러 여는 판)의 face도 사진 → 방 곡 표지 → DB 저장 표지 → NONE 순서다. 지도 응답(`map()`)의 행성 얼굴은 그대로다. 테스트 1개를 더했다(NONE → 저장본 생기면 COVER, 지도에 행성 없음). api 87(건너뜀 1) 통과. api를 다시 켰다.
+
+### 검색 때 가수 미리 준비 (B안, 11-14, 사용자 승인)
+- 설계: scratchpad 메모 `search-artist-prepare-design.md`. 1쪽 가수 카드가 `artistId == null`이면 키 `n:{정규화 이름}`, `face == NONE`이면 키 `id:{artistId}`로 room-song 큐에 `PREPARE_SEARCH_ARTIST`를 맡긴다. 응답은 기다리지 않는다.
+- V32 `search_artist_prep`·`search_artist_prep_daily`. V23에 공용 지도용 `artist_prepare`가 이미 있어 이름을 바꿨다. I-48 제목 만료 메모(`docs/todo/youtube-derived-title-expiry.md`)는 V33으로 고쳤다.
+  - 맡기기 규칙: 같은 키는 하루 1번, QUEUED·RUNNING이면 다시 맡기지 않는다(1시간 넘게 멈추면 다시). 방당 하루 30명(`PREPARE_PER_ROOM`)까지.
+- worker `ArtistPrepareService`
+  - n: Last.fm 인기곡(6) → `find-artist`(이름·별칭 + 제목 3개 검증, 하나로 줄지 않으면 SKIPPED AMBIGUOUS) → 인기곡을 `"{이름} - Topic"` 키로 **`identifyTargets(allowLlm=false)`** 식별, 확정 mbid의 곡만 3곡 → `requestCovers` → Commons 사진(commonsOnly). 곡 사이 2초 쉼.
+  - id: 표지 미확인 곡 3곡 + 사진을 다시 볼 때가 됐으면 사진 큐.
+  - `start()`가 QUEUED일 때만 시작해 같은 메시지를 두 번 받아도 한 번만 한다. 공용 지도(PREPARE_ARTIST)에는 올리지 않는다.
+- `IdentifyService.identifyTargets(…, allowLlm)`: false면 LLM 제목 정리와 다른 표기 묻기를 건너뛰고, 못 찾은 곡은 캐시에 남기지 않는다.
+- 테스트
+  - worker `ArtistPrepareIntegrationTest` 5개: 처음 보는 가수, 동명이인, 다른 가수 곡 버림, id: 키, 중복 메시지. 모두 LLM 호출 수 0을 확인한다.
+  - api 3개: 연타해도 1번, 얼굴 있으면 안 맡김/NONE이면 id:, 다시 맡기기 조건과 방당 상한.
+  - 결과: worker 88·api 90(건너뜀 1) 통과. 17:53:26 api·worker 재시작.
+- 로컬 확인(방 8, 임시 열쇠는 넣었다가 지움)
+  - 유승준: 첫 검색 카드 artistId null·NONE → 17초 뒤 DONE(가수 1854) → 다시 검색하면 카드 PHOTO(MBC PD수첩, CC BY 3.0)이고 노래 줄 가위·나나나·사랑해 누나에 trackId·표지가 붙는다.
+  - 비: **한 글자라 검색 자체가 400**(검색어 2~100자)이다. 그래서 큐에 직접 넣어 확인했다. 10초 뒤 DONE(가수 1857 RAIN, 별칭 비·Rain) → "Rain" 검색에서 DB 카드(PHOTO, TV10 CC BY 4.0)가 나오고 Rainism·Hip Song·Only You 줄에 표지가 붙는다. 준비 전 "Rain" 검색은 카드가 없었다.
+  - `llm_call` 1666 → 1666(유료 0). 공용 지도 준비(`artist_prepare`)는 0행이다.

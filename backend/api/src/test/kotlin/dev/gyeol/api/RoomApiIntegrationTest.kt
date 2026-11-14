@@ -102,6 +102,9 @@ class RoomApiIntegrationTest {
                             """{"title":"Every Moment Of You","artist":"성시경","mbid":null,"listeners":6,"releaseYear":null},""" +
                             """{"title":"너의 모든 순간","artist":"Sung Si Kyung","mbid":null,"listeners":5,"releaseYear":null},""" +
                             """{"title":"너의 모든 순간","artist":"성시경(Sungsikyung)의 킬링보이스를 라이브로!","mbid":null,"listeners":4,"releaseYear":null}],"source":"lastfm","cached":false}"""
+                    } else if (q.contains("준비가수")) {
+                        // 미리 준비: 우리 DB에 없는 가수(Last.fm 결과만) → 카드 artistId 없음
+                        """{"items":[""" + (1..3).joinToString(",") { """{"title":"준비 곡 $it","artist":"준비가수","mbid":null,"listeners":${10 - it},"releaseYear":null}""" } + """],"source":"lastfm","cached":false}"""
                     } else if (q.contains("더보기시험")) {
                         // 더보기: 서로 다른 곡 35개 중 limit만큼 (Last.fm처럼 limit이 커도 앞부분 순서는 같다). 첫 곡은 DB 곡과 같은 곡
                         val n = Regex("""limit=(\d+)""").find(q)!!.groupValues[1].toInt()
@@ -1361,5 +1364,84 @@ class RoomApiIntegrationTest {
         assertEquals("/api/rooms/${host.rid}/covers/$t", face["url"].asString())
         // 방에 곡이 없으니 지도에는 이 가수 행성이 없다 (지도 얼굴 계산은 그대로)
         assertTrue(call("GET", "/api/rooms/${host.rid}/map", key = host.key).body!!["planets"].toList().none { it["artistId"].asLong() == aid })
+    }
+
+    private fun prepareMessages(key: String): Int = sqs().use { c ->
+        val url = c.getQueueUrl { it.queueName(SONG_QUEUE) }.queueUrl()
+        // 같은 큐에 다른 테스트 메시지가 수십 개 쌓여 있을 수 있어 빌 때까지 받아 지운다 (이 테스트들은 차례로 돈다)
+        var n = 0
+        var empty = 0
+        while (empty < 2) {
+            val got = c.receiveMessage { it.queueUrl(url).maxNumberOfMessages(10).waitTimeSeconds(1) }.messages()
+            if (got.isEmpty()) empty++ else empty = 0
+            got.forEach { m ->
+                val j = json.readTree(m.body())
+                if (j.path("type").asString("") == "PREPARE_SEARCH_ARTIST" && j.path("prepKey").asString("") == key) n++
+                c.deleteMessage { it.queueUrl(url).receiptHandle(m.receiptHandle()) }
+            }
+        }
+        n
+    }
+
+    private fun prepRow(key: String) = jdbc.sql("SELECT status FROM search_artist_prep WHERE prep_key = :k").param("k", key).query(String::class.java).optional().orElse(null)
+
+    @Test
+    fun `미리 준비 - 우리 DB에 없는 가수 카드면 한 번 맡기고, 연타해도 메시지는 하나`() {
+        val host = newRoom()
+        val q = "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("준비가수", "UTF-8")
+        val card = call("GET", q, key = host.key).body!!["artist"]
+        assertTrue(card["artistId"].isNull)
+        repeat(3) { call("GET", q, key = host.key) }
+        assertEquals("QUEUED", prepRow("n:준비가수"))
+        assertEquals(1, prepareMessages("n:준비가수"))
+        assertEquals(1, jdbc.sql("SELECT count FROM search_artist_prep_daily WHERE room_id = (SELECT id FROM room WHERE public_id = :p)").param("p", host.rid).query(Int::class.java).single())
+        assertEquals(0, call("GET", "$q&page=2", key = host.key).let { prepareMessages("n:준비가수") }, "2쪽 이후는 맡기지 않는다")
+    }
+
+    @Test
+    fun `미리 준비 - 얼굴이 PHOTO나 COVER인 우리 가수면 맡기지 않고, NONE이면 id 키로 맡긴다`() {
+        val host = newRoom()
+        val a = ArtistInfo(UUID.randomUUID(), "준비얼굴가수", "Prep Face", emptyList())
+        val t = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "준비얼굴 노래", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
+        val aid = songs.trackArtist(t)!!
+        val q = "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("준비얼굴가수", "UTF-8")
+        jdbc.sql("UPDATE track SET cover_key = 'covers/prep' WHERE id = :t").param("t", t).update()
+        assertEquals("COVER", call("GET", q, key = host.key).body!!["artist"]["face"]["kind"].asString())
+        assertNull(prepRow("id:$aid"), "얼굴이 있으면 맡기지 않는다")
+        jdbc.sql("UPDATE track SET cover_key = NULL WHERE id = :t").param("t", t).update()
+        assertEquals("NONE", call("GET", q, key = host.key).body!!["artist"]["face"]["kind"].asString())
+        assertEquals("QUEUED", prepRow("id:$aid"))
+        assertEquals(1, prepareMessages("id:$aid"))
+    }
+
+    @Test
+    fun `미리 준비 - 하루 지난 끝난 키와 1시간 넘게 멈춘 QUEUED는 다시 맡기고, 방당 하루 30명을 넘으면 맡기지 않는다`() {
+        val host = newRoom()
+        val roomId = jdbc.sql("SELECT id FROM room WHERE public_id = :p").param("p", host.rid).query(Long::class.java).single()
+        val q = "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("준비가수", "UTF-8")
+        jdbc.sql("DELETE FROM search_artist_prep WHERE prep_key = 'n:준비가수'").update()
+        call("GET", q, key = host.key)
+        prepareMessages("n:준비가수")
+        // 끝났지만 하루가 안 지남 → 다시 맡기지 않음
+        jdbc.sql("UPDATE search_artist_prep SET status = 'DONE' WHERE prep_key = 'n:준비가수'").update()
+        call("GET", q, key = host.key)
+        assertEquals("DONE", prepRow("n:준비가수"))
+        // 하루가 지남 → 다시
+        jdbc.sql("UPDATE search_artist_prep SET requested_at = now() - interval '25 hours' WHERE prep_key = 'n:준비가수'").update()
+        call("GET", q, key = host.key)
+        assertEquals("QUEUED", prepRow("n:준비가수"))
+        assertEquals(1, prepareMessages("n:준비가수"))
+        // 진행 중(1시간 안) → 그대로, 1시간 넘게 멈춤 → 다시
+        call("GET", q, key = host.key)
+        assertEquals(0, prepareMessages("n:준비가수"))
+        jdbc.sql("UPDATE search_artist_prep SET requested_at = now() - interval '61 minutes' WHERE prep_key = 'n:준비가수'").update()
+        call("GET", q, key = host.key)
+        assertEquals(1, prepareMessages("n:준비가수"))
+        // 방당 하루 상한
+        jdbc.sql("UPDATE search_artist_prep SET requested_at = now() - interval '2 days', status = 'DONE' WHERE prep_key = 'n:준비가수'").update()
+        jdbc.sql("UPDATE search_artist_prep_daily SET count = ${dev.gyeol.api.room.PREPARE_PER_ROOM} WHERE room_id = :r").param("r", roomId).update()
+        call("GET", q, key = host.key)
+        assertEquals("DONE", prepRow("n:준비가수"), "상한이면 키도 바꾸지 않는다")
+        assertEquals(0, prepareMessages("n:준비가수"))
     }
 }

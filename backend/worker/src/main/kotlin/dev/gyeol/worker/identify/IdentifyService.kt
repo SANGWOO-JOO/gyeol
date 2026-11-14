@@ -95,8 +95,12 @@ class IdentifyService(
         return needCover
     }
 
-    /** 곡마다: 캐시 다시 확인 → 규칙으로 (가수, 곡) → fetcher(MusicBrainz) → 저장. 결과는 [sink]로 */
-    fun identifyTargets(targets: List<Target>, sink: TargetSink): Identified {
+    /**
+     * 곡마다: 캐시 다시 확인 → 규칙으로 (가수, 곡) → fetcher(MusicBrainz) → 저장. 결과는 [sink]로.
+     * [allowLlm]이 false면 LLM 단계(제목 정리·다른 표기 묻기)를 건너뛴다: 규칙으로 못 찾은 곡은 캐시에 남기지 않고 못 찾음으로 끝낸다
+     * (검색 때 가수 미리 준비는 유료 LLM을 부르지 않는다, 11-14)
+     */
+    fun identifyTargets(targets: List<Target>, sink: TargetSink, allowLlm: Boolean = true): Identified {
         val retryBefore = Instant.now().minus(props.identify.notFoundRetry)
         val found = mutableListOf<Long>()
         val forLlm = mutableListOf<Target>()
@@ -112,7 +116,10 @@ class IdentifyService(
                 // 공식 채널의 단순한 제목은 LLM 없이 먼저 찾아 본다. 못 찾거나 거절되면 LLM으로 (L2-3a)
                 val official = RuleIdentifier.officialChannel(t.title, t.channel)
                 val hit = official?.let { q -> runCatching4xx { fetcher.identify(q.artist, q.title) } }
-                if (official == null || hit == null) { forLlm += t; continue }
+                if (official == null || hit == null) {
+                    if (allowLlm) forLlm += t else sink.finish(t, null)
+                    continue
+                }
                 val id = tx.execute { repo.upsertTrack(hit) }!!
                 tx.executeWithoutResult { repo.saveAlias(t.key, id, AliasMethod.RULE, official) }
                 sink.finish(t, id); found += id
@@ -125,7 +132,11 @@ class IdentifyService(
             }
             // Topic 곡을 못 찾으면 다른 표기로 한 번 더 찾는다 (묶음 끝에서 LLM을 한 번만 부른다)
             // Topic 곡을 못 찾았거나, 발매일 없는 차선 음반으로만 찾았으면(로마자 일본어 제목 등) 다른 표기로 원곡을 한 번 더 찾는다
-            if ((info == null || info.releaseDate == null) && t.channel?.endsWith(" - Topic") == true) { toRespell += Respell(t, query, info); continue }
+            if ((info == null || info.releaseDate == null) && t.channel?.endsWith(" - Topic") == true) {
+                if (allowLlm) { toRespell += Respell(t, query, info); continue }
+                // LLM 없이: 차선 음반으로라도 찾았으면 그대로 쓰고, 못 찾았으면 캐시에 남기지 않는다 (나중에 LLM 경로가 다시 볼 수 있게)
+                if (info == null) { sink.finish(t, null); continue }
+            }
             val trackId = info?.let { found -> tx.execute { repo.upsertTrack(found) } }
             tx.executeWithoutResult { repo.saveAlias(t.key, trackId, AliasMethod.RULE, query, reason = if (trackId == null) "NOT_IN_MUSICBRAINZ" else null) }
             sink.finish(t, trackId); trackId?.let(found::add)

@@ -100,6 +100,8 @@ private const val GHOSTS_TOTAL = 6
 /** 방 검색 더보기: 한 쪽 10곡, 5쪽(50곡)까지. 50은 Last.fm track.search가 한 번에 주는 수 안 (11-14 확인) */
 const val SEARCH_PAGE_SIZE = 10
 const val SEARCH_PAGES = 5
+/** 검색 때 가수 미리 준비: 방당 하루 맡기는 가수 수 */
+const val PREPARE_PER_ROOM = 30
 private const val GHOSTS_PER_PLANET_MAX = 3
 
 @Service
@@ -116,6 +118,7 @@ class RoomSongService(
     private val trackSearch: dev.gyeol.core.identify.TrackSearchRepository,
     private val faces: ArtistFaces,
     private val covers: RoomCovers,
+    private val prepares: dev.gyeol.core.identify.ArtistPrepareRepository,
 ) {
     private val p get() = props.room
 
@@ -126,12 +129,35 @@ class RoomSongService(
         val first = search.search(q, SEARCH_PAGE_SIZE)
         if (page == 1) {
             val res = decorate(ctx, first.items, first.source)
-            return res.copy(artist = artistCard(ctx, q.orEmpty(), first.items), page = 1, hasMore = first.items.size >= SEARCH_PAGE_SIZE)
+            val card = artistCard(ctx, q.orEmpty(), first.items)
+            card?.let { prepareIfNeeded(ctx, it) }
+            return res.copy(artist = card, page = 1, hasMore = first.items.size >= SEARCH_PAGE_SIZE)
         }
         val more = search.find(q, SEARCH_PAGE_SIZE * SEARCH_PAGES)
         val all = merger.dedupe(first.items + more.items).take(SEARCH_PAGE_SIZE * SEARCH_PAGES)
         val slice = all.drop((page - 1) * SEARCH_PAGE_SIZE).take(SEARCH_PAGE_SIZE)
         return decorate(ctx, slice, more.source).copy(page = page, hasMore = page < SEARCH_PAGES && all.size > page * SEARCH_PAGE_SIZE)
+    }
+
+    /**
+     * 검색 때 가수 미리 준비 (11-14, B안): 카드가 우리 DB에 없는 가수거나 얼굴이 NONE이면 worker에 맡기고 기다리지 않는다.
+     * 같은 이름(가수)은 하루 1번, 진행 중이면 다시 맡기지 않는다(1시간 넘게 멈추면 다시). 방당 하루 [PREPARE_PER_ROOM]명
+     */
+    private fun prepareIfNeeded(ctx: RoomContext, card: ArtistCard) {
+        val key = when {
+            card.artistId == null -> "n:" + dev.gyeol.core.identify.SearchText.norm(card.name)
+            card.face?.kind == "NONE" -> "id:${card.artistId}"
+            else -> return
+        }
+        if (key == "n:") return
+        try {
+            if (prepares.request(key, card.name, ctx.room.id, todayKst(), PREPARE_PER_ROOM)) {
+                sender.send(p.songQueue, json.writeValueAsString(mapOf("type" to "PREPARE_SEARCH_ARTIST", "prepKey" to key, "name" to card.name, "artistId" to card.artistId)))
+            }
+        } catch (e: RuntimeException) {
+            // 준비는 덤이다: 실패해도 검색 응답은 그대로
+            org.slf4j.LoggerFactory.getLogger(javaClass).warn("가수 미리 준비를 맡기지 못함: {} {}", key, e.message)
+        }
     }
 
     private fun decorate(ctx: RoomContext, found: List<TrackItem>, source: String): RoomSearchResponse {

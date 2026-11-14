@@ -28,7 +28,11 @@ import java.time.ZoneId
  * IDENTIFY: 곡 요청 하나 식별 → 방에 담기. ENRICH: 담은 곡의 근거·곡 설명·벡터 (뒤에서, 지도 표시와 무관).
  * PREPARE_ARTIST: 지도에 없는 가수를 올린다 (4-g 준비 중). SCAN_ARTIST_RELEASES: 가수 화면 최신순용 녹음 발매일 모으기 (I-30 ③)
  */
-data class RoomSongMessage(val type: String, val requestId: Long? = null, val trackIds: List<Long> = emptyList(), val artistId: Long? = null)
+/** [name]·[prepKey]: PREPARE_SEARCH_ARTIST (검색 때 가수 미리 준비, 11-14). 옛 메시지와 호환되게 기본값을 둔다 */
+data class RoomSongMessage(
+    val type: String, val requestId: Long? = null, val trackIds: List<Long> = emptyList(), val artistId: Long? = null,
+    val name: String? = null, val prepKey: String? = null,
+)
 
 /**
  * 음악 방 담기 (docs/todo/room-api-db.md 4절). 식별 규칙은 세션 묶음과 같다(IdentifyService.identifyTargets).
@@ -49,6 +53,7 @@ class RoomSongService(
     private val maps: MapRepository,
     private val gifts: GiftRepository,
     private val releaseScanner: dev.gyeol.worker.artist.ArtistReleaseScanner,
+    private val prepare: ArtistPrepareService,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val kst = ZoneId.of("Asia/Seoul")
@@ -62,6 +67,8 @@ class RoomSongService(
             "SCAN_ARTIST_RELEASES" -> m.artistId?.let(releaseScanner::scan)
             // I-31 방에 바로 담은 DB 곡의 표지 확인 (확인한 적 없는 곡만 cover 큐로)
             "COVER" -> if (m.trackIds.isNotEmpty()) identify.requestCovers(m.trackIds)
+            // 검색 때 가수 미리 준비 (지도에는 올리지 않음)
+            "PREPARE_SEARCH_ARTIST" -> m.prepKey?.let { prepare.prepare(it, m.name, m.artistId) }
         }
     }
 
