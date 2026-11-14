@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router'
 import { keyStore } from '../keyStore'
 import { roomApi, RoomApiError, type MeView, type MemberRow, type RoomMap, type RoomSummary, type RoomSearchItem, type SongView, type GiftNotice } from '../roomApi'
 import { giftNoticeToast } from '../giftNotice'
+import { inviteMessage } from '../inviteMessage'
 import { addedMessage, addErrorText, failText, giftLine, isNewArtist, mapCounts } from '../roomLogic'
 import { useRoomTheme } from '../components/RoomPage'
 import { Avatar, AvatarRoom } from '../components/Avatar'
@@ -246,8 +247,10 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
     const url = `${location.origin}/rooms/${roomId}`
     const name = me?.roomName ?? '우리 우주'
     try {
-      if (navigator.share) { await navigator.share({ title: name, text: `${name}에 노래를 담아 줘`, url }); return }
-      await navigator.clipboard.writeText(url)
+      // 주소는 text 안 마지막 줄에만 (url 필드로 넘기면 공유 시트가 주소를 앞에 붙인다)
+      const text = inviteMessage(name, url)
+      if (navigator.share) { await navigator.share({ title: name, text }); return }
+      await navigator.clipboard.writeText(text)
       show({ title: '초대 링크를 복사했어요', sub: '카톡에 붙여 넣어 보내 주세요' })
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return
