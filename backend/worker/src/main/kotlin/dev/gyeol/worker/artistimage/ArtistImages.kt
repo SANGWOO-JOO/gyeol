@@ -17,7 +17,7 @@ import software.amazon.awssdk.services.s3.S3Client
 import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
 
-/** [commonsOnly]: 지도 가수 일괄 채우기(I-44). YouTube를 건너뛰고 Commons만 찾으며 가수 사이를 쉰다 */
+/** [commonsOnly]: 지도 가수 일괄 채우기(I-44). 가수 사이를 쉰다. (I-45부터 보통 메시지도 Commons만 찾는다) */
 data class ArtistImageMessage(val items: List<ArtistImageTarget> = emptyList(), val channels: List<ChannelImageTarget> = emptyList(), val commonsOnly: Boolean = false)
 
 /** 식별이 끝난 세션에서 많이 들은 가수의 이미지 찾기를 큐에 넣는다 (가수당 한 번, 전역 캐시) */
@@ -38,7 +38,8 @@ class ArtistImagePlanner(private val repo: ArtistImageRepository, private val sq
 
 /**
  * SQS artist-image 큐 (WORKER_ROLE에 artist가 있을 때만). docs/todo/artist-images.md 순서:
- * Wikimedia Commons 사진(S3 저장) → YouTube 채널 프로필(주소만, 30일 뒤 갱신) → 없음 (화면은 대표 앨범 표지 → 글자 타일)
+ * Wikimedia Commons 사진(S3 저장) → 없음 (화면은 대표 앨범 표지 → 글자 타일).
+ * I-45(11-14): YouTube 채널 프로필은 가수 이미지로 받지 않는다 (가수 사진이 아닌 경우가 많고 저작자 표시가 없다)
  */
 @Component
 @ConditionalOnExpression("'\${gyeol.worker.role:parse}'.contains('artist')")
@@ -59,7 +60,7 @@ class ArtistImageListener(
         msg.items.forEachIndexed { i, t ->
             if (msg.commonsOnly && i > 0) Thread.sleep(props.artistImage.bulkPause.toMillis())
             try {
-                val image = if (msg.commonsOnly) commons(t.mbid) { "artists/${t.artistId}" } ?: ArtistImage("NONE") else find(t)
+                val image = commons(t.mbid) { "artists/${t.artistId}" } ?: ArtistImage("NONE")
                 repo.save(t.artistId, image)
                 counts.merge(image.source, 1, Int::plus)
             } catch (e: HttpClientErrorException) {
@@ -85,14 +86,11 @@ class ArtistImageListener(
         failure?.let { throw it }
     }
 
-    private fun find(t: ArtistImageTarget): ArtistImage =
-        commons(t.mbid) { "artists/${t.artistId}" } ?: youtube(t.videoId)
-
-    /** Topic 채널 이름으로 MusicBrainz 가수를 찾을 수 있으면 그 가수의 Commons 사진, 아니면 그 Topic 채널의 프로필 */
+    /** Topic 채널 이름으로 MusicBrainz 가수를 찾을 수 있으면 그 가수의 Commons 사진, 아니면 없음 */
     private fun findChannel(c: ChannelImageTarget): Pair<UUID?, ArtistImage> {
         val mbid = fetcher.findArtist(c.channel.removeSuffix(" - Topic"), c.titles)
         val photo = mbid?.let { m -> commons(m) { "channels/${repo.channelId(c.channel)}" } }
-        return (mbid?.let(UUID::fromString)) to (photo ?: youtube(c.videoId))
+        return (mbid?.let(UUID::fromString)) to (photo ?: ArtistImage("NONE"))
     }
 
     private fun commons(mbid: String, key: () -> String): ArtistImage? {
@@ -103,12 +101,6 @@ class ArtistImageListener(
         s3.putObject({ it.bucket(props.cover.bucket).key(k).contentType(file.headers.contentType?.toString() ?: "image/jpeg") }, RequestBody.fromBytes(file.body ?: error("사진 응답이 비어 있습니다")))
         fun text(f: String) = photo.path(f).asString("").ifEmpty { null }
         return ArtistImage("COMMONS", s3Key = k, pageUrl = text("pageUrl"), author = dev.gyeol.core.identify.CommonsAuthor.clean(text("author")), license = text("license"))
-    }
-
-    // 기본 프로필(채널 이름 첫 글자 그림)은 fetcher가 이미지 내용으로 걸러 없음으로 돌려준다 (DefaultAvatar)
-    private fun youtube(videoId: String?): ArtistImage {
-        val url = videoId?.let { fetcher.channelImage(it) }
-        return if (url != null) ArtistImage("YOUTUBE", url = url) else ArtistImage("NONE")
     }
 }
 

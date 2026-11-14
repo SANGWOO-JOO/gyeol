@@ -39,7 +39,7 @@ data class ArtistCount(
     val artistId: Long?,
     val name: String,
     val plays: Int,
-    /** COMMONS(저장한 사진, API로 제공) · YOUTUBE(채널 프로필 주소) · 없으면 null */
+    /** COMMONS(저장한 사진, API로 제공) · 없으면 null. I-45부터 YOUTUBE는 나오지 않는다 */
     val imageSource: String? = null,
     val imageUrl: String? = null,
     val imagePage: String? = null,
@@ -435,9 +435,10 @@ class StatsService(private val jdbc: JdbcClient, private val s3: S3Client, priva
                    CASE WHEN ci.s3_key IS NOT NULL THEN ci.id END AS channel_image_id,
                    c.track_id AS cover_track_id, c.stored, c.cover_url
             FROM page p
-            LEFT JOIN artist_image ai ON ai.artist_id = p.artist_id AND ai.source <> 'NONE'
+            -- I-45: Commons 사진만 쓴다 (YouTube 채널 프로필은 받지도 내보내지도 않는다)
+            LEFT JOIN artist_image ai ON ai.artist_id = p.artist_id AND ai.source = 'COMMONS'
             -- 가수 기록 없는 Topic 채널 가수는 채널 이름 기준 이미지
-            LEFT JOIN channel_image ci ON p.artist_id IS NULL AND ci.channel = p.channel AND ci.source <> 'NONE'
+            LEFT JOIN channel_image ci ON p.artist_id IS NULL AND ci.channel = p.channel AND ci.source = 'COMMONS'
             LEFT JOIN LATERAL (
                 SELECT t.id AS track_id, t.cover_key IS NOT NULL AS stored, t.cover_url
                 FROM listen_event e JOIN track t ON t.id = e.track_id

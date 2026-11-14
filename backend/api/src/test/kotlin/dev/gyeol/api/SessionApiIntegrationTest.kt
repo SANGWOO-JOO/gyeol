@@ -456,9 +456,20 @@ class SessionApiIntegrationTest {
         llmNotFound("가수A - 곡C [방송]", "singer a") // 이 세션에서 확인된 가수 (대소문자·띄어쓰기 무시)
         llmNotFound("가수D - 곡E [진행자의 러브레터]", "진행자") // 확인되지 않은 가수는 인정하지 않는다
 
+        // I-45: 예전에 받아 둔 YouTube 채널 프로필 행이 있어도 가수 이미지로 내보내지 않는다 (가수·Topic 채널 둘 다)
+        val artistA = jdbc.sql("SELECT artist_id FROM track WHERE id = :t").param("t", trackId).query(Long::class.java).single()
+        jdbc.sql("INSERT INTO artist_image (artist_id, source, url) VALUES (:a, 'YOUTUBE', 'https://yt3.ggpht.com/a') ON CONFLICT (artist_id) DO UPDATE SET source = 'YOUTUBE', url = EXCLUDED.url").param("a", artistA).update()
+        jdbc.sql("INSERT INTO channel_image (channel, source, url) VALUES ('가수C - Topic', 'YOUTUBE', 'https://yt3.ggpht.com/c') ON CONFLICT (channel) DO UPDATE SET source = 'YOUTUBE', url = EXCLUDED.url").update()
+
         val stats = call("GET", "/api/sessions/$token/stats").second!!
         assertEquals(listOf("가수A" to 8, "가수C" to 4), stats["topArtists"].toList().map { it["name"].asString() to it["plays"].asInt() })
         assertEquals(6, stats["excludedChannelPlays"].asInt())
+        stats["topArtists"].toList().forEach { a ->
+            assertTrue(!a.has("imageSource") || a["imageSource"].isNull, a.toString())
+            assertTrue(!a.has("imageUrl") || a["imageUrl"].isNull, a.toString())
+        }
+        jdbc.sql("DELETE FROM artist_image WHERE artist_id = :a").param("a", artistA).update()
+        jdbc.sql("DELETE FROM channel_image WHERE channel = '가수C - Topic'").update()
     }
 
     @Test

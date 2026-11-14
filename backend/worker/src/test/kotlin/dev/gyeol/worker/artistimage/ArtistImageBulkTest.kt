@@ -3,6 +3,7 @@ package dev.gyeol.worker.artistimage
 import dev.gyeol.core.identify.ArtistImage
 import dev.gyeol.core.identify.ArtistImageRepository
 import dev.gyeol.core.identify.ArtistImageTarget
+import dev.gyeol.core.identify.ChannelImageTarget
 import dev.gyeol.worker.WorkerProperties
 import dev.gyeol.worker.identify.FetcherClient
 import org.junit.jupiter.api.Test
@@ -42,14 +43,17 @@ class ArtistImageBulkTest {
     }
 
     @Test
-    fun `보통 메시지 - Commons가 없으면 YouTube 프로필로 넘어간다 (기존 동작 그대로)`() {
+    fun `I-45 보통 메시지 - Commons가 없으면 NONE, YouTube 프로필은 부르지 않음 (가수·Topic 채널 둘 다)`() {
         val repo = mock(ArtistImageRepository::class.java)
         val fetcher = mock(FetcherClient::class.java)
         val mbid = UUID.randomUUID().toString()
         `when`(fetcher.artistCommons(mbid)).thenReturn(null)
-        `when`(fetcher.channelImage("vid")).thenReturn("https://yt3.ggpht.com/x")
-        ArtistImageListener(repo, fetcher, mock(S3Client::class.java), json, props)
-            .onMessage(json.writeValueAsString(ArtistImageMessage(items = listOf(ArtistImageTarget(3, mbid, "vid")))))
-        verify(repo).save(3, ArtistImage("YOUTUBE", url = "https://yt3.ggpht.com/x"))
+        `when`(fetcher.findArtist("Someone", emptyList())).thenReturn(null)
+        ArtistImageListener(repo, fetcher, mock(S3Client::class.java), json, props).onMessage(
+            json.writeValueAsString(ArtistImageMessage(items = listOf(ArtistImageTarget(3, mbid, "vid")), channels = listOf(ChannelImageTarget("Someone - Topic", "vid2")))),
+        )
+        verify(repo).save(3, ArtistImage("NONE"))
+        verify(repo).saveChannel("Someone - Topic", null, ArtistImage("NONE"))
+        verify(fetcher, never()).channelImage(anyString())
     }
 }

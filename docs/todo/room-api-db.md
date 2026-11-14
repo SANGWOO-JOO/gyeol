@@ -404,3 +404,16 @@
 - 로컬(11:50:24 api·worker 재시작 뒤): 방 8 PHOTO 36개 작성자 최대 36자, "["·"http" 0건이다. IVE는 "@_TV10" 그대로다.
 - 짧은 괄호 남기기(11-14, 관리 세션 요청): 40자를 넘어 자를 때 끝에 20자 이하 괄호(촬영자 이름)가 있으면 괄호는 남기고 앞부분만 줄인다. 앞부분 몫은 40 − 괄호 길이(최소 20자)이고, 이때 전체 상한은 60자다. "Korea.net / Korean Culture and Information Service (Jeon Han)" → "Korea.net / Korean Culture… (Jeon Han)".
   - 테스트: api `CommonsAuthorTest` 1개 추가. api 74개(건너뜀 1)·worker 79개 통과. api·worker 11:53 재시작 뒤 방 8 가수 115 작성자가 위 값(38자)이다.
+- 점검 수정 5건(11-14, 관리 세션 요청·사용자 승인), api `CommonsAuthorTest`에 5개 추가:
+  1. 범위 밖 숫자 엔티티(`&#99999999;`)는 빈칸이다. 전에는 `Character.toChars` 예외로 지도 전체가 500이 될 수 있었다.
+  2. flickr(photos·people)·instagram·x/twitter 프로필 주소는 경로의 사용자 이름이다("flickr.com/photos/jsmith" → "jsmith"). 숫자 id(12345@N00)나 게시물 주소(instagram /p/)는 도메인이다.
+  3. 멱등: 이미 "…"로 줄인 앞부분과 41자 결과는 다시 자르지 않는다. 기존 테스트 입력 20개에서 clean(clean(x)) == clean(x)를 확인한다.
+  4. 괄호를 빼서 칸이 비면 빼기 전 문자열에 상한만 적용한다.
+  5. 끝 조각 지우기는 대소문자를 구분하고 "http:"·"https:/"·"www." 이상만 지운다. "h"·"ht"·"htt" 단독은 원문에 http 주소가 있을 때만 지운다("Park H"·"Park h"는 남음).
+
+### I-45 YouTube 프로필 빼기 (11-14, 사용자 결정)
+- worker: 가수·Topic 채널 모두 Commons가 없으면 NONE이다. YouTube 채널 프로필(`fetcher.channelImage`)을 부르지 않는다. fetcher 쪽 엔드포인트는 그대로다.
+- api `StatsService` 가수 순위: artist_image·channel_image를 `source = 'COMMONS'`만 붙인다. imageSource는 COMMONS 또는 null이다.
+- `V30__drop_youtube_artist_images.sql`: YOUTUBE 행을 지운다(artist_image 6·channel_image 26). NONE으로 바꾸지 않고 미확인으로 둔 이유는, NONE이면 30일 재확인 기한까지 Commons를 다시 보지 않기 때문이다. 다음 세션 계획·지도 일괄 채우기에서 Commons만 다시 찾는다. CHECK 제약의 'YOUTUBE'는 그대로 둔다.
+- 테스트: worker `ArtistImageBulkTest` 보통 메시지 테스트를 I-45로 바꿨다(가수·채널 NONE, channelImage 안 부름). api `SessionApiIntegrationTest` 가수 순위 테스트에 YOUTUBE 행이 있어도 imageSource·imageUrl이 없음을 더했다.
+- 결과: api 79개(건너뜀 1)·worker 79개 통과. 12:21:06 api·worker 재시작 때 V30이 적용됐다. 남은 행은 artist_image COMMONS 888·NONE 592, channel_image COMMONS 73·NONE 1이다.
