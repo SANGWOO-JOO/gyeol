@@ -301,3 +301,8 @@ export function scanNotice(scan: string | null | undefined): { title: string; su
   if (scan === 'FAILED') return { title: '발매일을 다 모으지 못했어요', sub: '모은 노래만 보여요 · 인기순에서 더 찾아보세요', busy: false }
   return null
 }
+
+/** 검색 목록 끝 "가수 노래 전체 보기" 버튼: 가수 카드가 있고 결과가 1곡 이상, 불러오는 중이 아닐 때 */
+export function showArtistMore(artist: unknown, items: unknown[] | null | undefined, loading: boolean): boolean {
+  return !!artist && !!items && items.length > 0 && !loading
+}

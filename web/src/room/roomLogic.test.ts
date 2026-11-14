@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, isNewArtist, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, isNewArtist, showArtistMore, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -262,5 +262,14 @@ describe('I-30 가수 화면', () => {
     expect(scanNotice('FAILED')).toMatchObject({ busy: false })
     expect(scanNotice('DONE')).toBeNull()
     expect(scanNotice(undefined)).toBeNull()
+  })
+})
+
+describe('검색 목록 끝 가수 버튼', () => {
+  it('가수 카드가 있고 결과가 있을 때만', () => {
+    expect(showArtistMore({ name: '윤하' }, [1], false)).toBe(true)
+    expect(showArtistMore(null, [1], false)).toBe(false)
+    expect(showArtistMore({ name: '윤하' }, [], false)).toBe(false)
+    expect(showArtistMore({ name: '윤하' }, [1], true)).toBe(false)
   })
 })

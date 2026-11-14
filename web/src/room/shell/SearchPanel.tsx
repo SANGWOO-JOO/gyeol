@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { roomApi, RoomApiError, type RoomSearchItem, type SearchArtist } from '../roomApi'
-import { artistCardSub, searchBadge, sharedWithText, trackKey } from '../roomLogic'
+import { artistCardSub, searchBadge, showArtistMore, sharedWithText, trackKey } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { CoverImg } from './CoverImg'
 import sh from './shell.module.css'
@@ -98,6 +98,13 @@ export function SearchPanel({
         </ul>
       )}
 
+      {/* 목록 끝: 맨 위 가수 카드가 스크롤로 사라져도 가수 화면(인기순·최신순·더보기)으로 갈 수 있게 */}
+      {showArtistMore(artist, items, loading) && artist && (
+        <button type="button" className={sh.artistMoreButton} onClick={() => onOpenArtist(artist)} aria-label={`${artist.name} 노래 전체 보기, 인기순·최신순`}>
+          <span>{artist.name} 노래 전체 보기<small> · 인기순·최신순</small></span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+      )}
       {items && items.length > 0 && <span className={sh.center}>찾는 노래가 없으면 영문·원어 이름으로도 찾아보세요</span>}
     </section>
   )
