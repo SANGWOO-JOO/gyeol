@@ -26,14 +26,19 @@ describe('I-44 장르 계열 색', () => {
 })
 
 describe('I-44 얼굴 고르기', () => {
-  const song = (coverUrl: string | null) => ({ trackId: 1, title: 't', coverUrl, memberIds: [1] })
-  it('사진(PHOTO) → 표지(COVER, 없으면 담긴 곡) → 장르색. 사진은 표지를 fallback으로', () => {
-    expect(planetFace({ songs: [song('c.jpg')], face: { kind: 'PHOTO', url: '/api/p' } })).toEqual({ kind: 'photo', url: '/api/p', fallback: 'c.jpg' })
-    expect(planetFace({ songs: [song(null)], face: { kind: 'PHOTO', url: '/api/p' } })).toEqual({ kind: 'photo', url: '/api/p', fallback: null })
-    expect(planetFace({ songs: [song('c.jpg')], face: { kind: 'COVER', url: 'x.jpg' } })).toEqual({ kind: 'cover', url: 'x.jpg' })
-    expect(planetFace({ songs: [song(null), song('c.jpg')], face: { kind: 'NONE', url: null } })).toEqual({ kind: 'cover', url: 'c.jpg' })
-    expect(planetFace({ songs: [song(null)], face: { kind: 'NONE', url: null } })).toEqual({ kind: 'genre' })
-    expect(planetFace({ songs: [song('c.jpg')] })).toEqual({ kind: 'cover', url: 'c.jpg' })
+  const song = (coverUrl: string | null, coverPath: string | null = null) => ({ trackId: 1, title: 't', coverUrl, coverPath, memberIds: [1] })
+  const urls = (f: ReturnType<typeof planetFace>) => (f.kind === 'genre' ? 'genre' : `${f.kind}: ${f.sources.map(x => `${x.mode} ${x.url}`).join(', ')}`)
+  it('사진(PHOTO) → 표지(COVER, 없으면 담긴 곡: 저장본 → 외부) → 장르색', () => {
+    expect(urls(planetFace({ songs: [song('c.jpg')], face: { kind: 'PHOTO', url: '/api/rooms/r/artists/1/image' } })))
+      .toBe('photo: cookie /api/rooms/r/artists/1/image, key /api/rooms/r/artists/1/image, plain c.jpg')
+    expect(urls(planetFace({ songs: [song(null)], face: { kind: 'PHOTO', url: '/api/rooms/r/p' } }))).toBe('photo: cookie /api/rooms/r/p, key /api/rooms/r/p')
+    // I-14: 서버 COVER는 이제 우리 주소, 곡의 저장본과 같으면 한 번만
+    expect(urls(planetFace({ songs: [song('c.jpg', '/api/rooms/r/covers/1')], face: { kind: 'COVER', url: '/api/rooms/r/covers/1' } })))
+      .toBe('cover: cookie /api/rooms/r/covers/1, key /api/rooms/r/covers/1, plain c.jpg')
+    expect(urls(planetFace({ songs: [song('c.jpg')], face: { kind: 'COVER', url: 'x.jpg' } }))).toBe('cover: plain x.jpg, plain c.jpg')
+    expect(urls(planetFace({ songs: [song(null), song('c.jpg')], face: { kind: 'NONE', url: null } }))).toBe('cover: plain c.jpg')
+    expect(urls(planetFace({ songs: [song(null)], face: { kind: 'NONE', url: null } }))).toBe('genre')
+    expect(urls(planetFace({ songs: [song('c.jpg')] }))).toBe('cover: plain c.jpg')
   })
   it('사진 출처 줄: 빈 칸은 빼고, 출처가 없으면 줄도 없음', () => {
     expect(photoCreditText({ author: '홍길동', license: 'CC BY-SA 4.0' })).toBe('사진: 홍길동 · CC BY-SA 4.0 · Wikimedia Commons')

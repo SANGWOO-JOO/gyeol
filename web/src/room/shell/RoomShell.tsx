@@ -144,7 +144,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
     const msg = addedMessage(song, sameSong)
     setAdded(prev => new Map(prev).set(`t${song.trackId}`, song.id))
     show({
-      title: msg.title, tone: msg.gold ? 'gold' : 'normal', cover: song.coverUrl,
+      title: msg.title, tone: msg.gold ? 'gold' : 'normal', cover: { roomId, coverPath: song.coverPath, coverUrl: song.coverUrl },
       sub: `${song.title} · ${song.artist}`,
       action: { label: '되돌리기', run: () => undo(song) },
     })

@@ -21,7 +21,7 @@ export interface MeView {
   songCount: number; todayAdded: number; dailyLimit: number; pendingRequests: number; gift: GiftSummary | null
 }
 
-export interface TrackItem { title: string; artist: string; mbid: string | null; listeners: number | null; releaseYear: number | null; trackId: number | null; coverUrl: string | null; /** 우리 가수로 묶인 곡 (I-30 ①) */ artistId?: number | null }
+export interface TrackItem { title: string; artist: string; mbid: string | null; listeners: number | null; releaseYear: number | null; trackId: number | null; coverUrl: string | null; /** I-14 표지 저장본(방 열쇠 필요). 없으면 null */ coverPath?: string | null; /** 우리 가수로 묶인 곡 (I-30 ①) */ artistId?: number | null }
 /** mine: 내가 이미 담음 · sameSong: 이 노래를 담은 사람 · sameArtist: 같은 가수의 다른 노래를 담은 사람 */
 export interface RoomSearchItem { item: TrackItem; mine: boolean; sameSong: string[]; sameArtist: string[] }
 /** 검색어가 가수와 맞을 때 결과 맨 위 가수 카드 (I-30 ①). DB에 없는 가수는 artistId 없음 */
@@ -35,14 +35,14 @@ export interface ArtistSongsPage {
   /** 최신순 발매일 모으기 상태 (③). RUNNING·QUEUED면 모은 것만 와 있다 */
   scan?: 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED' | null
 }
-export interface SongView { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; sharedCount: number }
+export interface SongView { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; coverPath?: string | null; sharedCount: number }
 export interface GiftNotice { boxId: number; milestone: number; status: string }
 /** 201 ADDED(바로 담김) · 202 IDENTIFYING(식별 맡김, requestId로 확인) */
 export interface AddSongResponse { status: 'ADDED' | 'IDENTIFYING'; song: SongView | null; requestId: number | null; todayAdded: number; dailyLimit: number; gift: GiftNotice | null }
 /** failReason: NOT_FOUND · REJECTED · ERROR · MEMBER_REMOVED, DONE인데 ALREADY_ADDED면 이미 담은 노래 */
 export interface RequestView { id: number; status: 'IDENTIFYING' | 'DONE' | 'FAILED'; song: SongView | null; failReason: string | null }
 
-export interface MapSong { trackId: number; title: string; coverUrl: string | null; memberIds: number[] }
+export interface MapSong { trackId: number; title: string; coverUrl: string | null; coverPath?: string | null; memberIds: number[] }
 /** I-44 사진 출처 (Wikimedia Commons). 빈 값이 올 수 있다 */
 export interface PhotoCredit { url?: string | null; author?: string | null; license?: string | null; pageUrl?: string | null }
 /** I-44 행성 얼굴. PHOTO url은 방 열쇠가 필요한 /api/rooms/{rid}/artists/{id}/image (없으면 404 → 표지·장르색) */
@@ -56,7 +56,7 @@ export interface Ghost { artistId: number; name: string; x: number; y: number; n
 export interface RoomMap { rev: number; placeholder: boolean; members: MemberView[]; planets: Planet[]; galaxies: Galaxy[]; ghosts: Ghost[] }
 
 export interface MemberRow { id: number; nickname: string; role: Role; colorIdx: number; songCount: number; me: boolean; avatarCharacterId?: number | null }
-export interface MySong { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; addedAt: string; sharedWith: number }
+export interface MySong { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; coverPath?: string | null; addedAt: string; sharedWith: number }
 export interface MySongsPage { items: MySong[]; nextCursor: number | null }
 export interface Evidence { id: number; source: string; url: string }
 export interface ArtistView {
@@ -231,7 +231,8 @@ async function fetchMap(roomId: string, etag: string | null, signal?: AbortSigna
   if (etag) headers['If-None-Match'] = etag
   let res: Response
   try {
-    res = await fetch(`/api/rooms/${rid(roomId)}/map`, { headers, signal, credentials: 'same-origin' })
+    // ETag는 우리가 직접 다룬다. 브라우저 캐시가 스스로 붙인 If-None-Match로 옛 본문을 돌려주지 않게 no-store
+    res = await fetch(`/api/rooms/${rid(roomId)}/map`, { headers, signal, credentials: 'same-origin', cache: 'no-store' })
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') throw e
     throw new RoomApiError(0, 'NETWORK', '서버에 연결하지 못했어요.')

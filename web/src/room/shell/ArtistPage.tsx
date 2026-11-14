@@ -120,7 +120,7 @@ export function ArtistPage({ roomId, artist, roomCount, added, pending, busy, on
     const key = trackKey(x.item)
     const date = sort === 'latest' ? releaseText(x.releaseDate) : x.item.releaseYear ? String(x.item.releaseYear) : null
     return (
-      <SearchRow key={key} r={r} rank={rank} sub={date ?? ''} addedLabel="담음" goldRing
+      <SearchRow key={key} roomId={roomId} r={r} rank={rank} sub={date ?? ''} addedLabel="담음" goldRing
         added={r.mine || added.has(key)} pending={pending.has(key)} busy={busy.has(key)} onAdd={() => onAdd(r)} />
     )
   }

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { CoverImg } from './CoverImg'
 import sh from './shell.module.css'
 
 export interface ToastData {
@@ -6,7 +7,8 @@ export interface ToastData {
   title: string
   sub?: string
   tone?: 'normal' | 'gold' | 'error'
-  cover?: string | null
+  /** 곡 표지 (I-14 저장본 → 외부). null이면 빈 칸, 없으면 표지 자리 없음 */
+  cover?: { roomId: string; coverPath?: string | null; coverUrl: string | null } | null
   action?: { label: string; run: () => void }
 }
 
@@ -22,7 +24,7 @@ export function Toast({ toast, onClose, wide = false }: { toast: ToastData | nul
   const cls = toast.tone === 'gold' ? sh.toastGold : toast.tone === 'error' ? sh.toastError : ''
   return (
     <div key={toast.id} className={`${sh.toast} ${wide ? sh.toastWide : ''} ${cls}`} role={toast.tone === 'error' ? 'alert' : 'status'}>
-      {toast.cover !== undefined && (toast.cover ? <img src={toast.cover} alt="" className={sh.toastCover} /> : <span className={sh.toastCover} aria-hidden="true" />)}
+      {toast.cover !== undefined && (toast.cover ? <CoverImg roomId={toast.cover.roomId} cover={toast.cover} className={sh.toastCover} /> : <span className={sh.toastCover} aria-hidden="true" />)}
       <span className={sh.toastText}>
         <strong>{toast.title}</strong>
         {toast.sub && <span>{toast.sub}</span>}

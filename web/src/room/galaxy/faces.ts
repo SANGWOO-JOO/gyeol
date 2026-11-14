@@ -1,5 +1,6 @@
 // I-44 가수 행성 얼굴 (캔버스 4-n·4-n2). 얼굴 고르기와 장르(구역) 색은 화면과 떨어뜨려 테스트한다.
-import type { Face, Planet } from '../roomApi'
+import type { Face } from '../roomApi'
+import { sourcesOf, type ImgSource } from '../images'
 
 /**
  * 장르 계열: 구역 이름의 낱말로 고른다(구역 id 해시가 아니라). 위에서부터 먼저 맞는 계열.
@@ -32,17 +33,18 @@ export function genreColor(name: string | null | undefined, galaxyId: number | n
 }
 
 /**
- * 행성 얼굴 대체 순서 (I-44): 가수 사진(PHOTO) → 앨범 표지(서버 COVER, 없으면 방에 담긴 곡 표지) → 장르색 그라데이션(글자 없음).
- * 사진은 못 받을 수 있어(401·404) 표지를 fallback으로 같이 넘긴다.
+ * 행성 얼굴 대체 순서 (I-44·I-14): 가수 사진(PHOTO) → 앨범 표지(서버 COVER, 없으면 방에 담긴 곡 표지: 저장본 → 외부 주소) → 장르색(글자 없음).
+ * 사진·저장본은 못 받을 수 있어(401·404) 다음 후보를 같이 넘긴다.
  */
-export type FaceChoice = { kind: 'photo'; url: string; fallback: string | null } | { kind: 'cover'; url: string } | { kind: 'genre' }
+export type FaceChoice = { kind: 'photo' | 'cover'; sources: ImgSource[] } | { kind: 'genre' }
 
-export function planetFace(p: Pick<Planet, 'songs'> & { face?: Face | null }): FaceChoice {
+export function planetFace(p: { songs: { coverUrl: string | null; coverPath?: string | null }[]; face?: Face | null }): FaceChoice {
   const f = p.face
-  const songCover = p.songs.find(s => s.coverUrl)?.coverUrl ?? null
-  const cover = f?.kind === 'COVER' && f.url ? f.url : songCover
-  if (f?.kind === 'PHOTO' && f.url) return { kind: 'photo', url: f.url, fallback: cover }
-  return cover ? { kind: 'cover', url: cover } : { kind: 'genre' }
+  const song = p.songs.find(s => s.coverPath || s.coverUrl)
+  const covers = [f?.kind === 'COVER' ? f.url : null, song?.coverPath, song?.coverUrl]
+  if (f?.kind === 'PHOTO' && f.url) return { kind: 'photo', sources: sourcesOf([f.url, ...covers]) }
+  const sources = sourcesOf(covers)
+  return sources.length ? { kind: 'cover', sources } : { kind: 'genre' }
 }
 
 /** 사진 출처 줄 (4-n4): "사진: 작성자 · 라이선스 · Wikimedia Commons", 빈 칸은 뺀다. 출처가 없으면 null */

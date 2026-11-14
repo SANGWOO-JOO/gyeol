@@ -1,24 +1,17 @@
-import { useEffect, useState } from 'react'
-import { roomPhoto, type PhotoCredit } from '../roomApi'
+import { useEffect } from 'react'
+import type { PhotoCredit } from '../roomApi'
+import { sourcesOf, useImageChain } from '../images'
 import { photoCreditText } from '../galaxy/faces'
 import sh from './shell.module.css'
 
 /** I-44 가수 판·가수 화면 머리 얼굴: 사진(방 열쇠로 받음)이 있으면 사진, 없거나 못 받으면 이름 첫 글자 */
 export function ArtistFace({ roomId, name, photoUrl, className, onShown }: { roomId: string; name: string; photoUrl?: string | null; className: string; /** 사진을 실제로 보였는지 (출처 줄은 보일 때만) */ onShown?: (shown: boolean) => void }) {
-  const [src, setSrc] = useState<string | null>(null)
-  useEffect(() => {
-    setSrc(null)
-    onShown?.(false)
-    if (!photoUrl) return
-    let alive = true
-    roomPhoto(roomId, photoUrl).then(u => { if (alive) { setSrc(u); onShown?.(!!u) } })
-    return () => { alive = false }
-    // onShown은 부모가 매번 새로 만들어도 다시 받지 않는다
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, photoUrl])
+  const { src, fail } = useImageChain(roomId, sourcesOf([photoUrl]))
+  // 출처 줄은 그림이 실제로 뜬 뒤(onLoad)에만. 주소가 바뀌거나 실패하면 숨긴다
+  useEffect(() => { if (!src) onShown?.(false) }, [src]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <span className={className} aria-hidden="true" style={src ? { padding: 0, overflow: 'hidden' } : undefined}>
-      {src ? <img src={src} alt="" className={sh.facePhoto} /> : Array.from(name)[0] ?? ''}
+      {src ? <img src={src} alt="" className={sh.facePhoto} onLoad={() => onShown?.(true)} onError={() => { onShown?.(false); fail() }} /> : Array.from(name)[0] ?? ''}
     </span>
   )
 }

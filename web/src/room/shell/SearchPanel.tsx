@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { roomApi, RoomApiError, type RoomSearchItem, type SearchArtist } from '../roomApi'
 import { artistCardSub, searchBadge, sharedWithText, trackKey } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
+import { CoverImg } from './CoverImg'
 import sh from './shell.module.css'
 
 /** 검색 결과 한 줄을 구분하는 키 (DB 곡은 trackId, 아니면 제목|가수) */
@@ -91,7 +92,7 @@ export function SearchPanel({
             const key = itemKey(r.item)
             const isAdded = r.mine || added.has(key)
             return (
-              <SearchRow key={key} r={r} added={isAdded} pending={pending.has(key)} busy={busy.has(key)} onAdd={() => onAdd(r)} />
+              <SearchRow key={key} roomId={roomId} r={r} added={isAdded} pending={pending.has(key)} busy={busy.has(key)} onAdd={() => onAdd(r)} />
             )
           })}
         </ul>
@@ -121,8 +122,8 @@ function ArtistCard({ artist, onOpen }: { artist: SearchArtist; onOpen: () => vo
 }
 
 /** 노래 한 줄 (검색 결과·가수 화면 같이 씀). rank는 인기순 순위, sub를 주면 둘째 줄을 바꾼다 */
-export function SearchRow({ r, added, pending, busy, onAdd, rank, sub: subOverride, addedLabel = '담았어요', goldRing = false }: {
-  r: RoomSearchItem; added: boolean; pending: boolean; busy: boolean; onAdd: () => void
+export function SearchRow({ roomId, r, added, pending, busy, onAdd, rank, sub: subOverride, addedLabel = '담았어요', goldRing = false }: {
+  roomId: string; r: RoomSearchItem; added: boolean; pending: boolean; busy: boolean; onAdd: () => void
   rank?: number | null; sub?: string; addedLabel?: string
   /** 가수 화면: 친구가 담은 곡 줄에 금빛 테두리 */
   goldRing?: boolean
@@ -133,7 +134,7 @@ export function SearchRow({ r, added, pending, busy, onAdd, rank, sub: subOverri
   return (
     <li className={`${sh.row} ${goldRing && r.sameSong.length > 0 ? sh.rowGold : ''}`}>
       {rank != null && <span className={sh.rank}>{rank}</span>}
-      {t.coverUrl ? <img src={t.coverUrl} alt="" className={sh.cover} loading="lazy" /> : <span className={sh.cover} aria-hidden="true" />}
+      <CoverImg roomId={roomId} cover={t} className={sh.cover} />
       <span className={sh.rowText}>
         <span className={sh.songTitle}>{t.title}</span>
         {sub && <span className={sh.songSub}>{sub}</span>}

@@ -3,6 +3,7 @@ import { roomApi, RoomApiError, type MeView, type MySong, type RoomMap } from '.
 import { galaxyOfTrack, giftLine } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import type { ToastData } from './Toast'
+import { CoverImg } from './CoverImg'
 import sh from './shell.module.css'
 
 /**
@@ -63,7 +64,7 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show, on
     try {
       await roomApi.removeSong(roomId, song.id)
       setItems(prev => prev?.filter(x => x.id !== song.id) ?? null)
-      show({ title: '노래를 뺐어요', sub: song.title, cover: song.coverUrl, action: { label: '되돌리기', run: () => readd(song) } })
+      show({ title: '노래를 뺐어요', sub: song.title, cover: { roomId, coverPath: song.coverPath, coverUrl: song.coverUrl }, action: { label: '되돌리기', run: () => readd(song) } })
       onChanged()
     } catch (err) {
       if (!onError(err)) show({ title: '빼지 못했어요', tone: 'error' })
@@ -101,7 +102,7 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show, on
         <ul className={sh.list}>
           {items.map(song => (
             <li key={song.id} className={sh.row} style={{ paddingRight: 4 }}>
-              {song.coverUrl ? <img src={song.coverUrl} alt="" className={sh.cover} loading="lazy" /> : <span className={sh.cover} aria-hidden="true" />}
+              <CoverImg roomId={roomId} cover={song} className={sh.cover} />
               <span className={sh.rowText}>
                 <span className={sh.songTitle}>{song.title}</span>
                 <span className={sh.songSub}>{[song.artist, galaxy.get(song.trackId)].filter(Boolean).join(' · ')}</span>

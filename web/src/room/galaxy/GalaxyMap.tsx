@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { MemberView, RoomMap } from '../roomApi'
-import { memberColor, roomPhoto } from '../roomApi'
+import { memberColor } from '../roomApi'
+import { coverSources, sourcesOf, useImageChain, type ImgSource } from '../images'
 import { planetPeople } from '../roomLogic'
 import { fitInside, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type Insets, type View } from './galaxyMath'
 import { NO_FRESH, songKey, type Fresh } from './fresh'
@@ -34,7 +35,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
   // 궤도 순서(규칙 ⑫)는 지도 데이터가 바뀔 때만 다시 정한다
   const planets = useMemo(() => {
     const order = map.members.map(m => m.id)
-    return map.planets.map(p => ({ ...p, wx: toWorld(p.x), wy: toWorld(p.y), people: planetPeople(p), rings: orbitLayout(p, order), covers: new Map(p.songs.map(s => [s.trackId, s.coverUrl])) }))
+    return map.planets.map(p => ({ ...p, wx: toWorld(p.x), wy: toWorld(p.y), people: planetPeople(p), rings: orbitLayout(p, order), covers: new Map(p.songs.map(s => [s.trackId, coverSources(s)])) }))
   }, [map.planets, map.members])
   const galaxies = useMemo(() => map.galaxies.filter(x => x.name).map(x => ({ ...x, wx: toWorld(x.x), wy: toWorld(x.y) })), [map.galaxies])
   // I-44 얼굴과 장르 색: 지도 데이터가 바뀔 때만
@@ -316,7 +317,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                 <circle className={g.ghostBody} r={ghostR * u} fill="url(#gl-planet)" strokeWidth={1.2 * u} strokeDasharray={`${3 * u} ${3 * u}`} />
                 {/* I-44 ⑤ 사진이 있으면 흑백에 가깝게 흐린 얼굴, 없으면 이니셜 */}
                 {x.face?.kind === 'PHOTO' && x.face.url
-                  ? <FaceImage roomId={roomId} className={g.ghostFace} r={ghostR * u} photo={x.face.url} cover={null}
+                  ? <FaceImage roomId={roomId} className={g.ghostFace} r={ghostR * u} sources={sourcesOf([x.face.url])}
                       placeholder={<text className={g.ghostInitial} y={ghostR * 0.33 * u} fontSize={ghostR * 0.9 * u} textAnchor="middle">{Array.from(x.name)[0]}</text>} />
                   : <text className={g.ghostInitial} y={ghostR * 0.33 * u} fontSize={ghostR * 0.9 * u} textAnchor="middle">{Array.from(x.name)[0]}</text>}
                 <g className={g.ghostPlus} transform={`translate(${ghostR * 0.78 * u} ${-ghostR * 0.78 * u})`}>
@@ -344,7 +345,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                   {(born || ping) && <Ripples r={born ? ro : r} u={u} first={born && fresh.first} />}
                   {p.preparing && <circle className={g.prepRing} r={r + 5 * u} strokeWidth={1.2 * u} strokeDasharray={`${2 * u} ${5 * u}`} />}
                   <g className={born ? (fresh.first ? g.firstPlanet : g.bornPlanet) : undefined}>
-                  {level !== 'far' && <Orbits artistId={p.artistId} rings={p.rings} r={radius.get(p.artistId)!} u={u} grow={grow} members={members} near={level === 'near'} fresh={fresh} spin={inView.has(p.artistId)}
+                  {level !== 'far' && <Orbits roomId={roomId} artistId={p.artistId} rings={p.rings} r={radius.get(p.artistId)!} u={u} grow={grow} members={members} near={level === 'near'} fresh={fresh} spin={inView.has(p.artistId)}
                     covers={level === 'near' && inView.has(p.artistId) ? p.covers : undefined} />}
                   {/* I-44 ② 장르 구역 색 얇은 빛 테두리 */}
                   {!p.preparing && fc && <>
@@ -355,9 +356,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
                   <circle className={g.planetBody} r={r} fill={p.preparing || !fc ? 'none' : `url(#gl-genre-${fc.grad})`} stroke={p.preparing ? '#5E5794' : 'none'}
                     strokeWidth={1.1 * u} strokeDasharray={p.preparing ? `${3 * u} ${4 * u}` : undefined} />
                   {!p.preparing && fc && fc.face.kind !== 'genre' && inView.has(p.artistId) && (
-                    <FaceImage roomId={roomId} className={g.planetFace} r={r}
-                      photo={fc.face.kind === 'photo' ? fc.face.url : null}
-                      cover={fc.face.kind === 'photo' ? fc.face.fallback : fc.face.url} />
+                    <FaceImage roomId={roomId} className={g.planetFace} r={r} sources={fc.face.sources} />
                   )}
                   {born && fresh.fromGhost.has(p.artistId) && !p.preparing && (
                     <g clipPath={`url(#fill-${p.artistId})`} aria-hidden="true">
@@ -414,16 +413,23 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
  * 행성 얼굴 그림 (I-44): 가수 사진은 방 열쇠를 붙여 받아 blob으로(roomPhoto), 못 받으면 앨범 표지, 그것도 없으면 아무것도 안 그려
  * 아래의 장르색 바탕이 보이게. 표지는 공개 주소라 바로 쓴다. placeholder는 사진을 기다리거나 못 받았을 때 대신 그릴 것.
  */
-function FaceImage({ roomId, photo, cover, r, className, placeholder }: { roomId: string; photo: string | null; cover: string | null; r: number; className: string; placeholder?: ReactNode }) {
-  const [src, setSrc] = useState<string | null | undefined>(photo ? undefined : cover)
-  useEffect(() => {
-    if (!photo) { setSrc(cover); return }
-    let alive = true
-    roomPhoto(roomId, photo).then(u => { if (alive) setSrc(u ?? cover) })
-    return () => { alive = false }
-  }, [roomId, photo, cover])
+/** 얼굴 그림: 후보(사진 → 표지 저장본 → 외부 표지)를 차례로. 모두 실패하면 placeholder(없으면 장르색 바탕이 그대로) */
+function FaceImage({ roomId, sources, r, className, placeholder }: { roomId: string; sources: ImgSource[]; r: number; className: string; placeholder?: ReactNode }) {
+  const { src, fail } = useImageChain(roomId, sources)
   if (!src) return <>{placeholder}</>
-  return <image className={className} href={src} x={-r} y={-r} width={2 * r} height={2 * r} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
+  return <image className={className} href={src} onError={fail} x={-r} y={-r} width={2 * r} height={2 * r} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
+}
+
+/** I-44 ④·I-14 위성 표지: 저장본 → 외부 표지, 모두 실패하면(또는 받는 중엔) 지금의 점 위성 */
+function SatCover({ roomId, sources, cx, cy, cr, pad, ring, dot, className }: { roomId: string; sources: ImgSource[]; cx: number; cy: number; cr: number; pad: number; ring: string; dot: ReactNode; className?: string }) {
+  const { src, fail } = useImageChain(roomId, sources)
+  if (!src) return <>{dot}</>
+  return (
+    <g className={className}>
+      <circle cx={cx} cy={cy} r={cr + pad} fill={ring} />
+      <image className={g.satCover} href={src} onError={fail} x={cx - cr} y={cy - cr} width={2 * cr} height={2 * cr} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
+    </g>
+  )
 }
 
 /**
@@ -460,12 +466,13 @@ function fitInsets(wrap: HTMLElement | null, maxSongs: number, rings: boolean): 
  * 궤도·위성 (규칙 ⑫). 크기는 화면 px로 계산하고 u(세계/px)를 곱해 그린다.
  * 금빛 궤도 = 같이 담은 노래, 사람 궤도 = 그 사람 색 위성(혼자 담은 노래). 가까이(near)에선 위성을 조금 크게.
  */
-function Orbits({ artistId, rings, r, u, grow, members, near, fresh, spin, covers }: {
+function Orbits({ roomId, artistId, rings, r, u, grow, members, near, fresh, spin, covers }: {
+  roomId: string
   artistId: number; rings: Ring[]; r: number; u: number; grow: number; members: Map<number, MemberView>; near: boolean; fresh: Fresh
   /** 화면 안이면 돈다 */
   spin: boolean
   /** I-44 ④ 가까이(near)·화면 안일 때만: 곡 → 앨범 표지. 있으면 위성을 작은 표지로, 테두리 = 담은 사람(금빛 = 같이 담은 곡) */
-  covers?: Map<number, string | null>
+  covers?: Map<number, ImgSource[]>
 }) {
   const color = (id: number) => memberColor(members.get(id)?.colorIdx ?? 0).bg
   const k = (near ? 1.3 : 1) * grow
@@ -486,18 +493,16 @@ function Orbits({ artistId, rings, r, u, grow, members, near, fresh, spin, cover
               return (
                 <g key={sat.trackId}>
                   {/* 4-e 새 위성: 튀어나오듯 / 4-h 겹친 순간: 금빛 반짝임 */}
-                  {covers?.get(sat.trackId) ? (() => {
-                    const cr = 6.5 * grow * u
-                    return (
-                      <g className={fresh.tracks.has(key) || fresh.gold.has(key) ? g.satBorn : undefined}>
-                        <circle cx={cx} cy={cy} r={cr + 1.6 * u} fill={gold ? '#FFE3B8' : color(sat.memberIds[0])} />
-                        <image className={g.satCover} href={covers.get(sat.trackId)!} x={cx - cr} y={cy - cr} width={2 * cr} height={2 * cr} clipPath="url(#planet-face-clip)" preserveAspectRatio="xMidYMid slice" />
-                      </g>
+                  {(() => {
+                    const dot = (
+                      <circle cx={cx} cy={cy} r={sr} fill={gold ? undefined : color(sat.memberIds[0])}
+                        className={`${gold ? g.goldSat : ''} ${fresh.tracks.has(key) || fresh.gold.has(key) ? g.satBorn : ''}`} />
                     )
-                  })() : (
-                  <circle cx={cx} cy={cy} r={sr} fill={gold ? undefined : color(sat.memberIds[0])}
-                    className={`${gold ? g.goldSat : ''} ${fresh.tracks.has(key) || fresh.gold.has(key) ? g.satBorn : ''}`} />
-                  )}
+                    const srcs = covers?.get(sat.trackId)
+                    if (!srcs || srcs.length === 0) return dot
+                    return <SatCover roomId={roomId} sources={srcs} cx={cx} cy={cy} cr={6.5 * grow * u} pad={1.6 * u} ring={gold ? '#FFE3B8' : color(sat.memberIds[0])} dot={dot}
+                      className={fresh.tracks.has(key) || fresh.gold.has(key) ? g.satBorn : undefined} />
+                  })()}
                   {fresh.gold.has(key) && <Sparkle x={cx} y={cy} u={u} />}
                 </g>
               )
