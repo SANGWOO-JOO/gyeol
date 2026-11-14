@@ -9,6 +9,7 @@ import { Result } from './pages/Result'
 import { Landing } from './room/pages/Landing'
 import { CreateRoom } from './room/pages/CreateRoom'
 import { RoomEntry } from './room/pages/RoomEntry'
+import { LegalPage } from './legal/LegalPage'
 import { AdminAudit, AdminLogin, AdminRoom, AdminRooms } from './admin/AdminPages'
 
 const router = createBrowserRouter([
@@ -16,6 +17,9 @@ const router = createBrowserRouter([
   { path: '/', element: <Landing /> },
   { path: '/rooms/new', element: <CreateRoom /> },
   { path: '/rooms/:rid', element: <RoomEntry /> },
+  // 이용약관·개인정보 처리방침 (문안은 docs/legal/*.md)
+  { path: '/terms', element: <LegalPage doc="terms" /> },
+  { path: '/privacy', element: <LegalPage doc="privacy" /> },
   // 관리자 (room-web.md 8단계, 배포 때 지정 IP만)
   { path: '/admin', element: <AdminLogin /> },
   { path: '/admin/rooms', element: <AdminRooms /> },

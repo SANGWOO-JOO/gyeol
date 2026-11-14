@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { api, ApiError, putToS3 } from '../api'
 import { Alert, Layout } from '../components/Layout'
 import { MAX_UPLOAD_BYTES, topVideoIds, uploadBody, VIDEO_CHECK_LIMIT } from '../takeout/filter'
@@ -107,6 +107,9 @@ export function Upload() {
             {days !== null && days < SHORT_DAYS && (
               <Alert kind="warn">기록 기간이 짧아요({Math.round(days)}일). "YouTube 및 YouTube Music"으로 받은 파일은 최근 기록 일부만 와요. "내 활동 → YouTube"로 다시 받으면 더 길게 올 수 있어요.</Alert>
             )}
+            <p className={ui.small} style={{ margin: 0 }}>
+              올리면 <Link to="/terms">이용약관</Link>과 <Link to="/privacy">개인정보 처리방침</Link>에 동의하는 것으로 봐요. 올린 기록은 결과 화면에서 언제든 지울 수 있어요.
+            </p>
             <div className={ui.row} style={{ justifyContent: 'flex-end' }}>
               <button className={ui.button} onClick={() => inputRef.current?.click()} disabled={step !== 'preview'}>다른 파일</button>
               <button className={`${ui.button} ${ui.primary}`} onClick={upload} disabled={step !== 'preview'}>

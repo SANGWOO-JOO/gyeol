@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import s from '../room.module.css'
 import o from './outside.module.css'
+import { LegalLinks } from '../../legal/LegalLinks'
 
 /** <html data-theme="room">을 켠다. 화면을 떠나면 끈다 (청취 분석 화면은 기존 테마) */
 export function useRoomTheme() {
@@ -18,7 +19,7 @@ export function RoomPage({ children, label }: { children: ReactNode; label?: str
   return (
     <div className={`${s.page} ${o.cosmos}`}>
       <div className={o.sky} aria-hidden="true"><div className={o.nebula} /><div className={o.starsFar} /><div className={o.stars} /></div>
-      <main className={`${s.column} ${o.glassCol}`} aria-label={label}>{children}</main>
+      <main className={`${s.column} ${o.glassCol}`} aria-label={label}>{children}<LegalLinks /></main>
     </div>
   )
 }

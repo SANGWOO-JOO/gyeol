@@ -4,6 +4,7 @@ import { Avatar } from '../components/Avatar'
 import { Spinner } from '../components/RoomPage'
 import { hasBatchim, iAm } from '../text'
 import { Sheet } from './Sheet'
+import { LegalLinks } from '../../legal/LegalLinks'
 import type { ToastData } from './Toast'
 import a from './account.module.css'
 
@@ -97,6 +98,7 @@ export function MeSheet({ roomId, me, onClose, onRenamed, onLeft, onError, show 
           {leaving ? <Spinner size={16} /> : <Icon d={<path d="M9 6l6 6-6 6" />} size={16} />}
         </button>
       </div>
+      <LegalLinks />
     </Sheet>
   )
 }

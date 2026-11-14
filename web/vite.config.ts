@@ -8,5 +8,7 @@ export default defineConfig({
     port: 15173,
     strictPort: true,
     proxy: { '/api': 'http://localhost:18080' },
+    // 약관 문안(../docs/legal/*.md)을 ?raw로 읽는다
+    fs: { allow: ['.', '../docs/legal'] },
   },
 })
