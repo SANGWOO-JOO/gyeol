@@ -24,4 +24,13 @@ class DescriptionGuardTest {
         assertNull(DescriptionGuard.usable("2003년부터 활동을 시작한 가수로, 다양한 음악 활동을 펼쳐온 아티스트입니다."))
         assertNull(DescriptionGuard.usable(null))
     }
+
+    @Test
+    fun `해요체 - 거절문은 지우고 음악 설명은 둔다 (11-14 프롬프트 해요체)`() {
+        assertNull(DescriptionGuard.usable("근거 자료에 장르 정보가 없어서 설명을 작성할 수 없어요."))
+        assertNull(DescriptionGuard.usable("죄송해요, 이 가수의 음악 정보가 부족해요."))
+        assertNull(DescriptionGuard.usable("설명을 드릴 수 없어요."))
+        val ok = "몽환적인 신스 팝을 들려주는 밴드예요. 부드러운 보컬이 특징이에요."
+        assertEquals(ok, DescriptionGuard.usable(ok))
+    }
 }

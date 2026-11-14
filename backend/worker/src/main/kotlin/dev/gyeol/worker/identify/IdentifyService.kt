@@ -178,15 +178,19 @@ class IdentifyService(
                     val tries = listOf(cleaned.artist to cleaned.title, cleaned.artistAlt to cleaned.title, cleaned.artist to cleaned.titleAlt)
                         .filter { (a, b) -> !a.isNullOrBlank() && !b.isNullOrBlank() }.distinct()
                     var hit: Pair<Long, Query>? = null
+                    // I-55: 언어판 녹음만 맞으면(질의엔 언어판 표시 없음) 다른 표기로 원곡을 더 찾아 보고, 없을 때만 언어판을 쓴다
+                    var languageOnly: Pair<TrackInfo, Query>? = null
                     for ((a, b) in tries) {
                         val info = try {
                             fetcher.identify(a!!, b!!)
                         } catch (e: HttpClientErrorException) {
                             failOne(t, e, sink); return@mapIndexedNotNull null
                         } ?: continue
+                        if (info.languageVersion) { if (languageOnly == null) languageOnly = info to Query(a, b, byChannelName = false); continue }
                         hit = tx.execute { repo.upsertTrack(info) }!! to Query(a, b, byChannelName = false)
                         break
                     }
+                    if (hit == null) languageOnly?.let { (info, q) -> hit = tx.execute { repo.upsertTrack(info) }!! to q }
                     Triple(hit?.first, hit?.second ?: tries.firstOrNull()?.let { Query(it.first!!, it.second!!, false) }, if (hit == null) "NOT_IN_MUSICBRAINZ" else null)
                 }
             }

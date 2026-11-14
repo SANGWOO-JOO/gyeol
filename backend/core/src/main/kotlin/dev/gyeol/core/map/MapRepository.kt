@@ -118,6 +118,16 @@ class MapRepository(private val jdbc: JdbcClient) {
             """.trimIndent(),
         ).param("l", limit).query { rs, _ -> ArtistRef(rs.getLong(1), rs.getObject(2) as UUID, rs.getString(3)) }.list()
 
+    /** Bedrock 설명 전부 (가수 id, 설명). 11-14 해요체 일회성 변환용 */
+    fun bedrockDescriptions(): List<Pair<Long, String>> =
+        jdbc.sql("SELECT artist_id, description FROM artist_profile WHERE description IS NOT NULL AND model IS NOT NULL AND model <> 'fake' AND model <> 'none' ORDER BY artist_id")
+            .query { rs, _ -> rs.getLong(1) to rs.getString(2) }.list()
+
+    /** 설명 문자열만 바꾼다. described_at·근거·모델은 그대로라 벡터를 다시 만들지 않는다 (문체만 바꿀 때) */
+    fun replaceDescriptionText(artistId: Long, text: String) {
+        jdbc.sql("UPDATE artist_profile SET description = :d WHERE artist_id = :a").param("a", artistId).param("d", text).update()
+    }
+
     fun description(artistId: Long): String? =
         jdbc.sql("SELECT description FROM artist_profile WHERE artist_id = :a").param("a", artistId).query(String::class.java).optional().orElse(null)
 

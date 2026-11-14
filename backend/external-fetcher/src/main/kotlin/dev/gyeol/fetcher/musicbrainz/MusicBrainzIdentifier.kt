@@ -5,8 +5,8 @@ import tools.jackson.databind.JsonNode
 data class IdentifyRequest(val artist: String?, val title: String?)
 
 data class IdArtist(val mbid: String, val name: String, val sortName: String?, val aliases: List<String>)
-/** [lengthMs]는 녹음 길이 (같은 곡의 다른 표기인지 확인할 때 쓴다). 없을 수 있다 */
-data class IdRecording(val mbid: String, val title: String, val lengthMs: Long? = null)
+/** [lengthMs]는 녹음 길이 (같은 곡의 다른 표기인지 확인할 때 쓴다). 없을 수 있다. [languageVersion]: 제목·설명에 언어판 표시(Japanese Version 등) */
+data class IdRecording(val mbid: String, val title: String, val lengthMs: Long? = null, val languageVersion: Boolean = false)
 data class IdRelease(val mbid: String, val groupMbid: String, val title: String, val date: String, val type: String?)
 
 data class IdentifyResult(
@@ -17,6 +17,11 @@ data class IdentifyResult(
     val release: IdRelease? = null,
     val calls: Int = 0,
     val ms: Long = 0,
+    /**
+     * I-55: 고른 녹음이 언어판이고 질의에는 언어판 표시가 없음 (표시 없는 후보가 없어 언어판만 맞은 경우).
+     * worker는 다른 표기(LLM의 다른 언어 제목 등)로 한 번 더 찾아 원곡이 맞으면 그쪽을 쓴다
+     */
+    val languageVersion: Boolean = false,
 )
 
 /**
@@ -36,6 +41,13 @@ class MusicBrainzIdentifier(
     // "Korean version"·"Japanese ver." 같은 언어판은 원곡일 수 있어 판으로 보지 않는다 (뚜두뚜두의 SQUARE UP 녹음 설명이 "Korean version")
     private val recordingVariant = Regex("""\b(live|remix|mix|edit|inst(rumental)?|acoustic|demo|karaoke|mr|remaster(ed)?)\b""", RegexOption.IGNORE_CASE)
     private val parenthetical = Regex("""[(\[（](.*?)[)\]）]""")
+    // I-55: 언어판 표시. 표시 없는 후보가 있으면 언어판 녹음을 뒤로 둔다 (질의에 언어판 표시가 있으면 끔).
+    // 원곡 녹음에도 "Korean version" 설명이 붙는 경우(뚜두뚜두)는 표시 없는 후보가 없어 그대로 원곡으로 고른다
+    private val languageMark = Regex(
+        """\b(japanese|english|korean|chinese|mandarin|cantonese|thai|spanish|vietnamese)\s*(ver\.?|version)(?![a-z])|""" +
+            """(日本語|韓国語|英語|中国語)\s*(ver|版|バージョン)|(한국어|일본어|영어|중국어)\s*(버전|ver)""",
+        RegexOption.IGNORE_CASE,
+    )
     // 같은 날 나온 음반이면 대표 표지가 되는 쪽을 먼저
     private val typeOrder = mapOf("Album" to 0, "EP" to 1, "Single" to 2)
     private val luceneSpecial = Regex("""[()\[\]/:"!?~^\\\-{}+*&|]""")
@@ -44,7 +56,12 @@ class MusicBrainzIdentifier(
         val started = System.nanoTime()
         var calls = 0
         val call = { path: String, params: Map<String, Any> -> calls++; mb(path, params) }
-        fun done(r: IdentifyResult) = r.copy(calls = calls, ms = (System.nanoTime() - started) / 1_000_000)
+        val queryLang = languageMark.containsMatchIn(title)
+        fun done(r: IdentifyResult) = r.copy(
+            calls = calls, ms = (System.nanoTime() - started) / 1_000_000,
+            languageVersion = !queryLang && r.recording?.languageVersion == true,
+        )
+        fun earliestRelease(recs: List<JsonNode>, relaxed: Boolean = false) = this.earliestRelease(recs, relaxed, preferPlain = !queryLang)
 
         // "지오디 (god)"처럼 괄호로 병기한 가수는 전체로 못 찾으면 부분으로 다시 찾는다
         val artists = findArtists(artistName, call).ifEmpty {
@@ -88,7 +105,7 @@ class MusicBrainzIdentifier(
         // 원곡 음반이 없으면(라이브·베스트뿐, 발매일 없음) 그 곡이 실린 공식 음반을 차선으로 쓴다. 공식 음반도 없으면 음반 없이 곡으로 인정한다
         withoutRelease?.let { (artist, recs) ->
             val fallback = earliestRelease(recs, relaxed = true)
-            val rec = recs.minBy { isVariantRecording(it) }
+            val rec = recs.minWith(compareBy({ isVariantRecording(it) }, { !queryLang && isLanguageVersion(it) }))
             return done(IdentifyResult("MATCHED", recording = fallback?.first ?: idRecording(rec), artist = artist, release = fallback?.second))
         }
         // 마지막 수단: 잘린 제목. 한 가수에서 후보 제목이 하나로 모일 때만 인정한다
@@ -156,8 +173,12 @@ class MusicBrainzIdentifier(
     }
 
     /** [relaxed]면 라이브·컴필레이션과 발매일 없는 음반도 공식이면 허용한다 (발매일 있는 것을 먼저) */
-    private fun earliestRelease(recs: List<JsonNode>, relaxed: Boolean = false): Pair<IdRecording, IdRelease>? =
-        recs.flatMap { rec -> rec.path("releases").toList().map { rec to it } }
+    private fun earliestRelease(recs: List<JsonNode>, relaxed: Boolean = false, preferPlain: Boolean = true): Pair<IdRecording, IdRelease>? {
+        // 언어판 표시 없는 녹음이 후보에 있을 때만 언어판을 뒤로 (I-55)
+        val demoteLang = preferPlain && recs.any { !isLanguageVersion(it) } && recs.any { isLanguageVersion(it) }
+        // 질의 자체가 언어판("… (Japanese Version)")이면 반대로 언어판 녹음을 먼저 (그 판을 들은 기록)
+        val promoteLang = !preferPlain && recs.any { isLanguageVersion(it) }
+        return recs.flatMap { rec -> rec.path("releases").toList().map { rec to it } }
             .filter { (_, r) ->
                 r.path("status").asString("") == "Official" && (relaxed || (
                     r.path("date").asString("").isNotEmpty() &&
@@ -167,6 +188,8 @@ class MusicBrainzIdentifier(
             .sortedWith(
                 compareBy(
                     { isVariantRecording(it.first) },
+                    { demoteLang && isLanguageVersion(it.first) },
+                    { promoteLang && !isLanguageVersion(it.first) },
                     // 차선에서는 라이브 음반의 녹음을 맨 뒤로 (길이·편곡이 원곡과 달라 다른 표기 비교가 틀어진다)
                     { r -> r.second.path("release-group").path("secondary-types").toList().any { it.asString("") == "Live" } },
                     { r -> r.second.path("date").asString("").isEmpty() },
@@ -185,9 +208,15 @@ class MusicBrainzIdentifier(
                     type = r.path("release-group").path("primary-type").asString("").ifEmpty { null },
                 )
             }
+    }
 
     private fun idRecording(rec: JsonNode) =
-        IdRecording(rec.path("id").asString(), rec.path("title").asString(), rec.path("length").takeIf { it.isNumber }?.asLong())
+        IdRecording(rec.path("id").asString(), rec.path("title").asString(), rec.path("length").takeIf { it.isNumber }?.asLong(), isLanguageVersion(rec))
+
+    private fun isLanguageVersion(rec: JsonNode): Boolean {
+        val marks = parenthetical.findAll(rec.path("title").asString("")).map { it.groupValues[1] } + rec.path("disambiguation").asString("")
+        return marks.any { languageMark.containsMatchIn(it) }
+    }
 
     private fun isVariantRecording(rec: JsonNode): Boolean {
         val title = rec.path("title").asString("")

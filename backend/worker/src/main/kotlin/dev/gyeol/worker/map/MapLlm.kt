@@ -69,6 +69,7 @@ class BedrockMapLlm(private val props: WorkerProperties.Llm, json: JsonMapper) :
             장르와 세부 장르, 분위기, 악기 편성, 템포와 에너지, 보컬 특징, 시대적 감성을 중심으로 3~4문장으로 쓴다.
             근거에 없는 내용은 추측하지 않는다. 설명에 쓴 근거 자료의 [번호]를 evidence에 적는다.
             근거에 장르·분위기·소리에 관한 내용이 없으면 description을 빈 문자열로 둔다. 사과하거나 쓸 수 없는 이유를 적지 않는다.
+            모든 문장은 부드러운 존댓말(해요체)로 끝낸다. 예: "몽환적인 신스 팝을 들려줘요.", "부드러운 보컬이 특징이에요."
         """.trimIndent()
 
         private val GALAXY_SYSTEM = """

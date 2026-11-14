@@ -111,6 +111,44 @@ class MusicBrainzIdentifierTest {
     }
 
     @Test
+    fun `I-55 언어판 녹음은 표시 없는 원곡 녹음이 있으면 뒤로 - 더 이른 음반이어도`() {
+        val r = identifier(
+            listOf(artist("iu", "IU", aliases = listOf("아이유"))),
+            byArtist = listOf(
+                recording("jp", "You & I (Japanese Version)", release("You & I", "2011-01-01", type = "Single")),
+                recording("kr", "너랑 나", release("Last Fantasy", "2011-11-29")),
+            ),
+        ).identify("아이유", "YOU & I (너랑 나)")
+        assertEquals("kr", r.recording!!.mbid, "원곡(표시 없음) 녹음")
+        assertEquals("Last Fantasy", r.release!!.title)
+        assertFalse(r.languageVersion)
+    }
+
+    @Test
+    fun `I-55 질의에 Japanese Version이 있으면 언어판을 그대로 고른다`() {
+        val r = identifier(
+            listOf(artist("iu", "IU", aliases = listOf("아이유"))),
+            byArtist = listOf(
+                recording("jp", "You & I (Japanese Version)", release("You & I", "2012-07-18", type = "Single")),
+                recording("kr", "You & I", release("Last Fantasy", "2011-11-29")),
+            ),
+        ).identify("IU", "You & I (Japanese Version)")
+        assertEquals("jp", r.recording!!.mbid)
+        assertFalse(r.languageVersion, "질의가 언어판이면 표시하지 않는다")
+    }
+
+    @Test
+    fun `I-55 후보가 언어판뿐이면 그 녹음을 고르고 languageVersion으로 알린다 (worker가 다른 표기로 다시 찾음)`() {
+        val r = identifier(
+            listOf(artist("iu", "IU", aliases = listOf("아이유"))),
+            byArtist = listOf(recording("jp", "You & I (Japanese Version)", release("You & I", "2012-07-18", type = "Single"))),
+        ).identify("IU", "You & I")
+        assertEquals("jp", r.recording!!.mbid)
+        assertTrue(r.languageVersion)
+        assertTrue(r.recording!!.languageVersion)
+    }
+
+    @Test
     fun `버전 음반(ver·inst)은 다른 선택지가 없을 때만`() {
         val r = identifier(
             listOf(artist("n", "NewJeans", aliases = listOf("뉴진스"))),

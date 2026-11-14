@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 data class SeedRequest(val countries: List<SeedCountry>, val perCountry: Int)
 data class LimitRequest(val limit: Int = 2000)
+data class HaeyoRequest(val apply: Boolean = false)
 data class RedescribeRequest(val artistIds: List<Long> = emptyList(), val maxCalls: Int = 0)
 private const val REDESCRIBE_MAX = 30
 data class JobState(val name: String, val running: Boolean, val progress: String, val startedAt: Instant, val endedAt: Instant? = null, val error: String? = null)
@@ -28,6 +29,7 @@ data class JobState(val name: String, val running: Boolean, val progress: String
 @ConditionalOnProperty("gyeol.worker.map.admin-endpoint", havingValue = "true")
 class MapAdminController(
     private val service: MapService,
+    private val map: dev.gyeol.core.map.MapRepository,
     private val props: dev.gyeol.worker.WorkerProperties,
     private val json: tools.jackson.databind.json.JsonMapper,
 ) {
@@ -67,6 +69,30 @@ class MapAdminController(
         require(req.maxCalls in 1..REDESCRIBE_MAX) { "maxCalls는 1~${REDESCRIBE_MAX}이어야 합니다" }
         val bedrock = BedrockMapLlm(props.llm, json)
         return start("redescribe") { service.redescribe(req.artistIds, bedrock, req.maxCalls) }
+    }
+
+    /**
+     * 11-14 일회성: Bedrock 설명 문체를 해요체로 ([HaeyoStyle], 무료). apply=false면 바뀔 수와 못 바꾼 문장만 돌려준다.
+     * described_at을 바꾸지 않아 벡터는 그대로다. 실행 전에 원문을 따로 백업할 것
+     */
+    @PostMapping("/internal/map/haeyo")
+    fun haeyo(@RequestBody req: HaeyoRequest): Map<String, Any> {
+        val rows = map.bedrockDescriptions()
+        var sentences = 0; var converted = 0; var changedRows = 0
+        val unchanged = mutableListOf<Map<String, Any>>()
+        val samples = mutableListOf<Map<String, Any>>()
+        for ((id, text) in rows) {
+            val r = HaeyoStyle.convert(text)
+            sentences += r.sentences; converted += r.converted
+            r.unchanged.forEach { unchanged += mapOf("artistId" to id, "sentence" to it) }
+            if (r.text != text) {
+                changedRows++
+                if (samples.size < 2000) samples += mapOf("artistId" to id, "before" to text, "after" to r.text)
+                if (req.apply) map.replaceDescriptionText(id, r.text)
+            }
+        }
+        log.info("해요체 변환(apply={}): 설명 {}개, 문장 {}개 중 {}개 변환, 못 바꾼 문장 {}개, 바뀐 설명 {}개", req.apply, rows.size, sentences, converted, unchanged.size, changedRows)
+        return mapOf("descriptions" to rows.size, "sentences" to sentences, "converted" to converted, "changedRows" to changedRows, "unchanged" to unchanged, "samples" to samples, "applied" to req.apply)
     }
 
     @PostMapping("/internal/map/clean-descriptions")

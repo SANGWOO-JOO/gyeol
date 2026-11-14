@@ -23,6 +23,8 @@ data class TrackInfo(
     val releaseType: String?,
     /** 녹음 길이 (저장하지 않음). 다른 표기로 찾은 결과가 같은 곡인지 비교할 때만 쓴다 */
     val lengthMs: Long? = null,
+    /** I-55: 언어판 녹음만 맞았음 (저장하지 않음). 다른 표기로 원곡을 한 번 더 찾을 때 쓴다 */
+    val languageVersion: Boolean = false,
 )
 
 data class Alias(val key: String, val status: AliasStatus, val trackId: Long?, val checkedAt: Instant) {

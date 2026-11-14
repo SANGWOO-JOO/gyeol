@@ -108,6 +108,7 @@ class FetcherClient(props: WorkerProperties) {
             releaseTitle = rel.path("title").asString("").ifEmpty { null },
             releaseDate = rel.path("date").asString("").ifEmpty { null },
             releaseType = rel.path("type").asString("").ifEmpty { null },
+            languageVersion = r.path("languageVersion").asBoolean(false),
         )
     }
 }

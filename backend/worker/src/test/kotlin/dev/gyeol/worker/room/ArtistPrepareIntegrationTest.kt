@@ -69,7 +69,15 @@ class ArtistPrepareIntegrationTest {
         @Primary
         fun countingCleaner(): TitleCleaner = object : TitleCleaner {
             private val fake = FakeTitleCleaner()
-            override fun clean(items: List<RawTitle>, model: String?): CleanResult { LLM_CALLS.incrementAndGet(); return fake.clean(items, model) }
+            override fun clean(items: List<RawTitle>, model: String?): CleanResult {
+                LLM_CALLS.incrementAndGet()
+                // I-55 시험: 영어 제목과 다른 언어 제목(titleAlt)을 함께 돌려주는 LLM 흉내 (가짜, 비용 없음)
+                if (items.any { it.title.contains("언어판시험") }) return CleanResult(
+                    items.map { dev.gyeol.worker.llm.CleanedTitle(it.index, "언어가수", null, "You&I", "너랑나곡", dev.gyeol.worker.llm.Version.ORIGINAL) },
+                    "fake", 0, 0, 0,
+                )
+                return fake.clean(items, model)
+            }
             override fun spellings(items: List<RawTitle>, model: String?): SpellResult { LLM_CALLS.incrementAndGet(); return fake.spellings(items, model) }
             override fun medleySongs(items: List<RawTitle>, model: String?): MedleyResult { LLM_CALLS.incrementAndGet(); return fake.medleySongs(items, model) }
         }
@@ -117,6 +125,16 @@ class ArtistPrepareIntegrationTest {
             createContext("/internal/musicbrainz/identify") { ex ->
                 val body = ex.requestBody.readAllBytes().decodeToString()
                 val title = Regex("\"title\"\\s*:\\s*\"([^\"]*)\"").find(body)?.groupValues?.get(1).orEmpty()
+                // I-55: 영어 제목은 일본어판 녹음만 맞고(languageVersion), 한국어 제목은 원곡에 맞는다
+                if (body.contains("언어가수")) {
+                    val jp = title == "You&I"
+                    val t = if (jp) "You & I (Japanese Version)" else "너랑나곡"
+                    reply(ex, 200, """{"status":"MATCHED","recording":{"mbid":"${recording("lang$t")}","title":"$t"},
+                        "artist":{"mbid":"cccccccc-0000-0000-0000-000000000003","name":"언어가수","sortName":"언어가수","aliases":[]},
+                        "release":{"mbid":"${recording("rel$t")}","groupMbid":"${recording("rg$t")}","title":"음반 $t","date":"2011-11-29","type":"Album"},
+                        "languageVersion":$jp,"calls":2,"ms":10}""")
+                    return@createContext
+                }
                 val (artistMbid, artistName) = when {
                     body.contains("준비가수") && title.startsWith("대표") -> A to "준비가수"
                     body.contains("섞인가수") && title == "남의곡" -> A to "준비가수"
@@ -257,5 +275,21 @@ class ArtistPrepareIntegrationTest {
         service.prepare("n:준비가수2", "준비가수", null)
         assertEquals(first, jdbc.sql("SELECT finished_at FROM search_artist_prep WHERE prep_key = 'n:준비가수2'").query(java.sql.Timestamp::class.java).single())
         assertTrue(messages(coverUrl).isEmpty() && messages(imageUrl).isEmpty(), "두 번째는 아무것도 보내지 않는다")
+    }
+
+    @Autowired lateinit var identifyService: dev.gyeol.worker.identify.IdentifyService
+
+    @Test
+    fun `I-55 LLM 경로 - 영어 제목이 언어판만 맞으면 다른 언어 제목으로 다시 찾아 원곡을 고른다 (가짜 LLM)`() {
+        val raw = "언어가수 _ You&I(너랑나곡) 언어판시험"
+        val target = dev.gyeol.core.identify.Target(0, dev.gyeol.core.identify.AliasKey.of(raw, "어느채널"), raw, "어느채널", dev.gyeol.core.listen.Source.YOUTUBE, 1, dev.gyeol.core.identify.TargetStatus.PENDING)
+        var found: Long? = null
+        identifyService.identifyTargets(listOf(target), object : dev.gyeol.worker.identify.IdentifyService.TargetSink {
+            override fun finish(t: dev.gyeol.core.identify.Target, trackId: Long?) { found = trackId }
+            override fun fail(t: dev.gyeol.core.identify.Target) {}
+        })
+        val title = jdbc.sql("SELECT title FROM track WHERE id = :t").param("t", found!!).query(String::class.java).single()
+        assertEquals("너랑나곡", title, "원곡")
+        assertEquals(0, jdbc.sql("SELECT count(*) FROM track WHERE title = 'You & I (Japanese Version)'").query(Int::class.java).single(), "언어판 곡은 만들지 않는다")
     }
 }

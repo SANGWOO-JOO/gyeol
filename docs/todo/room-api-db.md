@@ -568,3 +568,25 @@
   - releaseYear: `track.release_date` 앞 4자리. 없으면 `artist_recording.first_release_date`(그 녹음이 처음 나온 날, I-30 수집) 앞 4자리. 둘 다 없으면 null
 - 리뷰 방 리뷰A(member 28) 40곡: 앨범 40/40, 연도 39/40. 빠진 1곡은 Her Blue Sky(베스트 앨범, 날짜 없음, 녹음 수집 없음)이다. artist_recording 대체로 더 채워진 곡은 0이다.
 - 테스트: api 1개(원곡 음반·연도, 녹음 첫 해 대체, 둘 다 없으면 null, artist 정렬에도 같은 값). api 94(건너뜀 1)·worker 90 통과. 18:42:56 api·worker 재시작.
+
+### 가수 설명 해요체 (11-14, 사용자 승인, 무료)
+- 프롬프트: `MapLlm.DESCRIBE_SYSTEM`에 "모든 문장은 해요체로 끝낸다" 한 줄과 예시 두 개를 더했다. 가드 테스트 1개를 더했다(해요체 거절문 3종은 걸러지고, 해요체 음악 설명은 통과).
+- 기존 설명 변환: `worker/map/HaeyoStyle`(문장 끝만, 규칙으로 확신 못 하면 그대로)를 만들고, 일회성 `POST /internal/map/haeyo {apply}`(`MAP_ADMIN_ENDPOINT`일 때만)로 적용했다.
+  - 규칙: 있다/없다, 과거 ㅆ, 명사+이다(받침 없으면 예요), ㄴ다·는다 활용(ㅣ→ㅕ, ㅜ→ㅝ, ㅗ→ㅘ, ㅡ→ㅓ, ㅚ→ㅙ), ㄹ 탈락 목록, 르 불규칙, ㅂ 불규칙, 하다 형용사
+  - 시험 적용 중 오변환 3종(아우러요·부러요·채울어요), 이미 존댓말인 합니다체(두었습니예요), 받침 없는 명사+이다(라이터이에요)를 찾아 규칙과 테스트를 고쳤다.
+- 백업: 로컬 DB 테이블 `backup_artist_desc_20261114`(1,403행: artist_id·description·model·described_at)
+- 결과: 설명 1,403개, 문장 4,055개 중 4,041개 변환, **1,400행 변경**. `described_at`은 그대로라(0행 변경) 오래된 벡터 0, llm_call 1689 그대로.
+- 못 바꾼 문장 7개(그대로 둠, 손으로 고칠 후보): 합니다체 5문장(가수 928·1074·1657×3, "~있습니다/~거두었습니다" → "~있어요/~거두었어요"), "프로듀서이자 DJ다." 2문장(1458·1668 → "DJ예요"). 목록은 scratchpad `haeyo-unchanged.txt`.
+- 테스트: worker `HaeyoStyleTest` 4개, `DescriptionGuardTest` 1개.
+
+### I-55 식별 때 원곡 우선 (11-14, 사용자 승인)
+- fetcher `MusicBrainzIdentifier`
+  - 녹음 제목 괄호·설명의 언어판 표시(Japanese/English/Korean/Chinese… Ver(sion), 日本語ver·版, 일본어 버전 등)를 `isLanguageVersion`으로 본다.
+  - `earliestRelease`: 질의에 언어판 표시가 없고 표시 없는 후보가 있으면 언어판 녹음을 뒤로 둔다. 질의에 언어판 표시가 있으면 반대로 언어판을 먼저 둔다. 뚜두뚜두(원곡에 "Korean version" 설명, 표시 없는 후보 없음)는 그대로다.
+  - 후보가 언어판뿐이면 그 녹음을 고르고 응답 `languageVersion=true`(`IdRecording.languageVersion`도)로 알린다.
+- worker: `TrackInfo.languageVersion`(저장 안 함). `IdentifyService.identifyWithLlm`의 표기 시도에서 언어판만 맞으면 다른 표기(LLM `titleAlt` 등)로 계속 찾고, 원곡이 맞으면 그것을, 끝까지 없으면 언어판을 쓴다.
+- 기존 중복 2쌍(IU·다비치)은 합치지 않았다.
+- 테스트
+  - fetcher 3개: IU 유형 원곡 선택, 질의에 Japanese Version이면 언어판, 언어판뿐이면 표시
+  - worker 1개: LLM 경로 다시 찾기, 가짜 LLM이라 비용 없음
+  - 결과: fetcher 57·worker 96·api 99(건너뜀 1) 통과. 19:33:13 api·worker·fetcher 재시작.
