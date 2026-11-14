@@ -83,6 +83,11 @@ class ArtistReleaseRepository(private val jdbc: JdbcClient) {
             ArtistRecording(rs.getObject(1, UUID::class.java), rs.getString(2), rs.getString(3), rs.getObject(4) as Long?, rs.getString(5))
         }.list()
 
+    /** 저장된 곡 제목 (인기순 2차 거르기 대조용, I-41) */
+    fun titles(artistId: Long, withVersions: Boolean): List<String> =
+        jdbc.sql("SELECT title FROM artist_recording WHERE artist_id = :a AND (:v OR NOT is_version)")
+            .param("a", artistId).param("v", withVersions).query { rs, _ -> rs.getString(1) }.list()
+
     fun artistMbid(artistId: Long): UUID? =
         jdbc.sql("SELECT mbid FROM artist WHERE id = :a").param("a", artistId).query(UUID::class.java).optional().orElse(null)
 }

@@ -68,8 +68,10 @@ class RoomSongIntegrationTest {
                 val q = ex.requestURI.query.orEmpty()
                 if (q.contains("ffffffff")) { ex.sendResponseHeaders(500, -1); ex.close(); return@createContext }
                 val offset = Regex("offset=(\\d+)").find(q)?.groupValues?.get(1)?.toInt() ?: 0
-                fun r(i: Int, title: String, date: String?, video: Boolean = false) =
-                    """{"mbid":"00000000-0000-0000-0000-${"%012d".format(i)}","title":"$title","firstReleaseDate":${date?.let { "\"$it\"" } ?: "null"},"video":$video}"""
+                val artistMbid = Regex("mbid=([0-9a-f-]{36})").find(q)?.groupValues?.get(1).orEmpty()
+                fun r(i: Int, title: String, date: String?, video: Boolean = false, primary: String = artistMbid, length: Long? = 200_000) =
+                    """{"mbid":"00000000-0000-0000-0000-${"%012d".format(i)}","title":"$title","firstReleaseDate":${date?.let { "\"$it\"" } ?: "null"},"video":$video,""" +
+                        """"primaryArtistMbid":"$primary","lengthMs":${length ?: "null"}}"""
                 val all = (0 until 250).map { i ->
                     when (i) {
                         0 -> r(i, "밤편지", "2017-03-24")
@@ -78,6 +80,12 @@ class RoomSongIntegrationTest {
                         3 -> r(i, "날짜 없는 곡", null)
                         4 -> r(i, "뮤직비디오", "2020-01-01", true)  // 영상 녹음은 뺌
                         5 -> r(i, "Palette", "2017")
+                        // I-39·I-41: 주 가수가 다름, 60초 미만, 라이브 사이 부분, 팬 편집, 길이 모름(남김)
+                        6 -> r(i, "Graue Herren", "2016-12-18", primary = "99999999-0000-0000-0000-000000000000")
+                        7 -> r(i, "IU on 밤편지", "2024-01-01", length = 35_000)
+                        8 -> r(i, "Band Session", "2025-01-01")
+                        9 -> r(i, "Ditto (ric3show3r Jersey flip)", "2025-02-02")
+                        10 -> r(i, "길이 모름", "2009-09-09", length = null)
                         else -> r(i, "곡 $i", "2010-01-${"%02d".format(i % 28 + 1)}")
                     }
                 }
@@ -254,11 +262,13 @@ class RoomSongIntegrationTest {
         val scan = releases.scan(artistId)!!
         assertEquals("DONE", scan.status)
         assertEquals(250, scan.recordings)
-        // 250 - 같은 제목 1 - 영상 1 = 248
-        assertEquals(248, scan.stored)
+        // 250 - 같은 제목 1 - 영상 1 - 주 가수 다름·60초 미만·라이브 사이·팬 편집 4 = 244
+        assertEquals(244, scan.stored)
         val all = releases.latest(artistId, withVersions = true, limit = 300, offset = 0)
         assertEquals("2017-03-24", all.single { it.title == "밤편지" }.firstReleaseDate)
         assertTrue(all.none { it.title == "뮤직비디오" })
+        assertTrue(all.none { it.title in setOf("Graue Herren", "IU on 밤편지", "Band Session", "Ditto (ric3show3r Jersey flip)") }, "I-39·I-41")
+        assertTrue(all.any { it.title == "길이 모름" }, "길이를 모르면 남긴다")
         val shown = releases.latest(artistId, withVersions = false, limit = 300, offset = 0)
         assertTrue(shown.none { it.title == "밤편지 (Live)" }, "판 표시는 숨김")
         assertEquals("날짜 없는 곡", shown.last().title, "날짜 없는 곡은 맨 뒤")
@@ -268,7 +278,7 @@ class RoomSongIntegrationTest {
         jdbc.sql("UPDATE artist_release_scan SET finished_at = now() - interval '8 days' WHERE artist_id = :a").param("a", artistId).update()
         assertTrue(releases.requestScan(artistId, java.time.Instant.now().minus(java.time.Duration.ofDays(7))))
         service.handle(RoomSongMessage("SCAN_ARTIST_RELEASES", artistId = artistId))
-        assertEquals(248, releases.count(artistId))
+        assertEquals(244, releases.count(artistId))
 
         // 실패
         val bad = jdbc.sql("INSERT INTO artist (mbid, name, sort_name, aliases) VALUES ('ffffffff-0000-0000-0000-000000000000', '실패', null, '{}') RETURNING id")

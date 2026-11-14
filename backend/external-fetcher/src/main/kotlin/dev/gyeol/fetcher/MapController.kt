@@ -66,14 +66,19 @@ class MapController(private val lastFm: LastFmClient, private val musicBrainz: M
     fun artistRecordings(@RequestParam mbid: String, @RequestParam(defaultValue = "0") offset: Int): Map<String, Any?> {
         require(Regex("^[0-9a-f-]{36}$").matches(mbid)) { "mbid 형식이 올바르지 않습니다" }
         require(offset in 0..20_000) { "offset은 0~20000이어야 합니다" }
-        val body = musicBrainz.fetch("/recording", mapOf("artist" to mbid, "limit" to 100, "offset" to offset))
+        val body = musicBrainz.fetch("/recording", mapOf("artist" to mbid, "limit" to 100, "offset" to offset, "inc" to "artist-credits"))
         val items = body.path("recordings").toList().mapNotNull { r ->
             val title = r.path("title").asString("").trim().ifEmpty { return@mapNotNull null }
+            val credits = r.path("artist-credit").toList()
             mapOf(
                 "mbid" to r.path("id").asString(),
                 "title" to title,
                 "firstReleaseDate" to r.path("first-release-date").asString("").ifEmpty { null },
                 "video" to r.path("video").asBoolean(false),
+                // I-39: 길이(ms, 모르면 null), 크레딧 첫 가수(주 가수), 크레딧 전체 표기
+                "lengthMs" to r.path("length").takeIf { it.isNumber }?.asLong(),
+                "primaryArtistMbid" to credits.firstOrNull()?.path("artist")?.path("id")?.asString("")?.ifEmpty { null },
+                "credit" to credits.joinToString("") { it.path("name").asString("") + it.path("joinphrase").asString("") },
             )
         }
         return mapOf("total" to body.path("recording-count").asInt(0), "offset" to offset, "items" to items)

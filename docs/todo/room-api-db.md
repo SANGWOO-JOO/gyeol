@@ -309,3 +309,60 @@
 - 남는 것: 설명 벡터는 대괄호가 있던 문장으로 만들어졌다. 차이가 숫자뿐이라 다시 만들지 않는다.
 - 테스트: `CitationsTest` 2개, `RoomApiIntegrationTest` I-34 1개(저장할 때 지움, evidence 유지).
 
+### I-41 인기순·최신순 잡음 두 단계 거르기 + I-39 일부 (11-14)
+- 원칙: 화면 요청 때 MusicBrainz를 부르지 않는다. MusicBrainz는 worker가 가수 단위로 한 번 모은 `artist_recording`(V27)만 쓴다.
+- 1차 이름 규칙(core `identify/TitleNoise`, api에서 옮김): 녹음 목록 유무와 상관없이 항상 적용한다.
+  - 직캠·커버(괄호 속 cover, "… Cover 이름", acoustic/piano 등 cover)·1시간·가사·퍼포먼스·안무·M/V·방송 녹화
+  - 반주(instrumental·inst·MR)
+  - 팬 편집(flip·bootleg·jersey club·future funk·areia·kpop remix·장르 리믹스)
+  - 시상식 무대판(MMA·KGMA ver/remix)·Cut Ver.·데모곡
+  - VCR·stage talk·"[MINJI] …" 멤버 스킷
+  - 예능(파이프 두 개 이상·"@ 방송")·이모지·이상한 기호 3개 이상
+  - 뉴스 문장(전속계약·속보·[단독]·기자회견)
+  - Last.fm 결과의 가수 이름이 이 가수가 아닌 곡
+- 2차 녹음 목록 대조(api `ArtistSongsService`, 수집이 DONE일 때만):
+  - 녹음 제목(판 표시 포함)과 표기가 맞는 곡은 남긴다. 언어판(-Japanese version-·- English Version)과 (feat. …)는 떼고 원곡 제목으로도 맞춘다. 리믹스·밴드 버전은 떼지 않는다.
+  - 안 맞는 곡은 청취자 수가 1위의 1% 이상일 때만 남긴다.
+  - 제목에 가수 이름이 든 영상식 제목("NewJeans (뉴진스) 'Zero' Official")은 녹음 목록에 없으면 뺀다.
+  - 녹음 목록이 없거나 FAILED면 수집만 요청하고 1차만 적용한다.
+  - 캐시 키에 수집 끝난 시각을 넣어, 다 모이면 다음 요청부터 2차가 반영된다(worker가 api 캐시를 비울 수 없어서 이 방식).
+- 최신순 수집(worker `ArtistReleaseScanner`, I-39): fetcher `artist-recordings`에 `lengthMs`·`primaryArtistMbid`·`credit`(inc=artist-credits)를 더했다. 아래는 저장하지 않는다.
+  - 주 가수(첫 크레딧)가 이 가수가 아닌 녹음: IVE "Graue Herren"(Newport, CAMELMOB & IVE), YOASOBI "the NOISE"
+  - 60초 미만: "IVE on Thank U" 등 해설, YOASOBI Prologue
+  - 1차 이름 규칙에 걸리는 것과 라이브 공연 사이 부분(제목 전체가 opening·ending·band session·mc·talk): YOASOBI "Band Session"·"Opening"
+  - `V29__rescan_artist_releases.sql`로 기존 수집을 비워 새 규칙으로 다시 모은다.
+- 검색: Last.fm 결과의 가수 이름이 영상 제목 같으면 뺀다(`TitleNoise.isVideoLikeArtist`: 한글 조사 뒤 띄어쓰기가 있는 12자 이상, 파이프·@·이모지). "성시경(Sungsikyung)의 킬링보이스를 라이브로!"는 빠지고 "P!nk"·"Clover!"는 남는다.
+- 로컬 실측(11-14, 인기순 5쪽 곡 수):
+
+| 가수 | I-36 뒤(전) | 녹음 목록 없음(1차만) | 녹음 목록 있음(1·2차) |
+|---|---|---|---|
+| NewJeans | 100 | 53 | 27 |
+| DAVICHI | 100 | 100 | 100 |
+| 성시경 | 95 | 95 | 95 |
+| YOASOBI | 100 | 100 | 81 |
+| IVE | 99 | 94 | 92 |
+
+  - NewJeans 수집 실패(FAILED, worker를 끄고 측정)는 53곡으로, 없음과 같은 목록이다.
+  - NewJeans 있음 27곡에 남은 잡음은 0이다. 원곡 18곡 + 공식 리믹스(250·FRNK·J.I.D) 8곡 + "Gods".
+  - NewJeans 없음·실패 53곡에 남은 잡음은 분명한 것 약 12곡이다(Celebrity·Odoriko·인트로·하입보이·어텐션·"Intro + Attention + Hype boy"·팬 리믹스 몇 개·"아름다워 ( LG Gram )" 등). Band ver.·Performance ver. 8곡은 판단이 애매해 남긴다.
+  - YOASOBI에서 빠진 19곡은 로마자 제목 중복(Yoru ni Kakeru → 夜に駆ける는 남음), THE FIRST TAKE, 다른 가수 곡 커버("/ 初音ミク")다. 정상 곡 손실은 "Racing into the Night"(영문판) 1곡이다.
+  - IVE에서 빠진 것은 "About …" 해설 트랙·"Performance Stage 가로 ver." 등이다. 일본어판은 원곡 대조로 남는다.
+- 테스트:
+  - `TitleNoiseTest` 4개(실제 잡음 40여 개 거름, 정상 27개 남김, 라이브 사이 부분·영상 제목 가수, 가수 이름 든 제목)
+  - `ArtistMatchFormsTest` 1개
+  - `RoomApiIntegrationTest` I-41 1개(없음 → 1차만·수집 요청, 모으는 중 대조 안 함, 다 모이면 1% 규칙, 실패 → 1차만·재요청), 검색 영상 제목 가수
+  - worker `RoomSongIntegrationTest`(주 가수 다름·60초 미만·라이브 사이·팬 편집 거름, 길이 모름은 남김)
+
+
+### I-40 흐린 행성 수 (11-14)
+- 결정(관리 세션 11-14): 행성 1개면 3명. 가수 판 "가까운 가수"와 같은 목록·순서에서 방 가수를 뺀 앞 3명이다. 행성이 늘면 행성마다 나누고, 전체 상한은 6명이다. 방에 있는 가수와 중복은 뺀다. 응답에 `artistId`가 있다.
+- 구현(api `RoomSongController.ghosts`):
+  - 행성마다 `min(3, ceil(6 / 행성 수))`명씩 가까운 가수를 고른다(`nearestPlaced`, 설명 없는 가수는 원본 벡터).
+  - 최근 행성부터 채우고 6명이 차면 멈춘다. 앞에서 고른 흐린 행성은 다음 행성 조회에서 뺀다.
+- 로컬 확인(11-14 02:59 api 재시작 뒤): 방 3곳(행성 37·23·9개)은 모두 흐린 행성 6명, 방 가수와 겹침 0, 중복 0이다. 임시 기기 열쇠로 조회하고 바로 지웠다. 행성 1개인 방은 로컬에 없어 테스트로만 확인했다.
+- 테스트: `RoomApiIntegrationTest` I-40 1개. 행성 1개 → 가수 판 목록 앞 3명, 행성 2개 → 행성마다 3명, 방에 넣은 가수는 빠지고 지우면 다시 나옴. 도움 함수 `MapTestVectors.vecOf`. api 테스트 69개 통과(건너뜀 1).
+
+### I-39 남은 것: 이름 주소의 최신순 400 (11-14)
+- 설계 4-3대로, 최신순은 가수 id 주소(`/artists/{id}/songs?sort=latest`)로만 연다. 이름 주소(`/artist-songs?name=…&sort=latest`)는 이름이 우리 가수와 맞아도 400이다(전에는 200). 인기순은 이름 주소에서도 우리 가수로 바꿔 쓰는 동작이 그대로다.
+- 로컬 확인(11-14 03:02 api 재시작 뒤): 수집 끝난 우리 가수 하나로 확인했다. 이름 주소 최신순은 400, id 주소 최신순은 200이다. 임시 기기 열쇠는 지웠다.
+- 테스트: `RoomApiIntegrationTest` I-30 최신순에 "우리 가수 이름 + latest → 400" 한 줄을 더했다. api 테스트 69개 통과(건너뜀 1).

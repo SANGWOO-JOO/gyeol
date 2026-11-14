@@ -19,12 +19,18 @@ class ArtistLatestService(
     private val json: JsonMapper,
     private val props: GyeolProperties,
 ) {
-    /** (곡과 발매일, 모으기 상태 RUNNING·DONE·FAILED, 다음 쪽 있음) */
+    /** 처음이거나 7일 지났거나 실패했으면 수집을 요청한다 (인기순 2차 거르기도 같은 녹음 목록을 쓴다, I-41) */
     @Transactional
-    fun page(artistId: Long, artistName: String, page: Int, size: Int): Triple<List<Pair<TrackItem, String?>>, String, Boolean> {
+    fun requestScanIfNeeded(artistId: Long) {
         if (releases.requestScan(artistId, Instant.now().minus(props.artist.scanRefresh))) {
             sender.send(props.room.songQueue, json.writeValueAsString(mapOf("type" to "SCAN_ARTIST_RELEASES", "artistId" to artistId)))
         }
+    }
+
+    /** (곡과 발매일, 모으기 상태 RUNNING·DONE·FAILED, 다음 쪽 있음) */
+    @Transactional
+    fun page(artistId: Long, artistName: String, page: Int, size: Int): Triple<List<Pair<TrackItem, String?>>, String, Boolean> {
+        requestScanIfNeeded(artistId)
         val status = when (releases.scan(artistId)?.status) {
             "DONE" -> "DONE"
             "FAILED" -> "FAILED"

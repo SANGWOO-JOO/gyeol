@@ -2,7 +2,7 @@ package dev.gyeol.api.room
 
 import dev.gyeol.api.config.GyeolProperties
 import dev.gyeol.api.search.TrackItem
-import dev.gyeol.api.search.TitleNoise
+import dev.gyeol.core.identify.TitleNoise
 import dev.gyeol.api.search.TrackMerger
 import dev.gyeol.api.web.ApiException
 import dev.gyeol.core.identify.AliasKey
@@ -53,6 +53,7 @@ class ArtistSongsService(
     private val songs: RoomSongRepository,
     private val rooms: RoomRepository,
     private val latest: ArtistLatestService,
+    private val releases: dev.gyeol.core.identify.ArtistReleaseRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -62,13 +63,23 @@ class ArtistSongsService(
         private val CACHE_TTL: Duration = Duration.ofMinutes(10)
         private val HANGUL = Regex("""[가-힣]""")
         private val LATIN = Regex("""[A-Za-z]""")
+        /** 녹음 목록에 없는 곡은 청취자 수가 1위의 이 비율 이상일 때만 남긴다 (I-41 2차 거르기) */
+        const val UNMATCHED_MIN_SHARE = 0.01
+        /** 대조할 때 떼어 보는 꼬리: 언어판("-Japanese version-", "- English Version", "(Korean ver.)")과 (feat. …). 팬 리믹스는 떼지 않는다 */
+        private val MATCH_SUFFIX = Regex(
+            """\s*(?:[-–(\[]\s*)?(?:japanese|english|korean|chinese|spanish|jp|kr|en)\s*(?:ver\.?|version)\s*[-–)\]]?\s*$|\s*[(\[]\s*(?:feat|ft)\.?\s[^)\]]*[)\]]""",
+            RegexOption.IGNORE_CASE,
+        )
+
+        /** 녹음 목록 대조용 표기: 제목 표기들 + 언어판·feat.를 뗀 원곡 표기 */
+        fun matchForms(title: String): Set<String> = TrackMerger.titleForms(title) + TrackMerger.titleForms(title.replace(MATCH_SUFFIX, "").trim())
     }
 
     private val fetcher: RestClient = RestClient.builder().baseUrl(props.fetcherUrl)
         .requestFactory(SimpleClientHttpRequestFactory().apply { setConnectTimeout(Duration.ofSeconds(1)); setReadTimeout(Duration.ofSeconds(5)) })
         .build()
 
-    private data class Popular(val title: String, val mbid: String?, val playcount: Long)
+    private data class Popular(val title: String, val mbid: String?, val playcount: Long, val listeners: Long, val artist: String)
     private val cache = ConcurrentHashMap<String, Pair<Instant, List<TrackItem>>>()
 
     fun songs(ctx: RoomContext, artistId: Long?, name: String?, sort: String?, page: Int?): ArtistSongsPage {
@@ -82,6 +93,8 @@ class ArtistSongsService(
                 ArtistSongsPage(header, "popular", p, PAGE_SIZE, p * PAGE_SIZE < all.size && p < MAX_PAGES, decorate(ctx, slice, rankFrom = (p - 1) * PAGE_SIZE + 1))
             }
             "latest" -> {
+                // 최신순은 가수 id 주소로만 연다 (I-39, 설계 4-3). 이름 주소는 우리 가수와 맞아도 400
+                if (artistId == null) throw ApiException.validation("우리 DB에 없는 가수는 인기순만 볼 수 있어요")
                 val id = header.artistId ?: throw ApiException.validation("우리 DB에 없는 가수는 인기순만 볼 수 있어요")
                 val (rows, scan, hasMore) = latest.page(id, header.name, p, PAGE_SIZE)
                 ArtistSongsPage(header, "latest", p, PAGE_SIZE, hasMore, decorate(ctx, rows.map { it.first }, null).zip(rows) { s, r -> s.copy(releaseDate = r.second) }, scan)
@@ -112,18 +125,33 @@ class ArtistSongsService(
         return picked.values.take(3)
     }
 
+    /**
+     * 인기순 (I-30 ②, I-36·I-41 거르기). 화면 요청 때 MusicBrainz는 부르지 않는다:
+     * 1차 이름 규칙(TitleNoise, 다른 가수 이름) → 2차 저장된 녹음 목록(V27 artist_recording) 대조.
+     * 녹음 목록이 없으면 수집만 요청하고 1차만, 수집이 끝나면(캐시 키에 끝난 시각) 다음 요청부터 2차까지
+     */
     private fun popular(h: ArtistHeader): List<TrackItem> {
-        val key = h.artistId?.let { "id:$it" } ?: "n:${SearchText.norm(h.name)}"
+        val scan = h.artistId?.let(releases::scan)
+        if (h.artistId != null && (scan == null || scan.status == "FAILED")) latest.requestScanIfNeeded(h.artistId)
+        val key = (h.artistId?.let { "id:$it" } ?: "n:${SearchText.norm(h.name)}") + "@" + (scan?.finishedAt ?: "none")
         cache[key]?.takeIf { it.first.isAfter(Instant.now().minus(CACHE_TTL)) }?.let { return it.second }
         if (cache.size > 500) cache.entries.removeIf { it.value.first.isBefore(Instant.now().minus(CACHE_TTL)) }
 
         // 이름마다 50곡씩 2쪽(최대 100곡)을 받아 같은 곡은 재생 수를 더해 합친다
         val raw = mutableListOf<Popular>()
+        // 이 가수의 이름들 (Last.fm이 곡마다 돌려주는 가수 이름이 이 중 하나가 아니면 남의 곡)
+        val ownNames = (listOf(h.name) + h.aliases + lastFmNames(h)).map(SearchText::norm).toSet()
+        var dropped = 0
         for (n in lastFmNames(h)) {
             for (pg in 1..2) {
                 val got = fetch(n, pg)
-                // 직캠·커버·1시간 반복·방송 녹화처럼 원곡이 아닌 항목은 뺀다 (I-36). 쪽 넘김 판단은 거르기 전 개수로
-                raw += got.filterNot { TitleNoise.isNoise(it.title) }
+                // 1차: 직캠·커버·반주·팬 편집·스킷·예능·뉴스 제목, 다른 가수 이름 (I-36·I-41). 쪽 넘김 판단은 거르기 전 개수로
+                val kept = got.filter {
+                    !TitleNoise.isNoise(it.title) &&
+                        (it.artist.isBlank() || SearchText.norm(it.artist) in ownNames || SearchText.norm(it.artist) == SearchText.norm(n))
+                }
+                dropped += got.size - kept.size
+                raw += kept
                 if (got.size < 50) break
             }
         }
@@ -133,15 +161,34 @@ class ArtistSongsService(
             val g = groups.firstOrNull { grp -> grp.any { o -> TrackMerger.titleForms(o.title).any(f::contains) || (r.mbid != null && r.mbid == o.mbid) } }
             if (g == null) groups += mutableListOf(r) else g += r
         }
-        val merged = groups.map { g -> Triple(g.maxBy { it.playcount }.title, g.firstNotNullOfOrNull { it.mbid }, g.sumOf { it.playcount }) }
+        var grouped = groups.map { g -> g to g.sumOf { it.listeners } }
+        // 2차: 저장된 녹음 목록(판 표시 제외)과 제목 표기가 맞는 곡은 남기고, 안 맞는 곡은 청취자 수가 1위의 2% 이상일 때만
+        // 수집이 다 끝났을 때만 대조한다 (모으는 중이면 목록이 일부라 정상 곡을 잘못 뺄 수 있음)
+        val recordingForms = h.artistId?.takeIf { scan?.status == "DONE" }?.let { releases.titles(it, withVersions = true) }.orEmpty()
+            .flatMap { matchForms(it) }.toSet()
+        var unmatchedDropped = 0
+        // 제목에 가수 이름이 든 영상식 제목("NewJeans (뉴진스) 'Zero' Official")은 녹음 목록에 없으면 뺀다 ("BTS Cypher"처럼 목록에 있는 곡은 남김)
+        val names = listOf(h.name) + h.aliases + lastFmNames(h)
+        grouped = grouped.filterNot { (g, _) ->
+            g.all { TitleNoise.mentionsArtist(it.title, names) } && g.none { r -> matchForms(r.title).any(recordingForms::contains) }
+        }
+        if (recordingForms.isNotEmpty()) {
+            val top = grouped.maxOfOrNull { it.second } ?: 0L
+            val before = grouped.size
+            grouped = grouped.filter { (g, listeners) ->
+                g.any { r -> matchForms(r.title).any(recordingForms::contains) } || listeners >= top * UNMATCHED_MIN_SHARE
+            }
+            unmatchedDropped = before - grouped.size
+        }
+        val merged = grouped.map { (g, _) -> Triple(g.maxBy { it.playcount }.title, g.firstNotNullOfOrNull { it.mbid }, g.sumOf { it.playcount }) }
             .sortedByDescending { it.third }
 
         // 우리 곡과 맞춘다: 녹음 MBID → 식별 캐시 → 같은 가수 곡의 제목 표기
         val mine = h.artistId?.let(db::hitsOfArtist).orEmpty()
         val forms = mine.map { it to (TrackMerger.titleForms(it.title) + TrackMerger.titleForms(it.mbTitle)) }
         val byMbid = db.trackIdsByMbids(merged.mapNotNull { it.second?.let { m -> runCatching { UUID.fromString(m) }.getOrNull() } })
-        val names = lastFmNames(h)
-        val keys = merged.associate { (t, _, _) -> t to names.map { AliasKey.of(t, "$it - Topic") } }
+        val lfNames = lastFmNames(h)
+        val keys = merged.associate { (t, _, _) -> t to lfNames.map { AliasKey.of(t, "$it - Topic") } }
         val byAlias = db.aliasTracks(keys.values.flatten().toSet())
         val ids = merged.map { (t, m, _) ->
             m?.let { runCatching { UUID.fromString(it) }.getOrNull()?.let(byMbid::get) }
@@ -156,7 +203,10 @@ class ArtistSongsService(
         }
         val out = merger.dedupe(items)
         cache[key] = Instant.now() to out
-        log.info("가수 인기곡: {} 이름 {}개 → {}곡 (우리 곡 {}개)", h.name, names.size, out.size, out.count { it.trackId != null })
+        log.info(
+            "가수 인기곡: {} 이름 {}개 → {}곡 (우리 곡 {}개, 이름 규칙 제외 {}, 녹음 목록 {} 제외 {})",
+            h.name, lfNames.size, out.size, out.count { it.trackId != null }, dropped, if (recordingForms.isEmpty()) "없음" else "있음", unmatchedDropped,
+        )
         return out
     }
 
@@ -166,7 +216,7 @@ class ArtistSongsService(
             .retrieve().body(JsonNode::class.java)
         body?.path("items")?.toList().orEmpty().mapNotNull { t ->
             val title = t.path("title").asString("").trim().ifEmpty { return@mapNotNull null }
-            Popular(title, t.path("mbid").asString("").ifEmpty { null }, t.path("playcount").asLong(0))
+            Popular(title, t.path("mbid").asString("").ifEmpty { null }, t.path("playcount").asLong(0), t.path("listeners").asLong(0), t.path("artist").asString(""))
         }
     } catch (e: Exception) {
         log.warn("가수 인기곡 실패: {} {}쪽 {}", artist, page, e.message)

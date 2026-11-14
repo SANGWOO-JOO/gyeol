@@ -92,7 +92,9 @@ class TrackSearchController(props: GyeolProperties, private val db: TrackSearchR
          * (잡음이 붙은 가수명으로 담으면 식별이 실패했다. 곡 고르기 검색과 방 검색이 같은 경로를 쓴다)
          */
         fun cleanRemote(items: List<TrackItem>): List<TrackItem> {
-            val cleaned = items.map { it.copy(artist = it.artist.replace(ARTIST_NOISE, "").trim().ifEmpty { it.artist }) }
+            // 가수 이름이 영상 제목인 결과("성시경(Sungsikyung)의 킬링보이스를 라이브로!")는 뺀다 (I-41)
+            val cleaned = items.filterNot { dev.gyeol.core.identify.TitleNoise.isVideoLikeArtist(it.artist) }
+                .map { it.copy(artist = it.artist.replace(ARTIST_NOISE, "").trim().ifEmpty { it.artist }) }
             val best = linkedMapOf<String, TrackItem>()
             for (t in cleaned) {
                 val k = key(t)

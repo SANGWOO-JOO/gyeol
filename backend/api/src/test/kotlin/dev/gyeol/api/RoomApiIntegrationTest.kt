@@ -68,9 +68,19 @@ class RoomApiIntegrationTest {
             createContext("/internal/lastfm/top-tracks") { ex ->
                 val q = ex.requestURI.query.orEmpty()
                 val page = Regex("page=(\\d+)").find(q)?.groupValues?.get(1)?.toInt() ?: 1
-                fun t(title: String, plays: Long) = """{"title":"$title","artist":"x","mbid":null,"playcount":$plays,"listeners":1}"""
+                val asked = Regex("artist=([^&]+)").find(q)?.groupValues?.get(1).orEmpty()
+                fun t(title: String, plays: Long) = """{"title":"$title","artist":"$asked","mbid":null,"playcount":$plays,"listeners":1}"""
                 val items = when {
                     page > 1 -> emptyList()
+                    // I-41: 청취자 수가 다른 곡 (녹음 목록 대조·2% 규칙)
+                    q.contains("artist=STAYC") -> listOf(
+                        """{"title":"Teddy Bear","artist":"STAYC","mbid":null,"playcount":9000,"listeners":1000}""",
+                        """{"title":"ASAP","artist":"STAYC","mbid":null,"playcount":8000,"listeners":900}""",
+                        """{"title":"Big Song","artist":"STAYC","mbid":null,"playcount":5000,"listeners":500}""",
+                        """{"title":"ASAP (Inst.)","artist":"STAYC","mbid":null,"playcount":4000,"listeners":400}""",
+                        """{"title":"Celebrity","artist":"STAYC","mbid":null,"playcount":300,"listeners":5}""",
+                        """{"title":"남의 노래","artist":"다른 가수","mbid":null,"playcount":7000,"listeners":800}""",
+                    )
                     q.contains("artist=TAEYEON") -> listOf(t("8282", 1000)) + (1..30).map { t("곡 $it", 300L - it) }
                     q.contains("artist=태연") -> listOf(t("시간아 멈춰라", 900), t("8282", 500), t("곡 1", 100))
                     else -> emptyList()
@@ -90,7 +100,8 @@ class RoomApiIntegrationTest {
                             """{"title":"시간아 멈춰라","artist":"DAVICHI","mbid":null,"listeners":8,"releaseYear":null},""" +
                             """{"title":"시간아 멈춰라","artist":"다비치","mbid":null,"listeners":7,"releaseYear":null},""" +
                             """{"title":"Every Moment Of You","artist":"성시경","mbid":null,"listeners":6,"releaseYear":null},""" +
-                            """{"title":"너의 모든 순간","artist":"Sung Si Kyung","mbid":null,"listeners":5,"releaseYear":null}],"source":"lastfm","cached":false}"""
+                            """{"title":"너의 모든 순간","artist":"Sung Si Kyung","mbid":null,"listeners":5,"releaseYear":null},""" +
+                            """{"title":"너의 모든 순간","artist":"성시경(Sungsikyung)의 킬링보이스를 라이브로!","mbid":null,"listeners":4,"releaseYear":null}],"source":"lastfm","cached":false}"""
                     } else if (noisy) {
                         """{"items":[{"title":"Pretty Girl","artist":"Clairo • Lossless","mbid":null,"listeners":5,"releaseYear":null},""" +
                             """{"title":"Pretty Girl","artist":"Clairo","mbid":"0b0b0b0b-0000-0000-0000-000000000001","listeners":100,"releaseYear":null},""" +
@@ -830,6 +841,7 @@ class RoomApiIntegrationTest {
         assertEquals(1, items.count { it["trackId"]?.asLong(-1) == moment }, "Every Moment Of You·너의 모든 순간(Sung Si Kyung)은 DB 곡 하나로")
         assertEquals(0, items.count { it["title"].asString() == "Every Moment Of You" || it["title"].asString() == "너의 모든 순간" && it["trackId"].isNull })
         assertEquals(1, items.map { it["artist"].asString() }.filter { it in setOf("다비치", "DAVICHI") }.distinct().size, "같은 가수는 한 표기로")
+        assertTrue(items.none { it["artist"].asString().contains("킬링보이스") }, "영상 제목 같은 가수 이름은 거름 (I-41)")
 
         val card = r["artist"]
         assertEquals(davichiId, card["artistId"].asLong())
@@ -935,6 +947,8 @@ class RoomApiIntegrationTest {
         assertEquals("QUEUED", releases.scan(aid)!!.status)
         // DB에 없는 가수(이름만)는 최신순 400
         assertEquals(400, call("GET", "/api/rooms/${host.rid}/artist-songs?name=zzz&sort=latest", key = host.key).status)
+        // 우리 가수와 맞는 이름이어도 이름 주소의 최신순은 400 (I-39, 최신순은 가수 id 주소로만)
+        assertEquals(400, call("GET", "/api/rooms/${host.rid}/artist-songs?name=IU&sort=latest", key = host.key).status)
     }
 
     @Test
@@ -974,5 +988,74 @@ class RoomApiIntegrationTest {
         ))
         val text = jdbc.sql("SELECT text FROM knowledge_chunk WHERE entity_mbid = :m").param("m", a.mbid).query(String::class.java).single()
         assertEquals("Best Female Vocalist in 2005. Lee hosted a show.", text)
+    }
+
+    @Test
+    fun `I-41 인기순 - 녹음 목록 없으면 이름 규칙만 하고 수집 요청, 다 모이면 목록에 없고 청취자 2% 미만인 곡은 뺀다`() {
+        val host = newRoom()
+        val stayc = ArtistInfo(UUID.randomUUID(), "STAYC", "STAYC", emptyList())
+        val tid = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "Teddy Bear", stayc, UUID.randomUUID(), UUID.randomUUID(), "음반", "2023-02-14", "Single"))
+        val aid = songs.trackArtist(tid)!!
+        fun titles() = call("GET", "/api/rooms/${host.rid}/artists/$aid/songs?sort=popular", key = host.key).body!!["items"].toList().map { it["item"]["title"].asString() }
+
+        // 녹음 목록 없음: 반주(Inst.)·다른 가수 곡만 빠지고, 수집이 요청된다
+        assertEquals(listOf("Teddy Bear", "ASAP", "Big Song", "Celebrity"), titles())
+        assertEquals("QUEUED", releases.scan(aid)!!.status)
+
+        // 모으는 중(일부만 저장)에는 대조하지 않는다
+        releases.startScan(aid)
+        releases.upsert(aid, UUID.randomUUID(), "Teddy Bear", "teddybear", "2023-02-14", false)
+        assertEquals(listOf("Teddy Bear", "ASAP", "Big Song", "Celebrity"), titles())
+
+        // 다 모임: 목록에 없는 곡은 청취자가 1위(1000)의 1%(10) 이상일 때만 → Celebrity(5) 빠짐, Big Song(500) 남음
+        releases.upsert(aid, UUID.randomUUID(), "ASAP", "asap", "2023-05-01", false)
+        releases.finishScan(aid, true, 2, 2)
+        assertEquals(listOf("Teddy Bear", "ASAP", "Big Song"), titles())
+
+        // 실패: 이름 규칙만 다시, 수집도 다시 요청
+        releases.finishScan(aid, false, null, 2)
+        jdbc.sql("UPDATE artist_release_scan SET finished_at = now() + interval '1 second' WHERE artist_id = :a").param("a", aid).update()
+        assertTrue(titles().contains("Celebrity"))
+        assertEquals("QUEUED", releases.scan(aid)!!.status)
+    }
+
+    @Test
+    fun `I-40 흐린 행성 - 행성 1개면 가수 판 목록 앞 3명, 2개면 행성마다 3명씩 전체 6명, 방에 있는 가수·중복 없음`() {
+        val host = newRoom()
+        fun artistWithTrack(name: String): Pair<Long, Long> { val t = track("$name 노래", name); return t to songs.trackArtist(t)!! }
+        jdbc.sql("UPDATE map_version SET active = false").update()
+        val version = jdbc.sql("INSERT INTO map_version (params, artist_count, active) VALUES ('{}', 12, true) RETURNING id").query(Long::class.java).single()
+        // 원문 벡터: 행성 A는 1번 축, 이웃 a1~a5는 1번 축에서 조금씩 멀어짐 / 행성 B는 2번 축, 이웃 b1~b5
+        fun vec(axis: Int, k: Int) = dev.gyeol.api.room.vecOf(axis, k)
+        val (ta, a) = artistWithTrack("행성A"); val (tb, b) = artistWithTrack("행성B")
+        val near = mutableMapOf<String, Long>()
+        listOf("a" to 1, "b" to 2).forEach { (p, axis) -> (1..5).forEach { k -> near["$p$k"] = artistWithTrack("$p$k").second.also { id ->
+            maps.saveVector(id, "fake", vec(axis, k), null, vec(axis, k), "$p$k"); maps.savePosition(version, id, 0.1 * k, 0.1 * axis, null, "UMAP") } } }
+        maps.saveVector(a, "fake", vec(1, 0), null, vec(1, 0), "A"); maps.savePosition(version, a, 0.0, 0.1, null, "UMAP")
+        maps.saveVector(b, "fake", vec(2, 0), null, vec(2, 0), "B"); maps.savePosition(version, b, 0.0, 0.2, null, "UMAP")
+        // a2는 이미 방에 있음 → 흐린 행성에서 빠진다
+        call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to ta), host.key)
+        val tA2 = jdbc.sql("SELECT id FROM track WHERE artist_id = :a").param("a", near["a2"]).query(Long::class.java).single()
+        call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to tA2), host.key)
+        fun ghosts() = call("GET", "/api/rooms/${host.rid}/map", key = host.key).body!!["ghosts"].toList().map { it["artistId"].asLong() }
+
+        // 행성은 A와 a2 두 개라 행성마다 3명
+        val g2 = ghosts()
+        assertTrue(g2.size <= 6 && g2.toSet().size == g2.size, "중복 없음, 6명 이하: $g2")
+        assertTrue(near["a2"]!! !in g2 && a !in g2, "방에 있는 가수는 없음")
+
+        // a2를 빼서 행성 1개(A)로: 가수 판 목록 앞 3명과 같다
+        val a2song = call("GET", "/api/rooms/${host.rid}/me/songs", key = host.key).body!!["items"].toList().single { it["trackId"].asLong() == tA2 }["id"].asLong()
+        call("DELETE", "/api/rooms/${host.rid}/songs/$a2song", key = host.key)
+        val panel = call("GET", "/api/rooms/${host.rid}/artists/$a", key = host.key).body!!["nearby"].toList()
+            .filter { !it["inRoom"].asBoolean() }.map { it["artistId"].asLong() }
+        assertEquals(listOf(near["a1"], near["a2"], near["a3"]), panel.take(3), "가수 판 가까운 가수 순서")
+        assertEquals(panel.take(3), ghosts(), "행성 1개 → 가수 판 목록 앞 3명")
+
+        // 행성 2개(A·B): 행성마다 3명씩 6명, 각자 가까운 이웃
+        call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to tb), host.key)
+        val g6 = ghosts()
+        assertEquals(6, g6.size)
+        assertEquals(setOf(near["a1"], near["a2"], near["a3"], near["b1"], near["b2"], near["b3"]), g6.toSet())
     }
 }

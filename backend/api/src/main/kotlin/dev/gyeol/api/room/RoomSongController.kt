@@ -52,7 +52,7 @@ data class MySongsPage(val items: List<MySongView>, val nextCursor: Long?)
 
 /**
  * 지도. 좌표는 공용 지도 판(0~1). 활성 판이 없거나 아직 자리를 못 잡은 가수는 임시 자리(가수 mbid 해시)에 preparing=true.
- * galaxies: 이 방에 행성이 있는 구역만 (⑦). ghosts: 방에 없는 가까운 가수 2~3명 (⑧ 흐린 행성)
+ * galaxies: 이 방에 행성이 있는 구역만 (⑦). ghosts: 방에 없는 가까운 가수, 행성 1개면 3명·여럿이면 행성마다 나눠 전체 6명까지 (⑧ 흐린 행성, I-40)
  */
 data class MapResponse(
     val rev: Long, val placeholder: Boolean, val members: List<MemberView>, val planets: List<Planet>,
@@ -70,6 +70,10 @@ data class ArtistView(
 data class EvidenceView(val id: Long, val source: String, val url: String)
 data class NearbyView(val artistId: Long, val name: String, val inRoom: Boolean)
 data class MapSongView(val trackId: Long, val title: String, val coverUrl: String?, val memberIds: List<Long>)
+
+/** 흐린 행성 수 (I-40): 전체 상한, 행성 하나당 상한 (행성 1개면 3명) */
+private const val GHOSTS_TOTAL = 6
+private const val GHOSTS_PER_PLANET_MAX = 3
 
 @Service
 class RoomSongService(
@@ -213,15 +217,24 @@ class RoomSongService(
         return MapResponse(ctx.room.mapRev, version == null, members, planets, galaxies, ghosts(version, byArtist.keys, byArtist))
     }
 
-    /** 최근에 담긴 가수 몇 명 곁에서, 방에 없는 가장 가까운 가수 하나씩 (최대 3) */
+    /**
+     * 흐린 행성(방에 없는 가까운 가수, I-40 11-14 결정): 행성이 적을수록 많이.
+     * 행성 1개면 그 가수의 가까운 가수 3명(가수 판의 "가까운 가수"와 같은 목록·순서에서 방에 있는 가수만 뺌),
+     * 행성이 늘면 최근 담긴 행성부터 행성마다 ceil(6 ÷ 행성 수)명(최대 3)씩, 전체 6명까지. 방에 있는 가수·중복은 뺀다.
+     * Ghost.artistId는 우리 가수 id라 웹이 가수 화면(I-30)으로 바로 연다
+     */
     private fun ghosts(version: Long?, inRoom: Set<Long>, byArtist: Map<Long, List<MapSong>>): List<Ghost> {
         if (version == null || inRoom.isEmpty()) return emptyList()
+        val planets = byArtist.keys.reversed()
+        val per = minOf(GHOSTS_PER_PLANET_MAX, (GHOSTS_TOTAL + planets.size - 1) / planets.size)
         val out = linkedMapOf<Long, Ghost>()
-        for (artistId in byArtist.keys.reversed().take(5)) {
+        for (artistId in planets) {
+            if (out.size >= GHOSTS_TOTAL) break
             val (v, byRaw) = maps.placeVector(artistId) ?: continue
-            val n = maps.nearestPlaced(version, v, 3, inRoom + out.keys, byRaw).firstOrNull() ?: continue
-            out[n.artistId] = Ghost(n.artistId, n.name, n.x, n.y, artistId)
-            if (out.size >= 3) break
+            val take = minOf(per, GHOSTS_TOTAL - out.size)
+            maps.nearestPlaced(version, v, take, inRoom + out.keys, byRaw).forEach { n ->
+                out[n.artistId] = Ghost(n.artistId, n.name, n.x, n.y, artistId)
+            }
         }
         return out.values.toList()
     }
