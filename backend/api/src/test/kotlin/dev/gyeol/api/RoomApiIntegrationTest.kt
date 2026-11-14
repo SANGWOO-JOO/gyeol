@@ -1588,4 +1588,22 @@ class RoomApiIntegrationTest {
         val artistSort = call("GET", "/api/rooms/${host.rid}/me/songs?sort=artist&limit=10", key = host.key).body!!["items"].toList()
         assertEquals(2024, artistSort.single { it["title"].asString() == "연도 노래" }["releaseYear"].asInt())
     }
+
+    @Test
+    fun `I-70 내 정보 조회가 성공하면 요청에 쓴 열쇠로 방 쿠키를 180일로 다시 준다 - 헤더로 와도, 쿠키로 와도`() {
+        val host = newRoom()
+        val byHeader = call("GET", "/api/rooms/${host.rid}/me", key = host.key)
+        assertEquals(200, byHeader.status)
+        val cookie = byHeader.headers.entries.first { it.key.equals("set-cookie", true) }.value.single()
+        assertTrue(cookie.startsWith("gyeol_room=${host.key};"), cookie)
+        assertTrue(cookie.contains("Max-Age=15552000"), cookie)
+        assertTrue(cookie.contains("Path=/api/rooms/${host.rid}") && cookie.contains("HttpOnly") && cookie.contains("SameSite=Lax"), cookie)
+        val byCookie = call("GET", "/api/rooms/${host.rid}/me", headers = mapOf("Cookie" to "gyeol_room=${host.key}"))
+        assertEquals(200, byCookie.status)
+        assertTrue(byCookie.headers.entries.first { it.key.equals("set-cookie", true) }.value.single().contains("Max-Age=15552000"))
+        // 열쇠가 없거나 틀리면 쿠키를 주지 않는다
+        val bad = call("GET", "/api/rooms/${host.rid}/me", key = "A".repeat(43))
+        assertTrue(bad.status == 401 || bad.status == 403, bad.status.toString())
+        assertTrue(bad.headers.keys.none { it.equals("set-cookie", true) })
+    }
 }

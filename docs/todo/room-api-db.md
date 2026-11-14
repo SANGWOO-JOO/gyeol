@@ -620,3 +620,13 @@
   - 다른 출발 리전에서 Haiku 4.5 지역 프로필: ap-northeast-1 `jp.*`(도쿄·오사카), ap-southeast-2 `au.*`(시드니·멜버른).
   - 선물 그림 `stability.stable-image-core-v1:1`은 us-west-2 ON_DEMAND만이고 지역 프로필이 없다(us.* 는 다른 stability 모델만). ap-northeast-2에는 stability 모델이 없다.
 - 테스트: worker `YoutubeDerivedExpiryTest` I-66 1개, `CleanupIntegrationTest` I-68 1개. worker 105·api 99(건너뜀 1) 통과. api·worker 재시작.
+
+### I-70 방 쿠키를 마지막 사용부터 180일로 (11-15, 사용자 승인)
+- `GET /api/rooms/{rid}/me`가 성공하면 요청에 쓴 열쇠로 `gyeol_room` 쿠키(Max-Age 180일, HttpOnly, SameSite=Lax, Path=/api/rooms/{rid})를 다시 내려 준다. 응답에는 `Cache-Control: no-store`를 붙였다.
+- 헤더(localStorage)로 온 열쇠도 다시 발급한다. 근거:
+  - `RoomMemberResolver`가 이미 확인한 열쇠다(살아 있는 열쇠·이 방 참가자).
+  - `RoomKeys.read`는 헤더를 쿠키보다 먼저 쓰므로, 쿠키를 헤더 값으로 맞춰도 실제로 쓰는 열쇠가 바뀌지 않는다.
+  - 헤더 경로는 쿠키가 잘 남지 않는 인앱 브라우저용 보완이라, 쿠키를 다시 주면 쿠키가 살아나는 경우에만 이득이고 해는 없다.
+  - 경로가 방마다 따로라 다른 방 쿠키에는 영향이 없다.
+- 열쇠가 없거나 틀리면(401·403) 쿠키를 주지 않는다.
+- 테스트: api 1개(헤더로·쿠키로 둘 다 Set-Cookie·Max-Age=15552000, 틀린 열쇠는 쿠키 없음). api 100(건너뜀 1) 통과. api 재시작, 로컬 방 8에서 Set-Cookie·no-store 확인(임시 열쇠는 지움).

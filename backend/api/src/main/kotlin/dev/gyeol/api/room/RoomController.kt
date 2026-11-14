@@ -215,8 +215,17 @@ class RoomController(private val service: RoomService, private val rooms: RoomRe
         return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, RoomKeys.clear(rid, props.room.secureCookie).toString()).build()
     }
 
+    /**
+     * I-70: 방을 열 때마다 부르는 내 정보. 성공하면 요청에 쓴 열쇠로 방 쿠키를 다시 내려 준다 → 쿠키 기한이 "발급 뒤 180일"이 아니라
+     * "마지막 사용 뒤 180일"이 된다. 열쇠는 이미 [RoomMemberResolver]가 확인한 것이라 쿠키·헤더(localStorage) 어느 쪽으로 왔든 같은 값을 다시 준다
+     */
     @GetMapping("/api/rooms/{rid}/me")
-    fun me(@PathVariable rid: String, @RoomMember ctx: RoomContext): MeView = service.me(ctx)
+    fun me(@PathVariable rid: String, @RoomMember ctx: RoomContext, req: HttpServletRequest): ResponseEntity<MeView> {
+        val view = service.me(ctx)
+        val key = RoomKeys.read(req) ?: return ResponseEntity.ok(view)
+        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, RoomKeys.cookie(ctx.room.publicId, key, props.room.secureCookie).toString())
+            .header(HttpHeaders.CACHE_CONTROL, "no-store").body(view)
+    }
 
     @PatchMapping("/api/rooms/{rid}/me")
     fun rename(@PathVariable rid: String, @RoomMember ctx: RoomContext, @RequestBody body: RenameRequest): MemberView = service.rename(ctx, body)
