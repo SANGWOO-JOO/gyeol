@@ -1,12 +1,8 @@
 .hero { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 260px; }
 .heroBox { position: relative; width: 342px; max-width: 100%; }
-.heroBack { display: block; width: 100%; height: auto; }
-.heroFront { position: absolute; inset: 0; width: 100%; height: 100%; }
-.lp { position: absolute; left: 17.25%; top: 14.55%; width: 65.5%; height: 67.88%; animation: spin 9s linear infinite; }
-.arm { position: absolute; left: 61.7%; top: 7.3%; width: 34.47%; height: 35.73%; transform-origin: 75.5% 22%; animation: bob 3.2s ease-in-out infinite; }
+.heroSvg { display: block; width: 100%; height: auto; overflow: visible; }
 
 .headline { margin: 0; font-family: var(--r-font-title); font-size: 32px; line-height: 1.38; font-weight: 700; letter-spacing: -0.6px; }
-.accent { color: var(--r-accent-strong); }
 .small { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; color: var(--r-text-3); }
 .small a { color: var(--r-text-2); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
 .small a:hover { color: var(--r-text); text-decoration: underline; }
@@ -14,27 +10,15 @@
 .mine { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .mine a { display: inline-flex; align-items: center; min-height: 36px; font-weight: 500; }
 
-.wave { animation: drift 11s linear infinite; }
-.waveFast { animation-duration: 7s; }
-.orbit { transform-box: view-box; transform-origin: 171px 160px; animation: spin 26s linear infinite; }
-.anchor { transform-box: view-box; transform-origin: 171px 160px; }
-.lavender { opacity: .86; transform: rotate(300deg); animation: lavender 8.4s ease-in-out infinite; }
-.rose { opacity: .82; transform: rotate(140deg); animation: rose 8.4s ease-in-out infinite; }
-.gold { transform: rotate(174deg) translateY(34px); animation: gold 8.4s ease-in-out infinite; }
-.ring { transform-box: fill-box; transform-origin: center; opacity: 0; animation: ring 8.4s ease-out infinite; }
-.spark { transform-box: fill-box; transform-origin: center; opacity: 0; animation: spark 8.4s ease-out infinite; }
-.sparkB { animation-delay: .08s; }
-.sparkC { animation-delay: .16s; }
+.orbit { transform-box: view-box; transform-origin: 171px 150px; animation: spin 18s linear infinite; }
+.bobA { animation: bob 7s ease-in-out infinite; }
+.bobB { animation: bob 8.5s ease-in-out -2s infinite; }
+.bobC { animation: bob 6.2s ease-in-out -4s infinite; }
+.headline { background: linear-gradient(90deg, #f5f0ff, #e6dcff 55%, #f2c9d6); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
-@keyframes bob { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(2.5deg); } }
-@keyframes drift { from { transform: translateX(0); } to { transform: translateX(-120px); } }
-@keyframes lavender { 0% { opacity: 0; transform: rotate(-64deg) translateY(-46px); } 12% { opacity: 1; transform: rotate(-64deg) translateY(0); } 42% { opacity: 1; transform: rotate(82deg) translateY(24px); } 50%, 100% { opacity: 0; transform: rotate(112deg) translateY(24px); } }
-@keyframes rose { 0% { opacity: 0; transform: rotate(108deg) translateY(46px); } 12% { opacity: 1; transform: rotate(108deg) translateY(0); } 42% { opacity: 1; transform: rotate(82deg) translateY(0); } 50%, 100% { opacity: 0; transform: rotate(112deg) translateY(0); } }
-@keyframes gold { 0%, 45% { opacity: 0; transform: rotate(82deg) translateY(0) scale(.65); } 51% { opacity: 1; transform: rotate(82deg) translateY(0) scale(1); } 72% { opacity: 1; transform: rotate(126deg) translateY(34px) scale(1); } 88%, 100% { opacity: 1; transform: rotate(174deg) translateY(34px) scale(1); } }
-@keyframes ring { 0%, 44% { opacity: 0; transform: scale(.35); } 51% { opacity: .5; transform: scale(.55); } 61%, 100% { opacity: 0; transform: scale(1.55); } }
-@keyframes spark { 0%, 47% { opacity: 0; transform: scale(.4); } 53% { opacity: 1; transform: scale(1); } 64%, 100% { opacity: 0; transform: translateY(-8px) scale(.55); } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .lp, .arm, .wave, .orbit, .lavender, .rose, .gold, .ring, .spark { animation: none; }
+  .orbit, .bobA, .bobB, .bobC { animation: none; }
 }

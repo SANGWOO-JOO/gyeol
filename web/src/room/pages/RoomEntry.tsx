@@ -3,13 +3,14 @@ import { Link, useParams } from 'react-router'
 import { keyStore } from '../keyStore'
 import { RoomShell } from '../shell/RoomShell'
 import { HostReset } from './HostReset'
-import { rememberJoin, roomApi, RoomApiError, type MemberView, type RoomSummary } from '../roomApi'
+import { memberColor, rememberJoin, roomApi, RoomApiError, type MemberView, type RoomSummary } from '../roomApi'
 import { BackButton, NoteIcon, RoomPage, Spinner } from '../components/RoomPage'
 import { Avatar } from '../components/Avatar'
 import { CodeInput } from '../components/CodeInput'
 import { Wordmark } from '../components/Wordmark'
 import { iAm, minutesText } from '../text'
 import s from '../room.module.css'
+import o from '../components/outside.module.css'
 
 // /rooms/:rid — 이 기기에 열쇠가 있으면 방, 없으면 초대받은 화면(5)·다시 들어오기(6-a)·암호를 잊었을 때(6-b)·들어갈 수 없는 방(6-g)
 
@@ -148,19 +149,19 @@ function Invite({ summary, onJoined, onPick, onBlocked }: {
       <header className={s.top}><Link to="/" aria-label="첫 화면"><Wordmark size={22} /></Link></header>
 
       <section className={s.section} style={{ alignItems: 'center', textAlign: 'center', gap: 12 }}>
-        <svg width="132" height="64" viewBox="0 0 132 64" aria-hidden="true">
-          <circle cx="44" cy="32" r="30" fill="#B9A2FF" opacity="0.85" />
-          <circle cx="88" cy="32" r="30" fill="#E3A6B8" opacity="0.8" />
-          <path d="M66 11.7a30 30 0 0 1 0 40.6a30 30 0 0 1 0-40.6z" fill="#F5E6FF" />
-          <text x="44" y="37" textAnchor="middle" fontFamily="Noto Sans KR, sans-serif" fontSize="13" fontWeight="700" fill="#2A2650">{Array.from(host?.nickname ?? '방장').slice(0, 3).join('')}</text>
-          <text x="92" y="37" textAnchor="middle" fontFamily="Noto Sans KR, sans-serif" fontSize="13" fontWeight="700" fill="#5A2440">나?</text>
-        </svg>
+        <div className={o.faces} aria-hidden="true">
+          {summary.members.slice(0, 4).map(m => (
+            <span key={m.id} className={o.face} style={{ background: memberColor(m.colorIdx).bg, color: memberColor(m.colorIdx).fg, ['--ring' as string]: memberColor(m.colorIdx).bg }}>{Array.from(m.nickname)[0] ?? ''}</span>
+          ))}
+          <span className={`${o.face} ${o.faceYou}`}>나</span>
+        </div>
+        <p className={o.eyebrow}>{host ? `${host.nickname}님의 우주에 초대받았어요` : '친구의 우주에 초대받았어요'}</p>
         <RoomTag name={summary.name} />
-        <h1 className={s.title} style={{ fontSize: 24 }}>{host ? `${host.nickname}님이` : '친구가'} 노래로<br />우주를 그리고 있어요</h1>
-        <p className={s.lead}>너도 좋아하는 노래를 담아 볼래요? · 지금 {summary.members.length}명 · 최대 {summary.capacity}명</p>
+        <h1 className={s.title} style={{ fontSize: 24 }}>너도 좋아하는 노래로<br />같이 우주를 그려 볼래요?</h1>
+        <p className={s.lead}>지금 {summary.members.length}명이 함께해요 · 최대 {summary.capacity}명</p>
       </section>
 
-      <form className={s.card} onSubmit={submit} noValidate>
+      <form className={`${s.card} ${o.glass}`} onSubmit={submit} noValidate>
         <div className={s.field}>
           <label htmlFor="inv-nick" className={s.label}>닉네임</label>
           <input id="inv-nick" className={s.input} maxLength={12} placeholder="방에서 보일 이름" value={nickname} autoComplete="nickname"
@@ -172,7 +173,7 @@ function Invite({ summary, onJoined, onPick, onBlocked }: {
           <span className={s.hint}>다른 기기에서 다시 들어올 때 써요 · 다른 곳 비밀번호는 피해 주세요</span>
         </div>
         {error && <p className={s.error} role="alert">{error.text}</p>}
-        <button type="submit" className={s.primary} style={{ height: 54, fontSize: 16 }} disabled={busy}>
+        <button type="submit" className={`${s.primary} ${o.cta}`} style={{ height: 54, fontSize: 16 }} disabled={busy}>
           {busy ? <><Spinner /> 들어가는 중…</> : '참가하고 노래 담기'}
         </button>
       </form>
@@ -240,7 +241,7 @@ function Rejoin({ summary, member, onJoined, onBack, onForgot }: {
         <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
       </form>
       <div className={s.bottom}>
-        <button type="button" className={s.primary} style={{ height: 54, fontSize: 16 }} disabled={pin.length !== 4 || busy || locked} onClick={() => submit()}>
+        <button type="button" className={`${s.primary} ${o.cta}`} style={{ height: 54, fontSize: 16 }} disabled={pin.length !== 4 || busy || locked} onClick={() => submit()}>
           {busy ? <><Spinner /> 확인하는 중…</> : '들어가기'}
         </button>
         <button type="button" className={s.ghost} onClick={onForgot}>암호를 잊었어요</button>
@@ -266,7 +267,7 @@ function Forgot({ summary, member, onBack, onHostReset }: { summary: RoomSummary
             <p className={s.lead}>우주를 만들 때 인증한 이메일로 6자리 코드를 보내 드려요.</p>
           </section>
           <div className={s.bottom}>
-            <button type="button" className={s.primary} style={{ height: 54, fontSize: 16 }} onClick={onHostReset}>재설정 코드 받으러 가기</button>
+            <button type="button" className={`${s.primary} ${o.cta}`} style={{ height: 54, fontSize: 16 }} onClick={onHostReset}>재설정 코드 받으러 가기</button>
           </div>
         </>
       ) : (
@@ -275,13 +276,13 @@ function Forgot({ summary, member, onBack, onHostReset }: { summary: RoomSummary
             <h1 className={s.title} style={{ fontSize: 24 }}>방장 {host?.nickname ?? ''}님께<br />새 암호를 부탁해 주세요</h1>
             <p className={s.lead}>{host?.nickname ?? '방장'}님이 4자리 새 암호를 만들어 보내 줄 거예요. 받은 숫자로 바로 들어오면 돼요.</p>
           </section>
-          <ol className={s.note} style={{ margin: 0, paddingLeft: 34, fontSize: 14, lineHeight: 1.7, color: 'var(--r-silver)' }}>
+          <ol className={`${s.note} ${o.notice}`} style={{ margin: 0, paddingLeft: 34, fontSize: 14, lineHeight: 1.7, color: 'var(--r-silver)' }}>
             <li>카톡 등으로 {host?.nickname ?? '방장'}님께 "암호 잊었어" 말하기</li>
             <li>{host?.nickname ?? '방장'}님이 보내 준 4자리 받기</li>
             <li>"{iAm(member.nickname)}"에서 그 숫자 입력</li>
           </ol>
           <div className={s.bottom}>
-            <button type="button" className={s.primary} style={{ height: 54, fontSize: 16 }} onClick={onBack}>새 암호 받았어요</button>
+            <button type="button" className={`${s.primary} ${o.cta}`} style={{ height: 54, fontSize: 16 }} onClick={onBack}>새 암호 받았어요</button>
           </div>
         </>
       )}
@@ -320,7 +321,7 @@ function Blocked({ reason, summary, onPick }: { reason: 'full' | 'closed' | 'gon
               ? <MemberChips members={summary.members} onPick={onPick} />
               : <button type="button" className={s.secondary} onClick={() => setShowNames(true)}>이미 참가했어요</button>
           )}
-          <Link to="/rooms/new" className={s.primary} style={{ height: 54, fontSize: 16 }}>새 우주 만들기</Link>
+          <Link to="/rooms/new" className={`${s.primary} ${o.cta}`} style={{ height: 54, fontSize: 16 }}>새 우주 만들기</Link>
         </div>
       </section>
     </RoomPage>

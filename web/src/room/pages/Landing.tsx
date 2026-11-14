@@ -3,9 +3,8 @@ import { Link } from 'react-router'
 import { keyStore } from '../keyStore'
 import { NoteIcon, RoomPage } from '../components/RoomPage'
 import { Wordmark } from '../components/Wordmark'
-import lp from '../assets/lp.webp'
-import arm from '../assets/tonearm.webp'
 import s from '../room.module.css'
+import o from '../components/outside.module.css'
 import l from './Landing.module.css'
 
 /** 1 첫 화면: 방 만들기 중심. 청취 기록·곡 고르기는 작은 링크로 남긴다 (room-plan 9절) */
@@ -23,7 +22,7 @@ export function Landing() {
       </header>
 
       {showMine && (
-        <section className={s.note} aria-label="이 기기에서 들어간 우주">
+        <section className={`${s.note} ${o.notice}`} aria-label="이 기기에서 들어간 우주">
           {mine.length === 0 ? (
             <span>이 기기에서 들어간 우주가 없어요. 친구에게 받은 초대 링크를 다시 열어 주세요.</span>
           ) : (
@@ -44,12 +43,12 @@ export function Landing() {
       </div>
 
       <section className={s.section} style={{ gap: 12 }}>
-        <h1 className={l.headline}>오늘 밤,<br />노래로 <span className={l.accent}>우주</span>를 그려요</h1>
+        <h1 className={l.headline}>오늘 밤,<br />노래로 우주를 그려요</h1>
         <p className={s.lead} style={{ fontSize: 15 }}>친구와 노래를 모으면, 우리만의 지도가 생겨요.</p>
       </section>
 
       <div className={s.section} style={{ gap: 4 }}>
-        <Link to="/rooms/new" className={s.primary} style={{ height: 58 }}>
+        <Link to="/rooms/new" className={`${s.primary} ${o.cta}`} style={{ height: 58 }}>
           <NoteIcon /> 친구랑 우주 그리기
         </Link>
         <div className={l.small}>
@@ -62,42 +61,35 @@ export function Landing() {
   )
 }
 
-/** 레코드판 + 바늘 + 레코드 홈을 도는 두 사람의 노래가 금빛으로 만나는 모습 (캔버스 1번 보드) */
+/** 세 사람의 행성이 궤도로 이어지고, 같이 담은 노래(금빛 위성)가 그 사이를 도는 모습 */
 function Hero() {
   return (
     <div className={l.heroBox}>
-      <svg viewBox="0 0 342 330" fill="none" aria-hidden="true" className={l.heroBack}>
-        <circle cx="171" cy="160" r="142" fill="#1B1834" />
-        <g className={l.wave}><path d="M-120 262 q30 -16 60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0" stroke="#B9A2FF" strokeWidth="1.2" opacity="0.38" /></g>
-        <g className={`${l.wave} ${l.waveFast}`}><path d="M-120 276 q30 -14 60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0" stroke="#FF9EC0" strokeWidth="1" opacity="0.26" /></g>
-        <circle cx="171" cy="160" r="134" stroke="#3A3466" strokeWidth="1.1" strokeDasharray="1 7" strokeLinecap="round" />
+      <svg viewBox="0 0 342 300" fill="none" role="img" aria-label="친구들의 행성이 궤도로 이어지고 같이 담은 노래가 금빛 위성으로 도는 모습" className={l.heroSvg}>
+        <defs>
+          <radialGradient id="lp-a" cx="35%" cy="30%" r="75%"><stop offset="0" stopColor="#E6DCFF" /><stop offset=".55" stopColor="#B9A2FF" /><stop offset="1" stopColor="#5B47A8" /></radialGradient>
+          <radialGradient id="lp-b" cx="35%" cy="30%" r="75%"><stop offset="0" stopColor="#FFE0EA" /><stop offset=".55" stopColor="#E3A6B8" /><stop offset="1" stopColor="#8A4A64" /></radialGradient>
+          <radialGradient id="lp-c" cx="35%" cy="30%" r="75%"><stop offset="0" stopColor="#D8F4FF" /><stop offset=".55" stopColor="#8CC8E8" /><stop offset="1" stopColor="#3B6A8C" /></radialGradient>
+          <radialGradient id="lp-glow"><stop offset="0" stopColor="#B9A2FF" stopOpacity=".32" /><stop offset="1" stopColor="#B9A2FF" stopOpacity="0" /></radialGradient>
+        </defs>
+        <circle cx="171" cy="150" r="140" fill="url(#lp-glow)" />
+        <ellipse cx="171" cy="150" rx="148" ry="58" stroke="#E6DCFF" strokeOpacity=".16" strokeDasharray="2 6" strokeLinecap="round" transform="rotate(-14 171 150)" />
+        <path d="M86 112 Q171 70 252 108" stroke="#E6DCFF" strokeOpacity=".28" strokeWidth="1.2" strokeDasharray="1 5" strokeLinecap="round" />
+        <path d="M86 112 Q120 190 180 214" stroke="#E6DCFF" strokeOpacity=".22" strokeWidth="1.2" strokeDasharray="1 5" strokeLinecap="round" />
+        <path d="M252 108 Q240 180 180 214" stroke="#E6DCFF" strokeOpacity=".22" strokeWidth="1.2" strokeDasharray="1 5" strokeLinecap="round" />
+        <g className={l.bobA}><circle cx="86" cy="112" r="34" fill="url(#lp-a)" /><circle cx="86" cy="112" r="42" stroke="#B9A2FF" strokeOpacity=".35" /></g>
+        <g className={l.bobB}><circle cx="252" cy="108" r="26" fill="url(#lp-b)" /><ellipse cx="252" cy="108" rx="40" ry="10" stroke="#E3A6B8" strokeOpacity=".6" strokeWidth="1.4" transform="rotate(-18 252 108)" /></g>
+        <g className={l.bobC}><circle cx="180" cy="214" r="22" fill="url(#lp-c)" /><circle cx="180" cy="214" r="29" stroke="#8CC8E8" strokeOpacity=".32" /></g>
         <g className={l.orbit}>
-          <circle cx="171" cy="26" r="6" fill="#FFE3B8" opacity="0.18" />
-          <circle cx="171" cy="26" r="2.8" fill="#FFE3B8" />
+          <circle cx="171" cy="150" r="76" stroke="#FFE3B8" strokeOpacity=".2" strokeDasharray="3 7" />
+          <g className={l.sat}>
+            <circle cx="247" cy="150" r="11" fill="#FFE3B8" opacity=".18" />
+            <circle cx="247" cy="150" r="5.5" fill="#FFE3B8" />
+          </g>
         </g>
-      </svg>
-      <img src={lp} alt="" className={l.lp} />
-      <img src={arm} alt="" className={l.arm} />
-      <svg viewBox="0 0 342 330" fill="none" role="img" aria-label="레코드판의 홈을 따라 모인 친구들의 노래가 금빛으로 만나는 모습" className={l.heroFront}>
-        <g className={`${l.anchor} ${l.lavender}`}>
-          <circle cx="171" cy="54" r="4.2" fill="#B9A2FF" />
-          <circle cx="171" cy="54" r="7.2" stroke="#B9A2FF" strokeWidth="1" opacity="0.34" />
-        </g>
-        <g className={`${l.anchor} ${l.rose}`}>
-          <circle cx="171" cy="78" r="4.2" fill="#E3A6B8" />
-          <circle cx="171" cy="78" r="7.2" stroke="#E3A6B8" strokeWidth="1" opacity="0.3" />
-        </g>
-        <g className={`${l.anchor} ${l.gold}`}>
-          <circle cx="171" cy="78" r="5" fill="#FFE3B8" />
-          <circle cx="171" cy="78" r="8.5" stroke="#FFE3B8" strokeWidth="1" opacity="0.42" />
-        </g>
-        <circle className={l.ring} cx="252" cy="149" r="10" stroke="#FFE3B8" strokeWidth="1.2" />
-        <circle className={l.spark} cx="265" cy="132" r="1.8" fill="#FFE3B8" />
-        <circle className={`${l.spark} ${l.sparkB}`} cx="261" cy="154" r="1.4" fill="#F5F0FF" />
-        <circle className={`${l.spark} ${l.sparkC}`} cx="241" cy="157" r="1.3" fill="#FFE3B8" />
-        <circle cx="126" cy="103" r="2.4" fill="#B9A2FF" opacity="0.72" />
-        <circle cx="228" cy="214" r="2.4" fill="#E3A6B8" opacity="0.68" />
-        <circle cx="132" cy="207" r="2" fill="#B9A2FF" opacity="0.52" />
+        <circle cx="44" cy="226" r="1.6" fill="#FFE3B8" opacity=".7" />
+        <circle cx="306" cy="200" r="1.3" fill="#fff" opacity=".6" />
+        <circle cx="150" cy="40" r="1.4" fill="#fff" opacity=".7" />
       </svg>
     </div>
   )

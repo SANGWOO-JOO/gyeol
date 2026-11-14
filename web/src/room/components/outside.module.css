@@ -1,0 +1,80 @@
+/* 방 밖 화면(첫 화면·방 만들기·초대·암호 재설정) 공통: 보랏빛 우주 배경 + 유리 카드 + 그라데이션 버튼
+   room.module.css는 건드리지 않고, 같은 요소에 클래스를 더해 덮는다 (두 번 써서 우선순위를 올림) */
+
+.cosmos.cosmos {
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  background:
+    radial-gradient(120% 70% at 50% -10%, #3a2a6e 0%, rgba(58,42,110,0) 60%),
+    radial-gradient(70% 50% at 100% 100%, rgba(227,166,184,.16) 0%, rgba(227,166,184,0) 70%),
+    radial-gradient(60% 45% at 0% 70%, rgba(185,162,255,.14) 0%, rgba(185,162,255,0) 70%),
+    #110e24;
+}
+.sky { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+.stars, .starsFar {
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1.2px 1.2px at 12% 18%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 72% 12%, #e6dcff 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 38% 64%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 86% 48%, #ffe3b8 50%, transparent 51%),
+    radial-gradient(1px 1px at 22% 86%, #e6dcff 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 58% 34%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 94% 82%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 4% 46%, #ffe3b8 50%, transparent 51%);
+  background-size: 260px 260px;
+  opacity: .55;
+}
+.starsFar { background-size: 170px 170px; opacity: .28; background-position: 40px 70px; animation: twinkle 6s ease-in-out infinite alternate; }
+.nebula {
+  position: absolute; width: 70vmax; height: 70vmax; left: 50%; top: 40%; translate: -50% -50%;
+  background: radial-gradient(closest-side, rgba(185,162,255,.10), rgba(227,166,184,.05) 55%, transparent);
+  filter: blur(20px);
+}
+@keyframes twinkle { from { opacity: .16; } to { opacity: .36; } }
+
+/* PC 가운데 카드 → 유리 */
+@media (min-width: 768px) {
+  .glassCol.glassCol {
+    background: rgba(24,21,46,.55);
+    border-color: rgba(230,220,255,.12);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 30px 80px rgba(8,5,24,.55), inset 0 1px 0 rgba(255,255,255,.06);
+  }
+}
+
+.glass.glass {
+  background: rgba(32,27,62,.5);
+  border-color: rgba(230,220,255,.12);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.glass.glass input:not([type='checkbox']) { background: rgba(14,11,32,.6); }
+
+.cta.cta {
+  background: linear-gradient(90deg, #b9a2ff, #e6dcff 50%, #e3a6b8);
+  color: #1d1838;
+  box-shadow: 0 10px 28px rgba(185,162,255,.28);
+}
+.cta.cta:hover { filter: brightness(1.05); box-shadow: 0 12px 34px rgba(227,166,184,.34); }
+.cta.cta:disabled { box-shadow: none; }
+
+/* 알림(닫힘·가득) 글상자 */
+.notice.notice { background: rgba(32,27,62,.5); border: 1px solid rgba(230,220,255,.1); }
+
+/* 초대 머리: 사람 얼굴 */
+.faces { display: flex; justify-content: center; padding-left: 10px; }
+.face {
+  width: 46px; height: 46px; margin-left: -10px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 700; color: #1d1838;
+  box-shadow: 0 0 0 2.5px #110e24, 0 0 0 4.5px var(--ring), 0 0 18px var(--ring);
+}
+.faceYou { background: rgba(255,255,255,.06) !important; color: #e6dcff; border: 1.5px dashed rgba(230,220,255,.5); box-shadow: 0 0 0 2.5px #110e24; }
+.eyebrow { margin: 0; font-size: 14px; color: #ffe3b8; letter-spacing: -.1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .starsFar { animation: none; }
+}

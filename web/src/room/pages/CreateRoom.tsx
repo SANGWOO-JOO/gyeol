@@ -5,6 +5,7 @@ import { BackButton, RoomPage, Spinner } from '../components/RoomPage'
 import { CodeInput } from '../components/CodeInput'
 import { defaultRoomName, mmss } from '../text'
 import s from '../room.module.css'
+import o from '../components/outside.module.css'
 
 // 방 만들기: 2 내용 입력 → 메일 코드 → 3 코드 확인 → 방 생성 (방장 이메일 인증 순서 ⑥)
 // 새로고침해도 코드 입력 단계가 이어지도록 진행 중인 초안 토큰은 sessionStorage에 둔다 (탭을 닫으면 사라짐)
@@ -124,7 +125,7 @@ function FormStep({ form, setForm, onSent }: { form: Form; setForm: (f: Form) =>
       </form>
 
       <div className={s.bottom}>
-        <button type="submit" form="create-room" className={s.primary} disabled={busy}>
+        <button type="submit" form="create-room" className={`${s.primary} ${o.cta}`} disabled={busy}>
           {busy ? <><Spinner /> 메일 보내는 중…</> : '인증 메일 받기'}
         </button>
         <span className={`${s.hint} ${s.center}`}>친구들은 이메일 없이 닉네임만으로 들어와요</span>
@@ -229,13 +230,13 @@ function VerifyStep({ saved, onResent, onRestart }: { saved: SavedDraft; onResen
         {info && !error && <p className={s.hint} role="status">{info}</p>}
       </div>
 
-      <section className={s.note}>
+      <section className={`${s.note} ${o.notice}`}>
         <strong>메일이 안 왔나요?</strong>
         <span>스팸함을 확인해 주세요. 주소가 틀렸다면 <button type="button" className={s.linkButton} onClick={onRestart}>이메일 다시 쓰기</button></span>
       </section>
 
       <div className={s.bottom}>
-        <button type="button" className={s.primary} disabled={code.length !== 6 || busy || expired} onClick={() => verify()}>
+        <button type="button" className={`${s.primary} ${o.cta}`} disabled={code.length !== 6 || busy || expired} onClick={() => verify()}>
           {busy ? <><Spinner /> 확인하는 중…</> : '확인하고 방 만들기'}
         </button>
       </div>

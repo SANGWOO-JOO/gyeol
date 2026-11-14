@@ -4,6 +4,7 @@ import { BackButton, RoomPage, Spinner } from '../components/RoomPage'
 import { CodeInput } from '../components/CodeInput'
 import { hasBatchim, mmss } from '../text'
 import s from '../room.module.css'
+import o from '../components/outside.module.css'
 
 /**
  * 6-d 방장 암호 재설정: 등록 이메일로 6자리 코드 → 코드 + 새 4자리 → 바로 방으로.
@@ -72,7 +73,7 @@ export function HostReset({ summary, onBack, onJoined }: { summary: RoomSummary;
           </section>
           {error && <p className={s.error} role="alert">{error.text}</p>}
           <div className={s.bottom}>
-            <button type="button" className={s.primary} style={{ height: 54, fontSize: 16 }} onClick={send} disabled={sending}>
+            <button type="button" className={`${s.primary} ${o.cta}`} style={{ height: 54, fontSize: 16 }} onClick={send} disabled={sending}>
               {sending ? <><Spinner /> 보내는 중…</> : '재설정 코드 받기'}
             </button>
           </div>
@@ -104,7 +105,7 @@ export function HostReset({ summary, onBack, onJoined }: { summary: RoomSummary;
           {error && <p className={s.error} role="alert">{error.text}</p>}
 
           <div className={s.bottom}>
-            <button type="button" className={s.primary} style={{ height: 54, fontSize: 16 }} onClick={verify} disabled={busy || left <= 0}>
+            <button type="button" className={`${s.primary} ${o.cta}`} style={{ height: 54, fontSize: 16 }} onClick={verify} disabled={busy || left <= 0}>
               {busy ? <><Spinner /> 확인하는 중…</> : '새 암호로 들어가기'}
             </button>
           </div>
