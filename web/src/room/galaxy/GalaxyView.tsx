@@ -29,7 +29,7 @@ export interface GalaxyViewProps {
 export function GalaxyView({ map, roomId, meId, onSelectArtist, onSelectGhost, onAddFirst, fresh, fill = false, selectedId = null }: GalaxyViewProps) {
   const [asList, setAsList] = useState(false)
   if (map.planets.length === 0) return <div className={fill ? g.fillCenter : undefined}><EmptyGalaxy onAddFirst={onAddFirst} /></div>
-  const toggle = <button type="button" className={g.viewToggle} onClick={() => setAsList(v => !v)}>{asList ? '지도로 보기' : '목록으로 보기'}</button>
+  const toggle = <button type="button" className={g.viewToggle} data-map-overlay="top" onClick={() => setAsList(v => !v)}>{asList ? '지도로 보기' : '목록으로 보기'}</button>
   if (!asList) {
     return (
       <section aria-label="우리 음악 은하" className={fill ? g.fillMap : undefined} style={fill ? undefined : { display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -88,7 +88,7 @@ function PlanetRow({ planet, members, meId, onSelect }: {
 /** PC 지도 아래 색 안내 (캔버스 4-PC): 사람 색 · 같이 담은 노래 · 근처 추천 가수 */
 function Legend({ members, hasGhosts }: { members: MemberView[]; hasGhosts: boolean }) {
   return (
-    <div className={g.legend} aria-hidden="true">
+    <div data-map-overlay="bottom" className={g.legend} aria-hidden="true">
       {members.map(m => <span key={m.id}><i style={{ background: memberColor(m.colorIdx).bg }} />{m.nickname}</span>)}
       <span><i className={g.legendGold} />같이 담은 노래</span>
       {hasGhosts && <span><i className={g.legendGhost} />비슷한 아티스트</span>}

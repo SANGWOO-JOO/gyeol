@@ -2,10 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { MemberView, RoomMap } from '../roomApi'
 import { memberColor } from '../roomApi'
 import { planetPeople } from '../roomLogic'
-import { fitView, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type View } from './galaxyMath'
+import { fitInside, GALAXY_PX, orbitSpin, pushOut, zoomAnchor, screenSpacing, labelBox, NAME_PX, pan, screenPlanetRadius, stars, toWorld, visibleLabels, zoomAt, zoomGrow, zoomLevel, type Insets, type View } from './galaxyMath'
 import { NO_FRESH, songKey, type Fresh } from './fresh'
 import { genreColor, pillWidth, planetFace } from './faces'
-import { orbitLayout, ringRadius, satelliteRadius, type Ring } from './orbits'
+import { orbitLayout, RING_GAP, ringRadius, satelliteRadius, type Ring } from './orbits'
 import g from './galaxy.module.css'
 
 /**
@@ -68,7 +68,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
   const [fitScale, setFitScale] = useState(0)
   const fit = useCallback(() => {
     if (size.width === 0) return
-    const v = fitView(planets.map(p => ({ x: p.wx, y: p.wy })), size)
+    const v = fitInside(planets.map(p => ({ x: p.wx, y: p.wy })), size, fitInsets(wrapRef.current, planets.reduce((m, p) => Math.max(m, p.songs.length), 1), planets.some(p => p.rings.length > 0)))
     setFitScale(v.scale)
     apply(v, true)
   }, [apply, planets, size])
@@ -396,7 +396,7 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
           </div>
         )}
       </div>
-      <div className={g.controls}>
+      <div className={g.controls} data-map-overlay="controls">
         <button type="button" className={g.ctrl} aria-label="확대" onClick={() => zoomBy(1.4)}>+</button>
         <button type="button" className={g.ctrl} aria-label="축소" onClick={() => zoomBy(1 / 1.4)}>−</button>
         <button type="button" className={g.ctrl} aria-label="우리 구역으로 돌아가기" onClick={refit}>
@@ -405,6 +405,36 @@ export function GalaxyMap({ map, meId, roomId, onSelectArtist, onSelectGhost, fr
       </div>
     </div>
   )
+}
+
+/**
+ * 맞춤 여백 (I-46): 행성 몸체+궤도(가장 큰 행성 기준)와 아래 이름표 알약, 그리고 지도 위에 떠 있는 것들의 실제 자리.
+ * 떠 있는 것은 data-map-overlay로 표시한다: controls(오른쪽 아래 +/−/⌖), top(보기 전환), bottom(PC 색 안내).
+ * 조작 버튼은 두 안: 오른쪽을 비우기 / 아래를 비우기.
+ */
+function fitInsets(wrap: HTMLElement | null, maxSongs: number, rings: boolean): Insets[] {
+  const body = screenPlanetRadius(maxSongs, 1.2) + (rings ? RING_GAP * 3 + 6 : 4) // 행성 반지름 + 궤도·위성
+  const label = 26 // 이름표 알약
+  const base: Insets = { top: body + 8, right: body + 8, bottom: body + label + 8, left: body + 8 }
+  if (!wrap) return [base]
+  const w = wrap.getBoundingClientRect()
+  const root = wrap.closest('section') ?? wrap.parentElement
+  let top = 0, bottom = 0, ctrl: DOMRect | null = null
+  root?.querySelectorAll<HTMLElement>('[data-map-overlay]').forEach(el => {
+    const r = el.getBoundingClientRect()
+    if (r.width === 0 || r.bottom <= w.top || r.top >= w.bottom || r.right <= w.left || r.left >= w.right) return
+    const kind = el.dataset.mapOverlay
+    if (kind === 'controls') ctrl = r
+    else if (kind === 'top') top = Math.max(top, r.bottom - w.top)
+    else if (kind === 'bottom') bottom = Math.max(bottom, w.bottom - r.top)
+  })
+  const a: Insets = { ...base, top: Math.max(base.top, top + 8), bottom: Math.max(base.bottom, bottom + 8) }
+  if (!ctrl) return [a]
+  const c = ctrl as DOMRect
+  return [
+    { ...a, right: Math.max(a.right, w.right - c.left + 8) },
+    { ...a, bottom: Math.max(a.bottom, w.bottom - c.top + 8) },
+  ]
 }
 
 /**

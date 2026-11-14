@@ -22,7 +22,7 @@ export const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE,
  * 점들이 모두 보이게 (⑤ 처음 위치: 방의 행성이 모두 보이게 확대).
  * 행성들의 실제 범위에 화면의 padFrac(가로·세로 각각)만큼 여백을 두고, 가로·세로 비율 중 작은 쪽으로 맞춘다.
  */
-export function fitView(points: (Pt & { r?: number })[], size: Size, padFrac = 0.12): View {
+export function fitView(points: (Pt & { r?: number })[], size: Size, padFrac = 0.12, maxScale = 2.4): View {
   if (points.length === 0 || size.width <= 0 || size.height <= 0) {
     const s = clampScale(Math.min(size.width, size.height) / WORLD || 1)
     return { scale: s, tx: (size.width - WORLD * s) / 2, ty: (size.height - WORLD * s) / 2 }
@@ -35,7 +35,7 @@ export function fitView(points: (Pt & { r?: number })[], size: Size, padFrac = 0
   }
   // 행성 하나뿐이면 너무 크게 확대하지 않도록 최소 크기
   const w = Math.max(maxX - minX, 160), h = Math.max(maxY - minY, 160)
-  const scale = clampScale(Math.min((size.width * (1 - 2 * padFrac)) / w, (size.height * (1 - 2 * padFrac)) / h, 2.4))
+  const scale = clampScale(Math.min((size.width * (1 - 2 * padFrac)) / w, (size.height * (1 - 2 * padFrac)) / h, maxScale))
   const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
   return { scale, tx: size.width / 2 - cx * scale, ty: size.height / 2 - cy * scale }
 }
@@ -71,6 +71,24 @@ export function zoomAnchor(screenPts: Pt[], size: Size): Pt {
     if (d < bd) { bd = d; best = p }
   }
   return best ?? c
+}
+
+/** 지도 위에 떠 있는 것(조작 버튼·안내·보기 전환)과 행성·이름표가 차지할 여백(px) */
+export interface Insets { top: number; right: number; bottom: number; left: number }
+
+/**
+ * 맞춤 (I-46): 여백을 뺀 안쪽 상자에 행성 무리를 맞추고 그 상자의 가운데에 둔다.
+ * 조작 버튼은 오른쪽 세로줄이라 "오른쪽을 비우기"와 "아래를 비우기" 두 안을 계산해 더 크게 보이는 쪽을 고른다.
+ */
+export function fitInside(points: Pt[], size: Size, candidates: Insets[], maxScale = 2.4): View {
+  let best: View | null = null
+  for (const ins of candidates) {
+    const box = { width: Math.max(40, size.width - ins.left - ins.right), height: Math.max(40, size.height - ins.top - ins.bottom) }
+    const v = fitView(points, box, 0, maxScale)
+    const moved = { scale: v.scale, tx: v.tx + ins.left, ty: v.ty + ins.top }
+    if (!best || moved.scale > best.scale + 1e-9) best = moved
+  }
+  return best ?? fitView(points, size)
 }
 
 /** 화면 점 (sx, sy)을 고정한 채 배율을 factor만큼 바꾼다 (휠·두 손가락) */

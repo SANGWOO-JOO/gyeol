@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GROW_MAX, orbitSpin, pushOut, zoomAnchor, zoomGrow, clampScale, screenSpacing, fitView, MAX_SCALE, MIN_SCALE, pan, planetRadius, screenPlanetRadius, stars, visibleLabels, zoomAt, zoomLevel } from './galaxyMath'
+import { GROW_MAX, fitInside, orbitSpin, pushOut, zoomAnchor, zoomGrow, clampScale, screenSpacing, fitView, MAX_SCALE, MIN_SCALE, pan, planetRadius, screenPlanetRadius, stars, visibleLabels, zoomAt, zoomLevel } from './galaxyMath'
 
 const size = { width: 390, height: 600 }
 
@@ -151,5 +151,24 @@ describe('I-40 근처 가수 자리 밀어내기', () => {
     const obs = [{ x: 0, y: 0, r: 20 }, { x: 50, y: 0, r: 20 }]
     const q = pushOut({ x: 25, y: 1 }, 5, obs, 4)
     for (const o of obs) expect(Math.hypot(q.x - o.x, q.y - o.y)).toBeGreaterThanOrEqual(o.r + 5 + 4 - 1e-6)
+  })
+})
+
+describe('I-46 여백을 뺀 맞춤', () => {
+  const size = { width: 400, height: 600 }
+  const pts = [{ x: 100, y: 100 }, { x: 300, y: 500 }]
+  it('여백 안 상자의 가운데에 무리를 둔다', () => {
+    const v = fitInside(pts, size, [{ top: 50, right: 80, bottom: 120, left: 30 }])
+    const sx = (x: number) => x * v.scale + v.tx, sy = (y: number) => y * v.scale + v.ty
+    expect(sx(100)).toBeGreaterThanOrEqual(30 - 1e-6); expect(sx(300)).toBeLessThanOrEqual(400 - 80 + 1e-6)
+    expect(sy(100)).toBeGreaterThanOrEqual(50 - 1e-6); expect(sy(500)).toBeLessThanOrEqual(600 - 120 + 1e-6)
+    expect((sy(100) + sy(500)) / 2).toBeCloseTo(50 + (600 - 50 - 120) / 2)
+  })
+  it('두 안 중 더 크게 보이는 쪽을 고른다', () => {
+    const right = { top: 20, right: 150, bottom: 20, left: 20 }, below = { top: 20, right: 20, bottom: 150, left: 20 }
+    const v = fitInside(pts, size, [right, below])
+    const a = fitInside(pts, size, [right]).scale, b = fitInside(pts, size, [below]).scale
+    expect(a).not.toBeCloseTo(b)
+    expect(v.scale).toBeCloseTo(Math.max(a, b))
   })
 })
