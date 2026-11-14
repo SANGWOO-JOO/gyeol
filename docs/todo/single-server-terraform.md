@@ -283,6 +283,7 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 | 11 | 음악 지도 데이터 옮기기(D4): 로컬 덤프 → S3 → 서버에서 `pg_restore`(지도 표만) | SSM 세션 | 지도 화면 |
 | 12 | 관리자 계정: 맥북에서 `ADMIN_TOTP_KEY=<6번 값> uv run --directory tools/admin-account python make_admin.py` → 인증 앱 등록 → INSERT를 서버 DB에서 실행(SSM 세션 `kubectl exec … psql`) | 맥북·SSM 세션 | 관리자 페이지 |
 
+- Slack 알림(16-5): Webhook을 만들어 Parameter Store·GitHub Secret에 넣는 일은 6번(비밀값 넣기)과 같이 한다.
 - 2~4와 6~8은 서로 기다리지 않는다. 1이 먼저다.
 - 비용이 생기는 단계는 2(거의 0)·7(월 약 17.5달러부터)이다. 7 직전에 한 번 더 확인받는다.
 
@@ -349,6 +350,7 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 - release.yml: deploy 작업(OIDC → SSM `gyeol-deploy <태그>` → 헬스 체크), rollback(`workflow_dispatch`).
 - Helm: `/api` Ingress 분리 + `gyeol-api-ratelimit` 미들웨어(15-1), 값 `rateLimit.*`.
 - api: 검색 2개에 `IpRateLimiter`(15-2), 배포 뒤 `X-Forwarded-For` 위조 확인(15-2).
+- 모니터링(16절): base에 SNS·Lambda(`infra/lambda/slack-notify`)·DLQ 수식 알람·출력 `alerts_topic_arn`, single에 EC2·디스크·메모리·CPU 크레딧 알람·EventBridge 규칙, user-data에 CloudWatch 에이전트, 서버 역할에 `CloudWatchAgentServerPolicy`, `.github/workflows/uptime.yml`.
 - 도구: `tools/db-tunnel.sh`(14-3, ClusterIP 조회 + 포트 포워딩, 로컬 포트 25432).
 - 문서: `single-server.md`의 "맥북에서 빌드해 서버 k3s에 직접 넣는다"는 ghcr로 바뀜.
 
@@ -359,6 +361,7 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 | 11-14 | 초안 (갈래 1). AWS 호출 없음, 가격은 11-10 조회값 + 확인 필요 표시 |
 | 11-14 | 14절 운영 DB 접속(SSM 포트 포워딩, 읽기 전용 계정) 추가 |
 | 11-14 | 15절 요청 수 제한(Traefik RateLimit, 앱 검색 제한, X-Forwarded-For 확인) 추가 |
+| 11-14 | 16절 모니터링·알림(CloudWatch → SNS → Lambda → Slack, GitHub Actions 생존 확인) 추가 |
 
 ## 14. 운영 DB 접속 (맥북 → SSM 포트 포워딩)
 
@@ -467,3 +470,59 @@ spec:
 |---|---|---|---|
 | 1 | Cloudflare 프록시 켜기 (S4 다시 결정) | 무료 | 실제 공격이나 봇 트래픽이 로그에 보일 때. 5-1절의 바꿀 것 4가지를 같이 한다 |
 | 2 | ALB + AWS WAF | 월 수십 달러 (**확인 필요**) | 서버를 여러 대로 늘리거나 EKS로 옮길 때 |
+
+## 16. 모니터링·알림 (CloudWatch → SNS → Lambda → Slack)
+
+지금 설계에서 볼 수 있는 것은 EC2 기본 지표(5분, 무료)와 예산 알림뿐이다. 사이트 다운·스팟 회수·DLQ 적재·디스크 가득 참·오류 로그는 알 방법이 없다. 무료 한도 안에서 최소한의 알림을 Slack으로 받는다.
+
+### 16-1. 흐름
+
+```
+CloudWatch 알람 (EC2 상태 검사·DLQ·디스크·메모리) ─┐
+EventBridge (스팟 회수 경고·인스턴스 상태 변화)      ├→ SNS gyeol-alerts → Lambda gyeol-slack-notify → Slack Incoming Webhook
+CloudWatch Logs 구독 필터 (api·worker ERROR)       ─┘
+GitHub Actions 생존 확인 (실패 시) ────────────────────────────────────────→ Slack Incoming Webhook 직접
+```
+
+- 알람은 Lambda를 바로 부르지 못하므로 SNS를 거친다(**추정**: CloudWatch 알람 동작 기억, 구현 때 확인).
+- Lambda는 SNS 메시지(알람·EventBridge·로그 구독 형식이 다름)를 Slack 블록 메시지로 바꾼다: 제목(알람 이름), 상태(ALARM/OK), 사유, 시각(Asia/Seoul), 콘솔 링크.
+- 같은 알람이 짧게 반복될 때 Slack이 넘치지 않게, 로그 구독 쪽은 Lambda가 같은 메시지를 10분 안에서 하나로 묶는다(Lambda 메모리 캐시, 콜드 스타트면 풀림. 정확성보다 소음 줄이기 목적).
+- AWS의 Slack 연동(예전 AWS Chatbot)을 쓰면 Lambda 없이 되지만, 메시지 모양을 바꾸기 어렵고 워크스페이스에 AWS 앱 승인이 필요해 쓰지 않는다. 회사에서 만든 CloudWatch → Lambda → Teams와 같은 구조를 Terraform으로 코드화하는 쪽을 고른다.
+
+### 16-2. 알람 목록
+
+| 알람 | 지표 | 조건 | 비고 |
+|---|---|---|---|
+| 서버 상태 | EC2 `StatusCheckFailed` | 2회 연속(10분) | 무료 기본 지표 |
+| CPU 크레딧 | EC2 `CPUCreditBalance` | 30 미만 | t4g 버스트형, 크레딧이 바닥나면 느려짐 |
+| DLQ 적재 | SQS `ApproximateNumberOfMessagesVisible` (DLQ 10개) | 1 이상 | 큐마다 알람이면 10개라 무료 한도를 넘는다. 수식 알람(SUM) 1개로 묶는다(**확인 필요**: 수식 알람 과금) |
+| 디스크 | CWAgent `disk_used_percent` (/) | 80% 이상 | 에이전트 필요(16-3) |
+| 메모리 | CWAgent `mem_used_percent` | 90% 이상 15분 | 4GB에 약 1GB 여유(`single-server.md`) |
+
+- 알람 수: 5개. CloudWatch 알람 무료 한도(10개) 안이다(**추정**, 가격 페이지 재확인).
+- 스팟 회수: EventBridge 규칙 `EC2 Spot Instance Interruption Warning`, `EC2 Instance State-change Notification`(stopped·running) → SNS. 무료(**추정**).
+
+### 16-3. 서버 쪽
+
+- CloudWatch 에이전트: user-data에서 설치, 디스크·메모리 2개 지표만 60초 간격. 사용자 지정 지표 2개라 월 1달러 미만(**추정**). 서버 역할에 `CloudWatchAgentServerPolicy`(AWS 관리형)를 더한다(7절 표에 추가).
+- 오류 로그(선택, 처음에는 꺼 둠): Fluent Bit DaemonSet이 api·worker 파드 로그 중 `ERROR` 줄만 CloudWatch Logs `/gyeol/prod/app`로 보낸다. 보관 7일. 무료 수집 한도(월 5GB) 안. 메모리 약 50MB 추가(**추정**). Helm 값 `logShipping.enabled`.
+- 생존 확인: GitHub Actions 예약 작업(`*/15 * * * *`)이 `https://ourgyeol.com/actuator/health/readiness`를 부르고, 실패하면 Slack Webhook으로 직접 보낸다. 공개 저장소라 무료. 서버가 통째로 죽으면 서버 안 장치로는 알 수 없어서 바깥에서 확인한다. Route 53 헬스 체크는 유료라 쓰지 않는다.
+  - Webhook 주소는 GitHub Secret `SLACK_WEBHOOK_URL`.
+
+### 16-4. Terraform 위치와 비밀값
+
+| 무엇 | 스택 | 이유 |
+|---|---|---|
+| SNS `gyeol-alerts`, Lambda `gyeol-slack-notify`(+ 실행 역할, 로그 그룹 보관 7일), DLQ 수식 알람 | **base** | 서버를 지웠다 다시 만들어도 알림 경로는 남아야 한다 |
+| EC2·디스크·메모리·CPU 크레딧 알람, EventBridge 규칙 | **single** | 인스턴스 ID에 묶인다. base 출력 `alerts_topic_arn`을 `terraform_remote_state`로 읽는다 |
+| 생존 확인 워크플로 | 저장소 `.github/workflows/uptime.yml` | AWS 밖에서 확인해야 의미가 있다 |
+
+- Slack Webhook 주소는 Terraform에 넣지 않는다. Parameter Store `/gyeol/prod/SLACK_WEBHOOK_URL`(SecureString)에 사용자가 직접 넣고, Lambda 실행 역할에는 그 한 경로의 `ssm:GetParameter` + `kms:Decrypt`만 준다. 값은 Lambda가 처음 실행될 때 읽어 메모리에 둔다.
+- Lambda 코드: `infra/lambda/slack-notify/handler.py`(Python 3.12, 표준 라이브러리만, 50줄 안팎). Terraform `archive_file`로 묶는다.
+- 비용: SNS·Lambda 모두 무료 한도(월 100만 건) 안. 알림은 월 몇십 건이다(**추정**).
+
+### 16-5. 사용자가 할 일
+
+1. Slack 워크스페이스에 앱을 만들고 Incoming Webhook을 켠 뒤 채널(예: `#gyeol-alerts`)을 고른다.
+2. 받은 Webhook 주소를 Parameter Store `/gyeol/prod/SLACK_WEBHOOK_URL`과 GitHub Secret `SLACK_WEBHOOK_URL`에 넣는다(대화에 붙여넣지 않는다).
+3. base apply 뒤 테스트: `aws sns publish --topic-arn <alerts_topic_arn> --message '{"test":true}'` → Slack에 메시지가 오는지 본다.
