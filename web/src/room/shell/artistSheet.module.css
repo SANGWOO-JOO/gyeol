@@ -54,3 +54,6 @@
 .nearGhost .nearFace { border-color: rgba(230, 220, 255, .45); }
 .notYet { font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #2e2a55; color: var(--r-text-2); }
 @media (prefers-reduced-motion: reduce) { .faceWrap { transition: none; } }
+/* 사실 줄(FACTS)은 문장 대신 칩 */
+.facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.facts span { padding: 4px 10px; border-radius: 999px; background: var(--r-bg); font-size: 13px; color: var(--r-text); box-shadow: inset 0 0 0 1px #2e2a55; }

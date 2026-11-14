@@ -4,6 +4,7 @@ import { api, ApiError, type Track } from '../api'
 import { Alert, Layout } from '../components/Layout'
 import { Cover } from '../components/Tile'
 import ui from '../styles/ui.module.css'
+import { searchable } from '../room/roomLogic'
 
 const MIN = 3, MAX = 5
 const key = (t: Track) => `${t.title}\u0000${t.artist}`.toLowerCase()
@@ -14,6 +15,7 @@ export function Pick() {
   const [results, setResults] = useState<Track[]>([])
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
+  const [composing, setComposing] = useState(false)
   const [picked, setPicked] = useState<Track[]>([])
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -21,7 +23,8 @@ export function Pick() {
   // 입력이 0.5초 멈추면 검색. 앞선 요청은 취소
   useEffect(() => {
     const query = q.trim()
-    if (query.length < 2) { setResults([]); setSearchError(null); return }
+    // 두 글자부터, 한 글자는 한글·한자·가나만 (방 검색과 같은 규칙, 11-14). 한글 조합 중엔 보내지 않는다
+    if (composing || !searchable(query)) { if (!composing) { setResults([]); setSearchError(null) } return }
     const ctrl = new AbortController()
     const timer = setTimeout(async () => {
       setSearching(true); setSearchError(null)
@@ -34,7 +37,7 @@ export function Pick() {
       }
     }, 500)
     return () => { clearTimeout(timer); ctrl.abort() }
-  }, [q])
+  }, [q, composing])
 
   const isPicked = (t: Track) => picked.some(p => key(p) === key(t))
   const toggle = (t: Track) =>
@@ -69,11 +72,12 @@ export function Pick() {
         </div>
 
         <input className={ui.input} value={q} onChange={e => setQ(e.target.value)} autoFocus
+          onCompositionStart={() => setComposing(true)} onCompositionEnd={e => { setComposing(false); setQ(e.currentTarget.value) }}
           placeholder="가수와 곡 이름, 예: 아이유 밤편지" aria-label="곡 검색" />
 
         {searchError && <Alert>{searchError}</Alert>}
         {searching && <span className={ui.small}>찾는 중…</span>}
-        {!searching && !searchError && q.trim().length >= 2 && results.length === 0 && (
+        {!searching && !searchError && searchable(q) && results.length === 0 && (
           <Alert kind="info">찾는 곡이 없어요. 가수와 곡 이름 사이를 띄우거나, 영문·원어 이름으로도 검색해 보세요.</Alert>
         )}
 

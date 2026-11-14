@@ -64,9 +64,12 @@ export interface MySongsPage { items: MySong[]; nextCursor: number | null; sort?
 export interface Evidence { id: number; source: string; url: string }
 export interface ArtistView {
   artistId: number; name: string; description: string | null; evidence: Evidence[]
+  /** TEXT(설명 문장) · FACTS(사실 줄: description 대신 facts) · null(설명 없음) */
+  descriptionKind?: 'TEXT' | 'FACTS' | null
+  facts?: { area?: string | null; tags?: string[] | null } | null
   /** I-44 얼굴과 사진 출처(Commons 사진일 때만) */
   face?: Face | null; photo?: PhotoCredit | null
-  songs: MapSong[]; nearby: { artistId: number; name: string; inRoom: boolean }[]; preparing: boolean
+  songs: MapSong[]; nearby: { artistId: number; name: string; inRoom: boolean; galaxyId?: number | null; face?: Face | null }[]; preparing: boolean
 }
 
 export interface CodeMatchPerson { memberId: number; nickname: string; colorIdx: number; avatarCharacterId: number | null; songCount: number }

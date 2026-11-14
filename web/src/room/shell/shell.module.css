@@ -455,3 +455,4 @@ button.groupHead:focus-visible { outline: 2px solid var(--r-accent-strong); outl
 @media (prefers-reduced-motion: reduce) { .sheet .bannerHead { transition: none; } }
 .sheet .bannerHead[data-collapsed] [class*='bannerCredit'] { display: none; }
 .sheet .bannerHead[data-collapsed] [class*='faceCredit'] { display: none; }
+.bannerHead { isolation: isolate; } /* 배너 안 닫기·ⓘ가 위에 붙은 탭 줄 위로 올라오지 않게 */

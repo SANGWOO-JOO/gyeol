@@ -19,6 +19,11 @@ import sh from './shell.module.css'
  * 4′ 가수(행성)를 눌렀을 때: 방에 담긴 이 가수 노래(같이 담음 금빛, 내 노래 ✕), 근거로 쓴 설명과 출처,
  * 비슷한 아티스트(우리 우주에 없는 가수는 금빛 "함께 들어 볼 아티스트"), 노래 전체 보기(I-30 4′2 → 가수 화면).
  */
+/** 사실 줄(FACTS) → 칩: 지역, 태그 (날짜는 서버가 빼서 보낸다) */
+export function factChips(f: { area?: string | null; tags?: string[] | null } | null | undefined): string[] {
+  return [f?.area, ...(f?.tags ?? [])].filter((x): x is string => !!x && x.trim() !== '').slice(0, 8)
+}
+
 /** 비슷한 아티스트는 처음 8명, 나머지는 더 보기 */
 const NEAR_MAX = 8
 
@@ -146,13 +151,15 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
 
           <section className={ak.why}>
             <h3 className={ak.sectionTitle}>{galaxyName ? `왜 ${galaxyName}에 있을까요` : '어떤 아티스트일까요'}</h3>
-            {a.description
+            {a.descriptionKind === 'FACTS'
+              ? <div className={ak.facts} aria-label="이 아티스트 정보">{factChips(a.facts).map(t => <span key={t}>{t}</span>)}</div>
+              : a.description
               ? <p id={`why-${a.artistId}`} className={open ? undefined : ak.clamp}>{a.description}</p>
               : <p>{a.preparing ? '이 아티스트를 우주에 올리는 중이에요. 근거를 모아 설명을 쓰고 있어요.' : '아직 근거로 쓴 설명이 없어요.'}</p>}
-            {a.description && (
+            {a.description && a.descriptionKind !== 'FACTS' && (
               <button type="button" className={ak.more} aria-expanded={open} aria-controls={`why-${a.artistId}`} onClick={() => setOpen(v => !v)}>{open ? '접기' : '더 읽기'}</button>
             )}
-            {open && a.evidence.length > 0 && (
+            {(open || a.descriptionKind === 'FACTS') && a.evidence.length > 0 && (
               <div className={ak.sources} aria-label="설명에 쓴 자료">
                 {a.evidence.map(e => <a key={e.id} href={e.url} target="_blank" rel="noreferrer noopener">{sourceName(e.source)}에서 보기</a>)}
               </div>
@@ -167,9 +174,11 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
                   const f = n.inRoom ? planets.get(n.artistId) : undefined
                   const nf = n.inRoom && f ? planetFace(f) : null
                   const g = ghosts.get(n.artistId)
-                  const src = nf && nf.kind !== 'genre' ? nf.sources : g?.face?.kind === 'PHOTO' && g.face.url ? sourcesOf([g.face.url]) : []
+                  // 얼굴: 응답 face(사진 → 저장 표지) → 지도 행성 얼굴 → 근처 가수 사진 → 장르색
+                  const rf = n.face && (n.face.kind === 'PHOTO' || n.face.kind === 'COVER') && n.face.url ? sourcesOf([n.face.url]) : null
+                  const src = rf ?? (nf && nf.kind !== 'genre' ? nf.sources : g?.face?.kind === 'PHOTO' && g.face.url ? sourcesOf([g.face.url]) : [])
                   // 사진이 없으면 그 가수의 장르색(구역을 알면), 모르면 방 기본 보라
-                  const gid = f?.galaxyId ?? g?.galaxyId ?? null
+                  const gid = n.galaxyId ?? f?.galaxyId ?? g?.galaxyId ?? null
                   const fill = gid != null ? genreColor(galaxyNames.get(gid), gid) : '#4a4378'
                   return (
                     <button key={n.artistId} type="button" className={`${ak.near} ${n.inRoom ? '' : ak.nearGhost}`}
