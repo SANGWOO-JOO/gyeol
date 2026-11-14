@@ -30,7 +30,7 @@ export function ArtistFace({ roomId, name, photoUrl, credit, className }: {
 }
 
 /** 얼굴 모서리 ⓘ: 누르면 출처 말풍선(원본 파일 페이지 링크), 바깥을 누르면 닫힘 */
-function CreditButton({ text, pageUrl }: { text: string; pageUrl?: string | null }) {
+export function CreditButton({ text, pageUrl }: { text: string; pageUrl?: string | null }) {
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLSpanElement>(null)
   const id = useId()

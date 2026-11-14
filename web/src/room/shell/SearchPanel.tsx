@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { roomApi, RoomApiError, type RoomSearchItem, type SearchArtist } from '../roomApi'
-import { appendSearch, artistCardSub, artistDisplayName, artistFaceUrl, searchBadge, showArtistMore, sharedWithText, trackKey } from '../roomLogic'
+import { searchable, searchDelay, appendSearch, artistCardSub, artistDisplayName, artistFaceUrl, searchBadge, showArtistMore, sharedWithText, trackKey } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { ArtistFace } from './ArtistFace'
 import { CoverImg } from './CoverImg'
@@ -34,6 +34,7 @@ export function SearchPanel({
   const [error, setError] = useState<string | null>(null)
   // 오류 뒤 같은 검색어로 다시 (I-42 D): Enter 또는 [다시 시도]
   const [retry, setRetry] = useState(0)
+  const [composing, setComposing] = useState(false)
   // 더보기: 받은 쪽·다음 쪽 있음·이어서 받는 중·이어 받기 오류. 검색어가 바뀌면 처음부터
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
@@ -48,7 +49,9 @@ export function SearchPanel({
     const q = query.trim()
     const gen = ++searchGen.current
     setPage(1); setHasMore(false); setLoadingMore(false); setMoreError(null)
-    if (q.length < 1) { setItems(null); setArtist(null); setError(null); setLoading(false); return }
+    // 한글 조합 중(ㅂ→비)에는 보내지 않는다: 조합이 끝나면 다시 이 효과가 돈다
+    if (composing) return
+    if (!searchable(q)) { setItems(null); setArtist(null); setError(null); setLoading(false); return }
     const ac = new AbortController()
     setLoading(true)
     const t = setTimeout(() => {
@@ -56,9 +59,9 @@ export function SearchPanel({
         .then(r => { if (gen !== searchGen.current) return; setItems(r.items); setArtist(r.artist ?? null); setPage(r.page ?? 1); setHasMore(!!r.hasMore); setError(null) })
         .catch(err => { if (!ac.signal.aborted) setError(err instanceof RoomApiError ? err.message : '검색하지 못했어요') })
         .finally(() => { if (!ac.signal.aborted) setLoading(false) })
-    }, 300)
+    }, searchDelay(q))
     return () => { clearTimeout(t); ac.abort() }
-  }, [roomId, query, retry])
+  }, [roomId, query, retry, composing])
 
   async function more() {
     const q = query.trim()
@@ -83,7 +86,8 @@ export function SearchPanel({
       <label className={sh.searchBox}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B7AFD1" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
         <input ref={inputRef} type="search" aria-label="노래 검색" placeholder="노래나 가수 이름" value={query} onChange={e => setQuery(e.target.value)} enterKeyHint="search"
-          onKeyDown={e => { if (e.key === 'Enter' && query.trim()) { e.preventDefault(); setRetry(n => n + 1) } }} />
+          onCompositionStart={() => setComposing(true)} onCompositionEnd={e => { setComposing(false); setQuery(e.currentTarget.value) }}
+          onKeyDown={e => { if (e.key === 'Enter' && searchable(query)) { e.preventDefault(); setRetry(n => n + 1) } }} />
         {query && (
           <button type="button" className={sh.clear} aria-label="검색어 지우기" onClick={() => { setQuery(''); inputRef.current?.focus() }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>

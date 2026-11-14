@@ -315,7 +315,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       pending={pendingKeys} busy={busy} onAdd={add} onOpenArtist={a => setArtistPage({ artistId: a.artistId, name: a.name, songCountInRoom: a.songCountInRoom, onMap: a.onMap })} />
   )
   const playTab = <PlayTab roomId={roomId} meId={me?.member.id ?? -1} version={version} onError={handle} show={show} />
-  const mineTab = <MineTab roomId={roomId} me={me} map={map} version={version} onChanged={changed} onError={handle} show={show} onOpenGift={boxId => setSheet({ kind: 'gift', boxId })} />
+  const mineTab = <MineTab roomId={roomId} me={me} map={map} version={version} onChanged={changed} onError={handle} show={show} onOpenGift={boxId => setSheet({ kind: 'gift', boxId })} onOpenArtist={id => { if (!wide) setTab('map'); setSheet({ kind: 'artist', id }) }} />
   const peopleSheet = (
     <PeopleSheet roomId={roomId} capacity={summary?.capacity ?? 5} version={version} isHost={isHost}
       onClose={() => setSheet(null)} onInvite={invite} onError={handle} focusId={focusId} onFocus={wide ? onFocus : undefined}

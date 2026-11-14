@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react'
+import { useState, createContext, useContext, useEffect, useId, useRef, type ReactNode } from 'react'
 import sh from './shell.module.css'
 
 /**
@@ -15,11 +15,17 @@ export const SheetModeContext = createContext<SheetMode>('sheet')
  * 판 (4-b 참가자·4′ 가수·6-h 내 정보 등). 배경을 누르거나 Esc로 닫는다.
  * 열릴 때 판으로 초점을 옮기고, 닫히면 연 버튼으로 돌려준다.
  */
-export function Sheet({ title, onClose, children, head, sub }: { title: ReactNode; onClose: () => void; children: ReactNode; head?: ReactNode; sub?: ReactNode }) {
+export function Sheet({ title, onClose, children, head, sub, banner }: {
+  title: ReactNode; onClose: () => void; children: ReactNode; head?: ReactNode; sub?: ReactNode
+  /** 머리 대신 큰 배너(가수 판 11-14): 배경 그림을 주면 제목·sub를 그 위 아래쪽에, 닫기는 배너 오른쪽 위에 */
+  banner?: ReactNode
+}) {
   const mode = useContext(SheetModeContext)
   const ref = useRef<HTMLElement>(null)
   const titleId = useId()
   const modal = mode === 'sheet' || mode === 'dialog'
+  // 배너가 있는 휴대폰 시트: 내용을 스크롤하면 배너를 접는다 (11-14)
+  const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
     if (mode === 'tab') return
@@ -40,6 +46,20 @@ export function Sheet({ title, onClose, children, head, sub }: { title: ReactNod
   const inner = (
     <>
       {mode === 'sheet' && <span className={sh.handle} aria-hidden="true" />}
+      {banner ? (
+        <div className={sh.bannerHead} data-collapsed={collapsed || undefined}>
+          {banner}
+          <div className={sh.bannerText}>
+            <h2 id={titleId} className={sh.bannerTitle}>{title}</h2>
+            {sub}
+          </div>
+          {mode !== 'tab' && (
+            <button type="button" className={`${sh.close} ${sh.bannerClose}`} aria-label="닫기" onClick={onClose}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          )}
+        </div>
+      ) : (
       <div className={sh.sheetHead}>
         {head}
         <div className={sh.sheetTitleBox}>
@@ -52,7 +72,8 @@ export function Sheet({ title, onClose, children, head, sub }: { title: ReactNod
           </button>
         )}
       </div>
-      <div className={sh.sheetBody}>{children}</div>
+      )}
+      <div className={sh.sheetBody} onScroll={banner && modal ? e => setCollapsed(e.currentTarget.scrollTop > 24) : undefined}>{children}</div>
     </>
   )
 

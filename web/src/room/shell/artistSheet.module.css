@@ -1,0 +1,57 @@
+/* 가수 판 개편 시안 (11-14): 큰 사진 배너 · 우리 방 막대 · 표지 썸네일 곡 · 접히는 설명 · 비슷한 아티스트 가로 줄. 놀이터 A안의 빛 언어 */
+.banner { position: absolute; inset: 0; overflow: hidden; }
+.bannerBlur { position: absolute; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); object-fit: cover; filter: blur(24px) brightness(.55) saturate(1.2); }
+.bannerBlurFallback { position: absolute; inset: 0; }
+/* 원본: 잘리지 않게 정사각 틀 안 contain, 왼쪽에 (이름·장르는 그 오른쪽) */
+.bannerArt {
+  position: absolute; left: 20px; top: 10%; height: 80%; aspect-ratio: 1; border-radius: 18px; overflow: hidden; z-index: 1;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 28px rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 255, 255, .12);
+  transition: opacity .2s, transform .2s;
+}
+.bannerArt img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.bannerArt span { font-family: 'Gowun Batang', serif; font-size: 56px; font-weight: 700; color: rgba(255, 255, 255, .75); }
+.bannerShade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20, 18, 37, .1) 0%, rgba(20, 18, 37, .35) 70%, var(--banner-end, #1e1b36) 100%); }
+.bannerCredit { position: absolute; left: 12px; top: 12px; z-index: 2; }
+.bannerCredit > span { position: static; }
+.genreChip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: rgba(20, 18, 37, .55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); font-size: 12px; color: #f5f0ff; }
+.genreChip i { width: 8px; height: 8px; border-radius: 50%; }
+
+.summary { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 18px; background: radial-gradient(120% 120% at 0% 0%, #2a2455 0%, var(--r-surface) 70%); }
+.summaryBar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; gap: 2px; background: #141225; }
+.summaryBar i { display: block; height: 100%; }
+.summaryText { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: var(--r-text-2); }
+.summaryText b { color: var(--r-text); font-weight: 700; }
+.summaryText span { display: inline-flex; align-items: center; gap: 5px; }
+.summaryText i { width: 8px; height: 8px; border-radius: 50%; }
+
+.sectionTitle { display: flex; justify-content: space-between; align-items: baseline; margin: 0; font-size: 15px; font-weight: 700; }
+.sectionTitle span { font-size: 12px; font-weight: 400; color: var(--r-text-2); }
+.songs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.song { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 6px; border-radius: 14px; background: var(--r-surface); }
+.songGold { background: linear-gradient(90deg, rgba(255, 227, 184, .14), var(--r-surface) 70%); box-shadow: inset 0 0 0 1px rgba(255, 227, 184, .35); }
+.thumb { width: 40px; height: 40px; flex: none; border-radius: 9px; object-fit: cover; background: linear-gradient(135deg, #8e7bd0 0%, #3a3366 55%, #e3a6b8 100%); }
+.songText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.songText strong { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.owners { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--r-text-2); }
+.owners > span:first-child { display: inline-flex; }
+.owners > span:first-child > * + * { margin-left: -5px; }
+.ownersGold { color: #ffe3b8; font-weight: 600; }
+
+.why { display: flex; flex-direction: column; gap: 6px; }
+.why p { margin: 0; font-size: 14px; line-height: 1.7; color: var(--r-text-2); }
+.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.more { align-self: flex-start; min-height: 32px; padding: 0 2px; border: 0; background: none; color: var(--r-accent-strong); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.more:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; border-radius: 6px; }
+.sources { display: flex; flex-wrap: wrap; gap: 6px; }
+.sources a { font-size: 12px; color: var(--r-text-2); padding: 4px 10px; border-radius: 999px; background: var(--r-bg); text-decoration: none; }
+.sources a:hover { color: var(--r-text); }
+
+.nearby { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 8px; margin: 0 -2px; scrollbar-width: none; }
+.nearby::-webkit-scrollbar { display: none; }
+.near { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 72px; padding: 0; border: 0; background: none; color: var(--r-text); font: inherit; cursor: pointer; }
+.near > span:nth-child(2) { font-size: 12px; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.near:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; border-radius: 12px; }
+.nearFace { width: 52px; height: 52px; border-radius: 50%; border: 1.5px solid #e6dcff; box-sizing: border-box; background: var(--r-chip); display: flex; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; }
+.nearGhost .nearFace { border-color: rgba(230, 220, 255, .45); }
+.notYet { font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #2e2a55; color: var(--r-text-2); }
+@media (prefers-reduced-motion: reduce) { .bannerArt { transition: none; } }

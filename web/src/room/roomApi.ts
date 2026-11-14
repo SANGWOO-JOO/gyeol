@@ -58,8 +58,9 @@ export interface Ghost { artistId: number; name: string; x: number; y: number; n
 export interface RoomMap { rev: number; placeholder: boolean; members: MemberView[]; planets: Planet[]; galaxies: Galaxy[]; ghosts: Ghost[] }
 
 export interface MemberRow { id: number; nickname: string; role: Role; colorIdx: number; songCount: number; me: boolean; avatarCharacterId?: number | null }
-export interface MySong { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; coverPath?: string | null; addedAt: string; sharedWith: number }
-export interface MySongsPage { items: MySong[]; nextCursor: number | null }
+export interface MySong { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; coverPath?: string | null; addedAt: string; sharedWith: number; /** sort=genre|artist일 때 묶음 (11-14, 모양은 mineGroups.MySongGroup) */ group?: import('./shell/mineGroups').MySongGroup | null }
+/** genre·artist는 첫 쪽의 snapshot을 다음 쪽에 그대로 보낸다(그사이 담아도 순서 고정). 409 CURSOR_STALE이면 처음부터 */
+export interface MySongsPage { items: MySong[]; nextCursor: number | null; sort?: string; snapshot?: number | null }
 export interface Evidence { id: number; source: string; url: string }
 export interface ArtistView {
   artistId: number; name: string; description: string | null; evidence: Evidence[]
@@ -200,8 +201,8 @@ export const roomApi = {
   removeSong: (roomId: string, songId: number) => call<void>(`/rooms/${rid(roomId)}/songs/${songId}`, { method: 'DELETE', roomId }),
   map: (roomId: string, etag: string | null, signal?: AbortSignal) => fetchMap(roomId, etag, signal),
   members: (roomId: string, signal?: AbortSignal) => call<MemberRow[]>(`/rooms/${rid(roomId)}/members`, { roomId, signal }),
-  mySongs: (roomId: string, cursor: number | null, limit = 30, signal?: AbortSignal) =>
-    call<MySongsPage>(`/rooms/${rid(roomId)}/me/songs?limit=${limit}${cursor != null ? `&cursor=${cursor}` : ''}`, { roomId, signal }),
+  mySongs: (roomId: string, cursor: number | null, limit = 30, signal?: AbortSignal, sort: 'recent' | 'genre' | 'artist' = 'recent', snapshot: number | null = null) =>
+    call<MySongsPage>(`/rooms/${rid(roomId)}/me/songs?limit=${limit}${cursor != null ? `&cursor=${encodeURIComponent(String(cursor))}` : ''}${sort !== 'recent' ? `&sort=${sort}` : ''}${snapshot != null ? `&snapshot=${snapshot}` : ''}`, { roomId, signal }),
   artist: (roomId: string, artistId: number, signal?: AbortSignal) => call<ArtistView>(`/rooms/${rid(roomId)}/artists/${artistId}`, { roomId, signal }),
   // ── 5단계: 내 정보·방장 메뉴·방장 암호 재설정 ──
   rename: (roomId: string, nickname: string) => call<MemberView>(`/rooms/${rid(roomId)}/me`, { method: 'PATCH', roomId, body: { nickname } }),

@@ -321,3 +321,17 @@ export function artistFaceUrl(a: { face?: { kind: string; url: string | null } |
 
 /** 검색 가수 표시 이름: DB 이름(displayName, 지도와 같음) → MusicBrainz 이름 */
 export const artistDisplayName = (a: { name: string; displayName?: string | null }) => a.displayName || a.name
+
+/**
+ * 검색을 보낼지 (11-14): 두 글자부터, 한 글자는 한글 완성 글자·한자·히라가나·가타카나일 때만(예: 비, 風).
+ * 라틴·숫자 한 글자와 조합 중 자모(ㅂ)는 보내지 않는다. 서버도 같은 규칙
+ */
+export function searchable(q: string): boolean {
+  const t = q.trim()
+  const chars = Array.from(t)
+  if (chars.length >= 2) return true
+  if (chars.length === 0) return false
+  return /[\uAC00-\uD7A3\u3040-\u309F\u30A0-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/.test(chars[0])
+}
+/** 검색 대기 시간(ms): 한 글자는 조금 길게(한글 조합 ㅂ→비 동안 요청이 늘지 않게) */
+export const searchDelay = (q: string) => (Array.from(q.trim()).length === 1 ? 400 : 300)

@@ -1,16 +1,19 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { roomApi, RoomApiError, type MeView, type MySong, type RoomMap } from '../roomApi'
 import { galaxyOfTrack, giftLine } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import type { ToastData } from './Toast'
 import { CoverImg } from './CoverImg'
 import sh from './shell.module.css'
+import { ArtistFace } from './ArtistFace'
+import { genreColor } from '../galaxy/faces'
+import { groupSongs, MINE_SORTS, readMineSort, writeMineSort, type GroupHead, type MineSort } from './mineGroups'
 
 /**
- * 4-a 내 노래 (최근 담은 순). ✕로 빼면 친구 화면에서도 사라지고, 알림의 되돌리기로 다시 담는다.
- * 장르별·아티스트별 정렬은 2차 (API가 최근 순만 지원, room-api-db.md 7절).
+ * 4-a 내 노래. ✕로 빼면 친구 화면에서도 사라지고, 알림의 되돌리기로 다시 담는다.
+ * 11-14 [최근 담은 순][장르별][아티스트별]: 장르·아티스트는 서버가 곡마다 묶음(group)을 붙여 준다. 머리줄은 위에 붙는다
  */
-export function MineTab({ roomId, me, map, version, onChanged, onError, show, onOpenGift }: {
+export function MineTab({ roomId, me, map, version, onChanged, onError, show, onOpenGift, onOpenArtist }: {
   roomId: string
   me: MeView | null
   map: RoomMap | null
@@ -20,29 +23,37 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show, on
   onError: (err: unknown) => boolean
   show: (t: Omit<ToastData, 'id'>) => void
   onOpenGift: (boxId: number) => void
+  /** 아티스트별 머리줄 → 가수 판 */
+  onOpenArtist?: (artistId: number) => void
 }) {
+  const [sort, setSortRaw] = useState<MineSort>(readMineSort)
+  const setSort = (v: MineSort) => { if (v === sort) return; writeMineSort(v); setItems(null); setCursor(null); setSnapshot(null); setSortRaw(v) }
   const [items, setItems] = useState<MySong[] | null>(null)
   const [cursor, setCursor] = useState<number | null>(null)
+  const [snapshot, setSnapshot] = useState<number | null>(null)
+  const [reload, setReload] = useState(0)
   const [loadingMore, setLoadingMore] = useState(false)
   const [removing, setRemoving] = useState<number | null>(null)
   const galaxy = galaxyOfTrack(map)
 
   useEffect(() => {
     const ac = new AbortController()
-    roomApi.mySongs(roomId, null, 30, ac.signal)
-      .then(p => { setItems(p.items); setCursor(p.nextCursor) })
+    roomApi.mySongs(roomId, null, 30, ac.signal, sort)
+      .then(p => { setItems(p.items); setCursor(p.nextCursor); setSnapshot(p.snapshot ?? null) })
       .catch(err => { if (!ac.signal.aborted && !onError(err)) setItems([]) })
     return () => ac.abort()
-  }, [roomId, version, onError])
+  }, [roomId, version, onError, sort, reload])
 
   async function more() {
     if (cursor == null) return
     setLoadingMore(true)
     try {
-      const p = await roomApi.mySongs(roomId, cursor, 30)
+      const p = await roomApi.mySongs(roomId, cursor, 30, undefined, sort, snapshot)
       setItems(prev => [...(prev ?? []), ...p.items])
       setCursor(p.nextCursor)
     } catch (err) {
+      // 커서 곡을 그사이 뺐으면(409 CURSOR_STALE) 처음부터 다시
+      if (err instanceof RoomApiError && err.code === 'CURSOR_STALE') { setItems(null); setCursor(null); setReload(n => n + 1); return }
       if (!onError(err)) show({ title: '더 불러오지 못했어요', tone: 'error' })
     } finally {
       setLoadingMore(false)
@@ -73,6 +84,22 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show, on
     }
   }
 
+  const row = (song: MySong): ReactNode => (
+    <li key={song.id} className={sh.row} style={{ paddingRight: 4 }}>
+              <CoverImg roomId={roomId} cover={song} className={sh.cover} />
+              <span className={sh.rowText}>
+                <span className={sh.songTitle}>{song.title}</span>
+                <span className={sh.songSub}>{[song.artist, galaxy.get(song.trackId)].filter(Boolean).join(' · ')}</span>
+                {song.sharedWith > 0 && <span className={`${sh.badge} ${sh.badgeGold}`}>친구 {song.sharedWith}명과 같이 담음</span>}
+              </span>
+              <button type="button" className={sh.remove} aria-label={`${song.title} 빼기`} disabled={removing === song.id} onClick={() => remove(song)}>
+                {removing === song.id ? <Spinner size={14} /> : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                )}
+              </button>
+            </li>
+  )
+
   const total = me?.songCount ?? items?.length ?? 0
   const gift = me?.gift
 
@@ -86,9 +113,9 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show, on
       </div>
 
       <div className={sh.chipsRow} role="group" aria-label="정렬">
-        <button type="button" className={sh.sortChip} aria-pressed="true">최근 담은 순</button>
-        <button type="button" className={sh.sortChip} aria-pressed="false" disabled title="곧 열려요">장르별</button>
-        <button type="button" className={sh.sortChip} aria-pressed="false" disabled title="곧 열려요">아티스트별</button>
+        {MINE_SORTS.map(k => (
+          <button key={k} type="button" className={sh.sortChip} aria-pressed={sort === k} onClick={() => setSort(k)}>{SORT_LABEL[k]}</button>
+        ))}
       </div>
 
       {items === null && <p className={sh.center} role="status"><Spinner size={14} /> 불러오는 중…</p>}
@@ -98,25 +125,14 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show, on
         </div>
       )}
 
-      {items && items.length > 0 && (
-        <ul className={sh.list}>
-          {items.map(song => (
-            <li key={song.id} className={sh.row} style={{ paddingRight: 4 }}>
-              <CoverImg roomId={roomId} cover={song} className={sh.cover} />
-              <span className={sh.rowText}>
-                <span className={sh.songTitle}>{song.title}</span>
-                <span className={sh.songSub}>{[song.artist, galaxy.get(song.trackId)].filter(Boolean).join(' · ')}</span>
-                {song.sharedWith > 0 && <span className={`${sh.badge} ${sh.badgeGold}`}>친구 {song.sharedWith}명과 같이 담음</span>}
-              </span>
-              <button type="button" className={sh.remove} aria-label={`${song.title} 빼기`} disabled={removing === song.id} onClick={() => remove(song)}>
-                {removing === song.id ? <Spinner size={14} /> : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {items && items.length > 0 && (sort === 'recent'
+        ? <ul className={sh.list}>{items.map(row)}</ul>
+        : groupSongs(sort, items).map(g => (
+          <section key={g.head.key} className={sh.mineGroup} aria-label={`${g.head.title} ${g.head.count ?? g.items.length}곡`}>
+            <GroupHeadRow sort={sort} head={g.head} shown={g.items.length} roomId={roomId} onOpenArtist={onOpenArtist} />
+            <ul className={sh.list}>{g.items.map(row)}</ul>
+          </section>
+        )))}
 
       {cursor != null && (
         <button type="button" className={sh.inviteBox} style={{ borderStyle: 'solid', height: 44, fontSize: 14 }} onClick={more} disabled={loadingMore}>
@@ -143,4 +159,30 @@ function GiftLine({ gift, songCount, onOpen }: { gift: NonNullable<MeView['gift'
   return g.canOpen && gift.readyBoxId != null
     ? <button type="button" className={`${cls} ${sh.giftLineButton}`} onClick={() => onOpen(gift.readyBoxId!)}>{inner}</button>
     : <div className={cls}>{inner}</div>
+}
+
+const SORT_LABEL: Record<MineSort, string> = { recent: '최근 담은 순', genre: '장르별', artist: '아티스트별' }
+
+/** 묶음 머리줄: 장르는 지도 구역 색 점, 아티스트는 작은 얼굴(누르면 가수 판). 스크롤하면 위에 붙는다 */
+function GroupHeadRow({ sort, head, shown, roomId, onOpenArtist }: { sort: MineSort; head: GroupHead; shown: number; roomId: string; onOpenArtist?: (id: number) => void }) {
+  const count = `${head.count ?? shown}곡`
+  if (sort === 'artist') {
+    const faceUrl = head.face && (head.face.kind === 'PHOTO' || head.face.kind === 'COVER') ? head.face.url : null
+    const body = (
+      <>
+        <ArtistFace roomId={roomId} name={head.title} className={sh.groupFace} photoUrl={faceUrl} />
+        <strong>{head.title}</strong><span>{count}</span>
+      </>
+    )
+    return head.artistId != null && onOpenArtist
+      ? <button type="button" className={sh.groupHead} onClick={() => onOpenArtist(head.artistId!)} aria-label={`${head.title} 가수 판 열기, ${count}`}>{body}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>
+      : <div className={sh.groupHead}>{body}</div>
+  }
+  return (
+    <div className={sh.groupHead}>
+      <i className={sh.groupDot} style={{ background: head.galaxyId != null ? genreColor(head.title, head.galaxyId) : '#5e5794' }} aria-hidden="true" />
+      <strong>{head.title}</strong><span>{count}</span>
+    </div>
+  )
 }

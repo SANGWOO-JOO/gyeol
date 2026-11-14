@@ -4,7 +4,13 @@ import { memberColor } from '../roomApi'
 import { songOwners, sourceName } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { Sheet } from './Sheet'
-import { ArtistFace } from './ArtistFace'
+import { CreditButton } from './ArtistFace'
+import { CoverImg } from './CoverImg'
+import { Avatar } from '../components/Avatar'
+import { sourcesOf, useImageChain } from '../images'
+import { genreColor, photoCreditText, planetFace } from '../galaxy/faces'
+import { roomSummary, sharedFirst } from './artistSheetLogic'
+import ak from './artistSheet.module.css'
 import type { ToastData } from './Toast'
 import s from '../room.module.css'
 import sh from './shell.module.css'
@@ -29,6 +35,7 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
   onOpenSongs: (artistId: number, name: string) => void
 }) {
   const [a, setA] = useState<ArtistView | null>(null)
+  const [open, setOpen] = useState(false)
   const [failed, setFailed] = useState(false)
   // 내 노래 ✕에 필요한 담은 곡 id (지도·가수 응답에는 trackId만 있다)
   const [mySongIds, setMySongIds] = useState<Map<number, number>>(new Map())
@@ -63,32 +70,69 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
   }
 
   const name = a?.name ?? planet?.name ?? ''
+  const memberOrder = (map?.members ?? []).map(m => m.id)
+  const songs = a?.songs ?? planet?.songs ?? []
+  const sum = roomSummary(songs, memberOrder)
+  // 담은 사람이 한 명(같이 담은 곡 없음)이면 막대 없이 글자만
+  const single = sum.shared === 0 && sum.solo.length === 1 ? sum.solo[0] : null
+  const gColor = genreColor(galaxyName, planet?.galaxyId ?? null)
+  // 배너 그림: 판 응답의 얼굴(PHOTO 사진 → COVER) → 지도 얼굴 규칙(방 곡 표지) → 장르색 + 이니셜
+  const face = a?.face ?? planet?.face ?? null
+  const fc = planetFace({ songs, face })
+  const credit = a?.photo && photoCreditText(a.photo)
+  const ghosts = new Map((map?.ghosts ?? []).map(g => [g.artistId, g]))
+  const planets = new Map((map?.planets ?? []).map(p => [p.artistId, p]))
+  const galaxyNames = new Map((map?.galaxies ?? []).map(g => [g.id, g.name]))
+
   return (
     <Sheet
       title={name}
       onClose={onClose}
-      head={<ArtistFace roomId={roomId} name={name} className={sh.orbBig} photoUrl={a?.face?.kind === 'PHOTO' ? a.face.url : a?.photo?.url} credit={a?.photo} />}
-      sub={galaxyName ? <span className={sh.badge} style={{ fontSize: 12, padding: '2px 10px' }}>{galaxyName}</span> : undefined}
+      banner={<Banner roomId={roomId} name={name} sources={fc.kind === 'genre' ? [] : fc.sources} color={gColor} photo={fc.kind === 'photo'} credit={credit ? { text: credit, pageUrl: a?.photo?.pageUrl } : null} />}
+      sub={galaxyName ? <span className={ak.genreChip}><i style={{ background: gColor }} aria-hidden="true" />{galaxyName}</span> : undefined}
     >
       {!a && !failed && <p className={sh.center} role="status"><Spinner size={14} /> 불러오는 중…</p>}
       {failed && <p className={sh.center} role="alert">가수 정보를 불러오지 못했어요.</p>}
 
       {a && (
         <>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div className={sh.sectionHead}>
-              <h3>이 아티스트에 담긴 노래</h3>
-              <span>{a.songs.length}곡 · {people.size}명</span>
+          {/* 우리 방에서 이 가수: 사람 색 막대(같이 담은 곡은 금빛) + 글자 */}
+          <section className={ak.summary} aria-label="우리 방에서 이 가수">
+            {single ? (
+              <div className={ak.summaryText}>
+                <span><i style={{ background: memberColor(members.get(single.memberId)?.colorIdx ?? 0).bg }} aria-hidden="true" />{single.memberId === meId ? '나' : members.get(single.memberId)?.nickname} · <b>{single.count}</b>곡</span>
+              </div>
+            ) : <>
+            <div className={ak.summaryBar} aria-hidden="true">
+              {sum.solo.map(x => <i key={x.memberId} style={{ flex: x.count, background: memberColor(members.get(x.memberId)?.colorIdx ?? 0).bg }} />)}
+              {sum.shared > 0 && <i style={{ flex: sum.shared, background: '#FFE3B8' }} />}
             </div>
-            <ul className={sh.list} style={{ gap: 6 }}>
-              {a.songs.map(song => {
+            <div className={ak.summaryText}>
+              {sum.solo.map(x => (
+                <span key={x.memberId}><i style={{ background: memberColor(members.get(x.memberId)?.colorIdx ?? 0).bg }} aria-hidden="true" />{x.memberId === meId ? '나' : members.get(x.memberId)?.nickname} <b>{x.count}</b></span>
+              ))}
+              {sum.shared > 0 && <span><i style={{ background: '#FFE3B8' }} aria-hidden="true" />같이 <b>{sum.shared}</b></span>}
+            </div>
+            </>}
+          </section>
+
+          <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <h3 className={ak.sectionTitle}>담긴 노래 <span>{a.songs.length}곡 · {people.size}명</span></h3>
+            <ul className={ak.songs}>
+              {sharedFirst(a.songs).map(song => {
                 const o = songOwners(song.memberIds, meId, id => members.get(id)?.nickname)
-                const color = memberColor(members.get(song.memberIds[0])?.colorIdx ?? 0).bg
                 return (
-                  <li key={song.trackId} className={`${sh.songRow} ${o.gold ? sh.songRowGold : ''}`}>
-                    {o.gold ? <span className={sh.goldCount} aria-hidden="true">{song.memberIds.length}</span> : <span className={sh.colorDot} style={{ background: color }} aria-hidden="true" />}
-                    <span className={sh.songTitle} style={{ flex: 1, minWidth: 0, fontSize: 14 }}>{song.title}</span>
-                    <span className={`${sh.who} ${o.gold ? sh.whoGold : ''}`}>{o.label}</span>
+                  <li key={song.trackId} className={`${ak.song} ${o.gold ? ak.songGold : ''}`}>
+                    <CoverImg roomId={roomId} cover={song} className={ak.thumb} />
+                    <span className={ak.songText}>
+                      <strong>{song.title}</strong>
+                      <span className={`${ak.owners} ${o.gold ? ak.ownersGold : ''}`}>
+                        {o.gold && <span aria-hidden="true">
+                          {song.memberIds.slice(0, 4).map(id => { const m = members.get(id); return m ? <Avatar key={id} nickname={m.nickname} colorIdx={m.colorIdx} characterId={m.avatarCharacterId} size={18} /> : null })}
+                        </span>}
+                        {o.label}
+                      </span>
+                    </span>
                     {o.mine && mySongIds.has(song.trackId) && (
                       <button type="button" className={sh.remove} style={{ width: 36, height: 36 }} aria-label={`내 노래 ${song.title} 빼기`} onClick={() => removeMine(song.trackId, song.title)}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
@@ -98,32 +142,47 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
                 )
               })}
             </ul>
-          </div>
+          </section>
 
-          <div className={sh.why}>
-            <h3>{galaxyName ? `왜 ${galaxyName}에 있나요` : '어떤 아티스트인가요'}</h3>
+          <section className={ak.why}>
+            <h3 className={ak.sectionTitle}>{galaxyName ? `왜 ${galaxyName}에 있을까요` : '어떤 아티스트일까요'}</h3>
             {a.description
-              ? <p>{a.description}</p>
+              ? <p id={`why-${a.artistId}`} className={open ? undefined : ak.clamp}>{a.description}</p>
               : <p>{a.preparing ? '이 아티스트를 우주에 올리는 중이에요. 근거를 모아 설명을 쓰고 있어요.' : '아직 근거로 쓴 설명이 없어요.'}</p>}
-            {a.evidence.length > 0 && (
-              <div className={sh.evidence}>
-                {a.evidence.map((e, i) => (
-                  <a key={e.id} href={e.url} target="_blank" rel="noreferrer noopener">근거 {i + 1} · {sourceName(e.source)}</a>
-                ))}
+            {a.description && (
+              <button type="button" className={ak.more} aria-expanded={open} aria-controls={`why-${a.artistId}`} onClick={() => setOpen(v => !v)}>{open ? '접기' : '더 읽기'}</button>
+            )}
+            {open && a.evidence.length > 0 && (
+              <div className={ak.sources} aria-label="설명에 쓴 자료">
+                {a.evidence.map(e => <a key={e.id} href={e.url} target="_blank" rel="noreferrer noopener">{sourceName(e.source)}에서 보기</a>)}
               </div>
             )}
-          </div>
+          </section>
 
           {a.nearby.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div className={sh.sectionHead}><h3>비슷한 아티스트</h3></div>
-              <div className={sh.nearby}>
-                {a.nearby.map(n => n.inRoom
-                  ? <button key={n.artistId} type="button" onClick={() => onSelectArtist(n.artistId)}>{n.name}</button>
-                  : <button key={n.artistId} type="button" className={sh.nearbyGhost} onClick={() => onSearch(n.name)} aria-label={`${n.name} 노래 찾기 (함께 들어 볼 아티스트)`}>✦ {n.name}</button>)}
+            <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <h3 className={ak.sectionTitle}>비슷한 아티스트</h3>
+              <div className={ak.nearby}>
+                {a.nearby.map(n => {
+                  const f = n.inRoom ? planets.get(n.artistId) : undefined
+                  const nf = n.inRoom && f ? planetFace(f) : null
+                  const g = ghosts.get(n.artistId)
+                  const src = nf && nf.kind !== 'genre' ? nf.sources : g?.face?.kind === 'PHOTO' && g.face.url ? sourcesOf([g.face.url]) : []
+                  // 사진이 없으면 그 가수의 장르색(구역을 알면), 모르면 방 기본 보라
+                  const gid = f?.galaxyId ?? g?.galaxyId ?? null
+                  const fill = gid != null ? genreColor(galaxyNames.get(gid), gid) : '#4a4378'
+                  return (
+                    <button key={n.artistId} type="button" className={`${ak.near} ${n.inRoom ? '' : ak.nearGhost}`}
+                      onClick={() => (n.inRoom ? onSelectArtist(n.artistId) : onSearch(n.name))}
+                      aria-label={n.inRoom ? `${n.name} 가수 판 열기` : `${n.name}: 아직 우리 우주에 없는 아티스트, 노래 찾기`}>
+                      <NearFace roomId={roomId} name={n.name} sources={src} fill={fill} />
+                      <span>{n.name}</span>
+                      {!n.inRoom && <span className={ak.notYet}>아직 없음</span>}
+                    </button>
+                  )
+                })}
               </div>
-              <span className={sh.center} style={{ textAlign: 'left' }}>✦ 표시는 아직 우리 우주에 없는 아티스트예요. 누르면 노래를 찾아요</span>
-            </div>
+            </section>
           )}
 
           <button type="button" className={s.primary} style={{ height: 54, fontSize: 16, flex: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4 }} onClick={() => onOpenSongs(a.artistId, a.name)}>
@@ -133,5 +192,36 @@ export function ArtistSheet({ roomId, artistId, map, meId, version, onClose, onS
         </>
       )}
     </Sheet>
+  )
+}
+
+/** 배너 그림: 후보를 차례로(사진 → 표지), 모두 실패하면 장르색 그라데이션 + 큰 이니셜. 아래로 어두워지는 막 */
+function Banner({ roomId, name, sources, color, photo, credit }: { roomId: string; name: string; sources: import('../images').ImgSource[]; color: string; photo: boolean; credit: { text: string; pageUrl?: string | null } | null }) {
+  const { src, fail } = useImageChain(roomId, sources)
+  const [loaded, setLoaded] = useState<string | null>(null)
+  return (
+    <>
+      {/* 배경: 같은 그림을 크게 흐리게(없으면 장르색), 위에 원본을 잘리지 않게(contain) 둥근 사각형으로 */}
+      <div className={ak.banner} aria-hidden="true">
+        {src
+          ? <img className={ak.bannerBlur} src={src} alt="" />
+          : <div className={ak.bannerBlurFallback} style={{ background: `radial-gradient(120% 120% at 20% 20%, ${color}, #241f47 75%)` }} />}
+        <div className={ak.bannerShade} />
+        <div className={ak.bannerArt} style={src ? undefined : { background: `radial-gradient(120% 120% at 30% 20%, ${color}, #2e2760 80%)` }}>
+          {src ? <img src={src} alt="" onLoad={() => setLoaded(src)} onError={fail} /> : <span>{Array.from(name)[0] ?? ''}</span>}
+        </div>
+      </div>
+      {/* 사진 출처(CC BY): 사진이 실제로 뜬 뒤에만 배너 왼쪽 위 ⓘ */}
+      {photo && credit && src && loaded === src && <div className={ak.bannerCredit}><CreditButton text={credit.text} pageUrl={credit.pageUrl} /></div>}
+    </>
+  )
+}
+
+function NearFace({ roomId, name, sources, fill }: { roomId: string; name: string; sources: import('../images').ImgSource[]; fill: string }) {
+  const { src, fail } = useImageChain(roomId, sources)
+  return (
+    <span className={ak.nearFace} aria-hidden="true" style={src ? undefined : { background: `radial-gradient(120% 120% at 30% 25%, ${fill}, #241f47 85%)` }}>
+      {src ? <img src={src} alt="" onError={fail} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '50% 0' }} /> : Array.from(name)[0]}
+    </span>
   )
 }

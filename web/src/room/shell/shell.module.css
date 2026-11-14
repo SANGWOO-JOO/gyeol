@@ -428,3 +428,35 @@
 .railCount { background: #2e2a55; color: var(--r-text); }
 .railBadge { background: var(--r-peach); color: #3b2a10; }
 @media (prefers-reduced-motion: reduce) { .sidePanel { transition: none; } }
+
+/* 내 노래 묶음 (11-14): 머리줄은 스크롤 상자 위에 붙는다. PC 판은 탭 줄(46px) 아래에 */
+.mineGroup { display: flex; flex-direction: column; gap: 8px; }
+.groupHead {
+  position: sticky; top: var(--group-top, 0px); z-index: 1; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 4px;
+  background: var(--r-bg); border: 0; color: var(--r-text); font: inherit; text-align: left; width: 100%; box-sizing: border-box;
+}
+.sidePanel .groupHead { --group-top: 46px; background: #1e1b36; }
+button.groupHead { cursor: pointer; }
+button.groupHead:hover strong { text-decoration: underline; text-underline-offset: 3px; }
+button.groupHead:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; border-radius: 10px; }
+.groupHead strong { font-size: 15px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.groupHead span { font-size: 12px; color: var(--r-text-2); flex: none; }
+.groupHead svg { margin-left: auto; color: var(--r-text-2); flex: none; }
+.groupDot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.groupFace { width: 28px; height: 28px; flex: none; border-radius: 50%; border: 1px solid #e6dcff; box-sizing: border-box; background: var(--r-chip); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; overflow: hidden; }
+
+/* 가수 판 배너 머리 (11-14): 판 위쪽 꽉 찬 사진, 아래로 어두워지며 이름·장르 */
+.bannerHead { position: relative; height: 180px; margin: 0 -22px; --banner-end: #1e1b36; flex: none; display: flex; align-items: flex-end; border-radius: 0; overflow: hidden; }
+.sheet .bannerHead { height: 160px; margin: 0 -16px; --banner-end: var(--r-surface); }
+.bannerText { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 8px; align-self: stretch; padding: 0 56px 0 calc(20px + 144px + 18px); min-width: 0; }
+.bannerTitle { margin: 0; font-family: 'Gowun Batang', serif; font-size: 28px; word-break: keep-all; font-weight: 700; line-height: 1.15; color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, .45); }
+.bannerClose { position: absolute; right: 12px; top: 12px; z-index: 2; background: rgba(20, 18, 37, .55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: #fff; }
+/* 휴대폰 시트: 배너 정사각 원본 128px, 스크롤하면 배너가 접힌다(이름만 남는 얇은 띠) */
+.sheet .bannerHead .bannerText { padding-left: calc(16px + 128px + 16px); }
+.sheet .bannerHead { transition: height .2s ease; }
+.sheet .bannerHead[data-collapsed] { height: 64px; }
+.sheet .bannerHead[data-collapsed] .bannerText { padding-left: 20px; flex-direction: row; align-items: center; gap: 10px; }
+.sheet .bannerHead[data-collapsed] .bannerTitle { font-size: 20px; }
+.sheet .bannerHead[data-collapsed] [class*='bannerArt'] { opacity: 0; transform: scale(.8); }
+@media (prefers-reduced-motion: reduce) { .sheet .bannerHead { transition: none; } }
+.sheet .bannerHead[data-collapsed] [class*='bannerCredit'] { display: none; }

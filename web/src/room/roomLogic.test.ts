@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, appendSearch, artistDisplayName, artistFaceUrl, isNewArtist, showArtistMore, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { searchable, searchDelay, addedMessage, appendSearch, artistDisplayName, artistFaceUrl, isNewArtist, showArtistMore, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -297,5 +297,24 @@ describe('검색 가수 카드 얼굴·이름', () => {
   it('이름은 displayName, 없으면 MusicBrainz 이름', () => {
     expect(artistDisplayName({ name: 'YOUNHA', displayName: '윤하' })).toBe('윤하')
     expect(artistDisplayName({ name: 'ZARD', displayName: null })).toBe('ZARD')
+  })
+})
+
+describe('검색 글자 수', () => {
+  it('한 글자는 한글 완성 글자·한자·가나만', () => {
+    expect(searchable('비')).toBe(true)
+    expect(searchable('風')).toBe(true)
+    expect(searchable('あ')).toBe(true)
+    expect(searchable('ア')).toBe(true)
+    expect(searchable('ㅂ')).toBe(false)
+    expect(searchable('a')).toBe(false)
+    expect(searchable('7')).toBe(false)
+    expect(searchable(' ')).toBe(false)
+  })
+  it('두 글자부터는 무엇이든, 한 글자는 400ms', () => {
+    expect(searchable('ab')).toBe(true)
+    expect(searchable(' 아이 ')).toBe(true)
+    expect(searchDelay('비')).toBe(400)
+    expect(searchDelay('아이유')).toBe(300)
   })
 })
