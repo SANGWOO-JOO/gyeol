@@ -3,7 +3,7 @@ import { roomApi, RoomApiError, type ArtistSongItem, type ArtistSort, type RoomS
 import { appendSongs, artistCardSub, artistEndText, artistSongsErrorText, asSearchItem, canLoadMore, groupByRelease, mergeArtist, releaseText, scanNotice, scanPollMs, trackKey } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { SearchRow } from './SearchPanel'
-import { ArtistFace, PhotoCreditLine } from './ArtistFace'
+import { ArtistFace } from './ArtistFace'
 import s from '../room.module.css'
 import sh from './shell.module.css'
 
@@ -49,7 +49,6 @@ export function ArtistPage({ roomId, artist, roomCount, added, pending, busy, on
   const [moreError, setMoreError] = useState<string | null>(null)
   const [retry, setRetry] = useState(0)
   const [scanTick, setScanTick] = useState(0)
-  const [photoShown, setPhotoShown] = useState(false)
   // 가수가 바뀌면 부모가 key로 새로 만든다 (상태를 처음부터)
   const canLatest = LATEST_READY && artist.artistId != null
   const cur = data[sort]
@@ -131,13 +130,12 @@ export function ArtistPage({ roomId, artist, roomCount, added, pending, busy, on
         <button type="button" className={sh.backButton} aria-label={backLabel} onClick={onBack}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
         </button>
-        <ArtistFace roomId={roomId} name={shown.name} className={sh.artistHeadOrb} photoUrl={shown.photo?.url} onShown={setPhotoShown} />
+        <ArtistFace roomId={roomId} name={shown.name} className={sh.artistHeadOrb} photoUrl={shown.photo?.url} credit={shown.photo} />
         <div className={sh.rowText}>
           <h2 className={sh.artistTitle}>{shown.name}</h2>
           {sub && <span className={sh.songSub}>{sub}</span>}
         </div>
       </div>
-      {photoShown && <PhotoCreditLine photo={shown.photo} />}
 
       {canLatest && (
         <div className={sh.sortSticky}>

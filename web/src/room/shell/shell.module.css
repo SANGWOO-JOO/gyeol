@@ -363,12 +363,26 @@
 .sidePanel .sortSticky { --sort-top: 46px; background: #1e1b36; }
 /* I-44 4-n4 머리 사진 · 출처 줄 */
 .facePhoto { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; border-radius: 50%; display: block; } /* 세로 인물 사진: 얼굴이 위쪽 */
-.photoCredit { align-self: flex-start; font-size: 11px; line-height: 1.5; color: #a39cc0; text-decoration: underline; text-underline-offset: 2px; }
-a.photoCredit:hover { color: var(--r-text); }
-a.photoCredit:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; border-radius: 4px; }
 
 /* I-26 PC 참가자 탭(4-PC″): 지도에서 보는 사람 */
 .personFocused { box-shadow: inset 0 0 0 1.5px var(--person-c); background: var(--r-field); }
 .personButton:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 4px; border-radius: 12px; }
 .focusTag { flex: none; font-size: 11px; font-weight: 700; color: #16132b; background: var(--person-c); border-radius: 999px; padding: 2px 8px; margin-right: 4px; }
 .focusHint { margin: 0; font-size: 12px; line-height: 1.6; color: var(--r-text-2); }
+
+/* 사진 출처(CC BY): 평소엔 숨기고 얼굴 모서리 ⓘ를 누르면 말풍선 */
+.faceWrap { position: relative; display: inline-flex; flex: none; }
+.creditBox { position: absolute; right: -4px; bottom: -4px; }
+.creditButton {
+  width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 1.5px solid var(--r-bg); background: var(--r-chip); color: var(--r-text-2);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;
+}
+.creditButton::before { content: ''; position: absolute; inset: -12px; } /* 누르는 영역 44px */
+.creditButton:hover, .creditButton[aria-expanded='true'] { color: var(--r-text); background: var(--r-field); }
+.creditButton:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+.creditPop {
+  position: absolute; left: -8px; top: calc(100% + 8px); z-index: 5; width: max-content; max-width: 240px;
+  padding: 8px 10px; border-radius: 10px; background: #2a2650; border: 1px solid #3a3466; box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+  font-size: 11px; line-height: 1.5; color: var(--r-text-2); white-space: normal; word-break: keep-all;
+}
+.creditPop a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
