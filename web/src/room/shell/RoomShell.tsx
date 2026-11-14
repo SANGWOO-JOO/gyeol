@@ -311,13 +311,13 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       roomCount={artistPage.artistId != null && map ? (map.planets.find(p => p.artistId === artistPage.artistId)?.songs.length ?? 0) : undefined} pending={pendingKeys} busy={busy} onAdd={add}
       onError={handle} backLabel={artistPage.fromPlanet != null ? `${artistPage.name} 가수 판으로` : artistPage.fromMap ? '지도로' : '검색 결과로'} onBack={backFromArtist} />
   ) : (
-    <SearchPanel roomId={roomId} query={query} setQuery={setQuery} added={added}
+    <SearchPanel roomId={roomId} map={map} query={query} setQuery={setQuery} added={added}
       pending={pendingKeys} busy={busy} onAdd={add} onOpenArtist={a => setArtistPage({ artistId: a.artistId, name: a.name, songCountInRoom: a.songCountInRoom, onMap: a.onMap })} />
   )
   const playTab = <PlayTab roomId={roomId} meId={me?.member.id ?? -1} version={version} onError={handle} show={show} />
   const mineTab = <MineTab roomId={roomId} me={me} map={map} version={version} onChanged={changed} onError={handle} show={show} onOpenGift={boxId => setSheet({ kind: 'gift', boxId })} onOpenArtist={id => { if (!wide) setTab('map'); setSheet({ kind: 'artist', id }) }} />
   const peopleSheet = (
-    <PeopleSheet roomId={roomId} capacity={summary?.capacity ?? 5} version={version} isHost={isHost}
+    <PeopleSheet roomId={roomId} map={map} meId={me?.member.id ?? -1} capacity={summary?.capacity ?? 5} version={version} isHost={isHost}
       onClose={() => setSheet(null)} onInvite={invite} onError={handle} focusId={focusId} onFocus={wide ? onFocus : undefined}
       onOpenMe={() => setSheet({ kind: 'me' })} onManage={m => setSheet({ kind: 'member', member: m })} onSettings={() => { refreshSummary(); setSheet({ kind: 'settings' }) }} />
   )

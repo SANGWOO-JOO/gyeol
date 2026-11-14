@@ -456,3 +456,48 @@ button.groupHead:focus-visible { outline: 2px solid var(--r-accent-strong); outl
 .sheet .bannerHead[data-collapsed] [class*='bannerCredit'] { display: none; }
 .sheet .bannerHead[data-collapsed] [class*='faceCredit'] { display: none; }
 .bannerHead { isolation: isolate; } /* 배너 안 닫기·ⓘ가 위에 붙은 탭 줄 위로 올라오지 않게 */
+
+/* 판 탭 개편 (11-14): 곡 목록은 둥근 판 하나 안에 줄, 줄 사이 얇은 선 (음악 앱처럼) */
+.songList { list-style: none; margin: 0; padding: 4px 0; display: flex; flex-direction: column; border-radius: 20px; background: var(--r-surface); box-shadow: inset 0 0 0 1px rgba(185, 162, 255, .08); overflow: hidden; }
+.songList > .row { position: relative; background: none; border-radius: 0; padding: 8px 10px 8px 12px; box-shadow: none; }
+.songList > .row + .row::before { content: ''; position: absolute; top: 0; left: 72px; right: 12px; height: 1px; background: rgba(255, 255, 255, .06); }
+.songList > .row.rowGold, .songList > .row.rowShared { background: linear-gradient(90deg, rgba(255, 227, 184, .1), transparent 70%); box-shadow: inset 3px 0 0 #ffe3b8; }
+.songList .cover { width: 48px; height: 48px; border-radius: 10px; }
+.songList .songTitle { font-weight: 600; }
+.songList .songSub { color: var(--r-text-3); }
+.coverEmpty { display: inline-flex; background: #221e3f; overflow: hidden; }
+/* 빼기 ×: PC(마우스)는 줄에 올리거나 키보드 포커스 때만, 휴대폰은 옅게 */
+.songList .remove { opacity: .45; transition: opacity .15s; }
+@media (hover: hover) and (pointer: fine) {
+  .songList .remove { opacity: 0; }
+  .songList > .row:hover .remove, .songList > .row:focus-within .remove { opacity: 1; }
+}
+.songList .remove:focus-visible { opacity: 1; }
+/* 줄 안 작은 얼굴 칩 (같이 담은 사람) */
+.faceChips { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #ffe3b8; font-weight: 600; }
+.faceChips > span:first-child { display: inline-flex; }
+.faceChips > span:first-child > * + * { margin-left: -5px; }
+/* 검색창은 스크롤해도 위에 (PC 판은 탭 줄 아래) */
+.searchSticky { position: sticky; top: 0; z-index: 2; padding: 4px 0 6px; background: var(--r-bg); }
+.sidePanel .searchSticky { top: 46px; background: #1e1b36; }
+/* 검색 빈 화면: 우리 우주에 많은 가수 · 최근 검색어 */
+.searchIdle { display: flex; flex-direction: column; gap: 18px; padding-top: 4px; }
+.idleHead { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 8px; font-size: 14px; font-weight: 700; }
+.idleHead button { border: 0; background: none; color: var(--r-text-2); font: inherit; font-size: 12px; cursor: pointer; min-height: 32px; }
+.idleArtists { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 12px 8px; }
+.idleArtist { display: flex; flex-direction: column; align-items: center; gap: 6px; border: 0; padding: 0; background: none; color: var(--r-text); font: inherit; font-size: 12px; cursor: pointer; min-width: 0; }
+.idleArtist > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.idleFace { width: 52px; height: 52px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; font-weight: 700; box-shadow: 0 0 0 2px rgba(185, 162, 255, .35), 0 6px 16px rgba(0, 0, 0, .3); }
+.idleFace img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+.idleArtist:focus-visible, .recentChip:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; border-radius: 12px; }
+.recents { display: flex; flex-wrap: wrap; gap: 6px; }
+.recentChip { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--r-surface); color: var(--r-text); font: inherit; font-size: 13px; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(185, 162, 255, .12); }
+.recentChip svg { color: var(--r-text-3); }
+.cardNote { font-size: 12px; color: #ffe3b8; font-weight: 600; }
+/* 내 노래: 선물 띠·오늘 n곡 (놀이터 A안 빛 언어) */
+.giftLine { min-height: 40px; border-radius: 14px; background: radial-gradient(120% 140% at 0% 0%, #3a3270 0%, #241f47 70%); box-shadow: inset 0 0 0 1px rgba(185, 162, 255, .16); }
+.giftLineGold { background: linear-gradient(100deg, rgba(255, 227, 184, .22), #2c2648 75%); color: #ffe3b8; box-shadow: inset 0 0 0 1px rgba(255, 227, 184, .35), 0 6px 18px rgba(255, 227, 184, .12); }
+.todayPill { position: relative; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 999px; overflow: hidden; background: var(--r-surface); font-size: 12px; color: var(--r-text-2); box-shadow: inset 0 0 0 1px rgba(185, 162, 255, .14); }
+.todayPill i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, rgba(185, 162, 255, .35), rgba(185, 162, 255, .15)); }
+.todayPill span { position: relative; }
+.groupHead { border-radius: 12px; }

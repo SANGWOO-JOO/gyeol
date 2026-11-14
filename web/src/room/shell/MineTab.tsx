@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { roomApi, RoomApiError, type MeView, type MySong, type RoomMap } from '../roomApi'
-import { galaxyOfTrack, giftLine } from '../roomLogic'
+import { galaxyOfTrack, giftLine, names as namesText } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import type { ToastData } from './Toast'
 import { CoverImg } from './CoverImg'
 import sh from './shell.module.css'
 import { ArtistFace } from './ArtistFace'
 import { genreColor } from '../galaxy/faces'
+import { FaceChips } from './SearchPanel'
+import { coOwners } from './tabLogic'
 import { groupSongs, MINE_SORTS, readMineSort, writeMineSort, type GroupHead, type MineSort } from './mineGroups'
 
 /**
@@ -84,21 +86,32 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show, on
     }
   }
 
-  const row = (song: MySong): ReactNode => (
-    <li key={song.id} className={sh.row} style={{ paddingRight: 4 }}>
-              <CoverImg roomId={roomId} cover={song} className={sh.cover} />
-              <span className={sh.rowText}>
-                <span className={sh.songTitle}>{song.title}</span>
-                <span className={sh.songSub}>{[song.artist, galaxy.get(song.trackId)].filter(Boolean).join(' · ')}</span>
-                {song.sharedWith > 0 && <span className={`${sh.badge} ${sh.badgeGold}`}>친구 {song.sharedWith}명과 같이 담음</span>}
-              </span>
-              <button type="button" className={sh.remove} aria-label={`${song.title} 빼기`} disabled={removing === song.id} onClick={() => remove(song)}>
-                {removing === song.id ? <Spinner size={14} /> : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-                )}
-              </button>
-            </li>
-  )
+  // 곡 줄: 장르별은 가수만, 아티스트별은 가수·장르를 빼고(발매 연도·앨범은 응답에 없어 생략), 최근 순은 가수 · 장르
+  const meId = me?.member.id ?? -1
+  const members = map?.members ?? []
+  const row = (song: MySong): ReactNode => {
+    const sub = sort === 'genre' ? song.artist : sort === 'artist' ? null : [song.artist, galaxy.get(song.trackId)].filter(Boolean).join(' · ')
+    const others = song.sharedWith > 0 ? coOwners(map, song.trackId, meId) : []
+    const names = others.map(id => members.find(m => m.id === id)?.nickname).filter((n): n is string => !!n)
+    return (
+      <li key={song.id} className={`${sh.row} ${song.sharedWith > 0 ? sh.rowShared : ''}`} style={{ paddingRight: 4 }}>
+        <CoverImg roomId={roomId} cover={song} className={sh.cover} />
+        <span className={sh.rowText}>
+          <span className={sh.songTitle}>{song.title}</span>
+          {sub && <span className={sh.songSub}>{sub}</span>}
+          {song.sharedWith > 0 && (names.length > 0
+            ? <FaceChips names={names} members={members} text={`${namesText(names)}과 같이 담음`} />
+            : <span className={sh.faceChips}>친구 {song.sharedWith}명과 같이 담음</span>)}
+        </span>
+        <button type="button" className={sh.remove} aria-label={`${song.title} 빼기`} disabled={removing === song.id} onClick={() => remove(song)}>
+          {removing === song.id ? <Spinner size={14} /> : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          )}
+        </button>
+      </li>
+    )
+  }
+
 
   const total = me?.songCount ?? items?.length ?? 0
   const gift = me?.gift
@@ -109,7 +122,7 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show, on
 
       <div className={sh.mineHead}>
         <h2>내 노래 <strong>{total}</strong>곡</h2>
-        {me && <span className={sh.counts}>오늘 {me.todayAdded}/{me.dailyLimit}곡</span>}
+        {me && <span className={sh.todayPill} title="하루에 담을 수 있는 곡"><i style={{ width: `${Math.min(100, (me.todayAdded / Math.max(1, me.dailyLimit)) * 100)}%` }} aria-hidden="true" /><span>오늘 {me.todayAdded}/{me.dailyLimit}곡</span></span>}
       </div>
 
       <div className={sh.chipsRow} role="group" aria-label="정렬">
@@ -126,11 +139,11 @@ export function MineTab({ roomId, me, map, version, onChanged, onError, show, on
       )}
 
       {items && items.length > 0 && (sort === 'recent'
-        ? <ul className={sh.list}>{items.map(row)}</ul>
+        ? <ul className={sh.songList}>{items.map(row)}</ul>
         : groupSongs(sort, items).map(g => (
           <section key={g.head.key} className={sh.mineGroup} aria-label={`${g.head.title} ${g.head.count ?? g.items.length}곡`}>
             <GroupHeadRow sort={sort} head={g.head} shown={g.items.length} roomId={roomId} onOpenArtist={onOpenArtist} />
-            <ul className={sh.list}>{g.items.map(row)}</ul>
+            <ul className={sh.songList}>{g.items.map(row)}</ul>
           </section>
         )))}
 

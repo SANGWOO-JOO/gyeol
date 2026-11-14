@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { roomApi, RoomApiError, type RoomSearchItem, type SearchArtist } from '../roomApi'
+import { memberColor, roomApi, RoomApiError, type MemberView, type RoomMap, type RoomSearchItem, type SearchArtist } from '../roomApi'
 import { searchable, searchDelay, appendSearch, artistCardSub, artistDisplayName, artistFaceUrl, searchBadge, showArtistMore, sharedWithText, trackKey } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { ArtistFace } from './ArtistFace'
@@ -7,13 +7,17 @@ import { AllSongsButton } from './AllSongsButton'
 import { genreColor } from '../galaxy/faces'
 import { CoverImg } from './CoverImg'
 import sh from './shell.module.css'
+import { Avatar } from '../components/Avatar'
+import { sourcesOf, useImageChain } from '../images'
+import { planetFace } from '../galaxy/faces'
+import { pushRecent, readRecent, topArtists, writeRecent } from './tabLogic'
 
 /** 검색 결과 한 줄을 구분하는 키 (DB 곡은 trackId, 아니면 제목|가수) */
 export const itemKey = trackKey
 
 /** 4-d 노래 검색해 담기. 담는 일은 부모(RoomShell)가 하고, 여기서는 찾기와 표시만 */
 export function SearchPanel({
-  roomId, query, setQuery, added, pending, busy, onAdd, onOpenArtist,
+  roomId, query, setQuery, added, pending, busy, onAdd, onOpenArtist, map = null,
 }: {
   roomId: string
   query: string
@@ -27,7 +31,11 @@ export function SearchPanel({
   onAdd: (r: RoomSearchItem) => void
   /** 가수 카드 → 가수 화면 (I-30) */
   onOpenArtist: (a: SearchArtist) => void
+  /** 지도(사람 색·우리 우주에 많은 가수) */
+  map?: RoomMap | null
 }) {
+  const members = map?.members ?? []
+  const [recent, setRecent] = useState<string[]>(readRecent)
   const [items, setItems] = useState<RoomSearchItem[] | null>(null)
   const [rawArtist, setArtist] = useState<SearchArtist | null>(null)
   // 표시 이름은 DB 이름(displayName, 지도와 같음): 카드·목록 끝 버튼·가수 화면 제목이 모두 이 name을 쓴다
@@ -58,7 +66,12 @@ export function SearchPanel({
     setLoading(true)
     const t = setTimeout(() => {
       roomApi.search(roomId, q, ac.signal)
-        .then(r => { if (gen !== searchGen.current) return; setItems(r.items); setArtist(r.artist ?? null); setPage(r.page ?? 1); setHasMore(!!r.hasMore); setError(null) })
+        .then(r => {
+          if (gen !== searchGen.current) return
+          setItems(r.items); setArtist(r.artist ?? null); setPage(r.page ?? 1); setHasMore(!!r.hasMore); setError(null)
+          // 결과가 있는 검색어만 최근 검색어로
+          if (r.items.length > 0 || r.artist) setRecent(prev => { const next = pushRecent(prev, q); writeRecent(next); return next })
+        })
         .catch(err => { if (!ac.signal.aborted) setError(err instanceof RoomApiError ? err.message : '검색하지 못했어요') })
         .finally(() => { if (!ac.signal.aborted) setLoading(false) })
     }, searchDelay(q))
@@ -85,6 +98,7 @@ export function SearchPanel({
 
   return (
     <section aria-label="노래 검색" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className={sh.searchSticky}>
       <label className={sh.searchBox}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B7AFD1" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
         <input ref={inputRef} type="search" aria-label="노래 검색" placeholder="노래나 가수 이름" value={query} onChange={e => setQuery(e.target.value)} enterKeyHint="search"
@@ -96,11 +110,16 @@ export function SearchPanel({
           </button>
         )}
       </label>
+      </div>
 
-      <div className={sh.metaRow}>
+      {!searchable(query) && !items && (
+        <SearchIdle roomId={roomId} map={map} recent={recent} onPick={q => setQuery(q)} onClear={() => { setRecent([]); writeRecent([]) }} />
+      )}
+
+      {items && <div className={sh.metaRow}>
         <span aria-live="polite">{loading ? '찾는 중…' : items ? `검색 결과 ${items.length}곡` : '좋아하는 노래를 찾아 담아요'}</span>
         <span>담는 즉시 우주에 떠요</span>
-      </div>
+      </div>}
 
       {error && (
         <p className={sh.center} role="alert" style={{ color: 'var(--r-error)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -112,7 +131,7 @@ export function SearchPanel({
       {artist && !loading && (
         <>
           <span className={sh.groupLabel}>가수</span>
-          <ArtistCard roomId={roomId} artist={artist} onOpen={() => onOpenArtist(artist)} />
+          <ArtistCard roomId={roomId} artist={artist} onOpen={() => onOpenArtist(artist)} note={friendsNote(items)} />
           {items && items.length > 0 && <span className={sh.groupLabel}>노래</span>}
         </>
       )}
@@ -122,12 +141,12 @@ export function SearchPanel({
       )}
 
       {items && items.length > 0 && (
-        <ul className={sh.list}>
+        <ul className={sh.songList}>
           {items.map(r => {
             const key = itemKey(r.item)
             const isAdded = r.mine || added.has(key)
             return (
-              <SearchRow key={key} roomId={roomId} r={r} added={isAdded} pending={pending.has(key)} busy={busy.has(key)} onAdd={() => onAdd(r)} />
+              <SearchRow key={key} roomId={roomId} r={r} added={isAdded} pending={pending.has(key)} busy={busy.has(key)} onAdd={() => onAdd(r)} members={members} />
             )
           })}
         </ul>
@@ -152,7 +171,7 @@ export function SearchPanel({
 }
 
 /** 4-d2 검색 맨 위 가수 카드: 누르면 가수 화면(노래 전체 보기) */
-function ArtistCard({ roomId, artist, onOpen }: { roomId: string; artist: SearchArtist; onOpen: () => void }) {
+function ArtistCard({ roomId, artist, onOpen, note }: { roomId: string; artist: SearchArtist; onOpen: () => void; note?: string | null }) {
   const sub = artistCardSub(artist)
   return (
     <button type="button" className={sh.artistCard} onClick={onOpen} aria-label={`${artist.name} 노래 전체 보기`}>
@@ -161,6 +180,7 @@ function ArtistCard({ roomId, artist, onOpen }: { roomId: string; artist: Search
       <span className={sh.rowText}>
         <strong className={sh.artistName}>{artist.name}</strong>
         {sub && <span className={sh.songSub}>{sub}</span>}
+        {note && <span className={sh.cardNote}>{note}</span>}
       </span>
       <span className={sh.artistMore} aria-hidden="true">
         노래 전체 보기
@@ -171,8 +191,10 @@ function ArtistCard({ roomId, artist, onOpen }: { roomId: string; artist: Search
 }
 
 /** 노래 한 줄 (검색 결과·가수 화면 같이 씀). rank는 인기순 순위, sub를 주면 둘째 줄을 바꾼다 */
-export function SearchRow({ roomId, r, added, pending, busy, onAdd, rank, sub: subOverride, addedLabel = '담았어요', goldRing = false }: {
+export function SearchRow({ roomId, r, added, pending, busy, onAdd, rank, sub: subOverride, addedLabel = '담았어요', goldRing = false, members = [] }: {
   roomId: string; r: RoomSearchItem; added: boolean; pending: boolean; busy: boolean; onAdd: () => void
+  /** 같이 담은 사람 얼굴 칩용 (닉네임 → 사람 색) */
+  members?: MemberView[]
   rank?: number | null; sub?: string; addedLabel?: string
   /** 가수 화면: 친구가 담은 곡 줄에 금빛 테두리 */
   goldRing?: boolean
@@ -181,15 +203,15 @@ export function SearchRow({ roomId, r, added, pending, busy, onAdd, rank, sub: s
   const badge = searchBadge(r)
   const sub = subOverride ?? [t.artist, t.releaseYear].filter(Boolean).join(' · ')
   return (
-    <li className={`${sh.row} ${goldRing && r.sameSong.length > 0 ? sh.rowGold : ''}`}>
+    <li className={`${sh.row} ${(goldRing || badge.kind === 'sameSong') && r.sameSong.length > 0 ? sh.rowGold : ''}`}>
       {rank != null && <span className={sh.rank}>{rank}</span>}
       <CoverImg roomId={roomId} cover={t} className={sh.cover} />
       <span className={sh.rowText}>
         <span className={sh.songTitle}>{t.title}</span>
         {sub && <span className={sh.songSub}>{sub}</span>}
-        {badge.kind === 'sameSong' && <span className={`${sh.badge} ${sh.badgeGold}`}>{badge.text}</span>}
+        {badge.kind === 'sameSong' && <FaceChips names={r.sameSong} members={members} text={badge.text} />}
         {goldRing && badge.kind === 'mine' && sharedWithText(r.sameSong) && <span className={`${sh.badge} ${sh.badgeGold}`}>{sharedWithText(r.sameSong)}</span>}
-        {badge.kind === 'sameArtist' && <span className={`${sh.badge} ${sh.badgeFriend}`}>{badge.text}</span>}
+        {/* "○○님과 같은 아티스트"는 줄마다 반복돼 시끄러워 가수 카드에 한 번만 (11-14) */}
       </span>
       {added ? (
         <span className={sh.added}>
@@ -207,5 +229,71 @@ export function SearchRow({ roomId, r, added, pending, busy, onAdd, rank, sub: s
         <button type="button" className={sh.add} disabled={busy} onClick={onAdd} aria-label={`${t.title} 담기`}>{busy ? <Spinner size={14} /> : '담기'}</button>
       )}
     </li>
+  )
+}
+
+/** 같이 담은 사람 작은 얼굴 칩 + 금빛 글자 (닉네임으로 사람 색을 찾는다) */
+export function FaceChips({ names, members, text }: { names: string[]; members: MemberView[]; text: string }) {
+  return (
+    <span className={sh.faceChips}>
+      <span aria-hidden="true">
+        {names.slice(0, 3).map(n => { const m = members.find(x => x.nickname === n); return <Avatar key={n} nickname={n} colorIdx={m?.colorIdx ?? 0} characterId={m?.avatarCharacterId} size={18} /> })}
+      </span>
+      {text}
+    </span>
+  )
+}
+
+/** 가수 카드에 한 번: 이 가수를 담은 친구들 (검색 결과 곡의 같은 노래·같은 가수를 합쳐서) */
+function friendsNote(items: RoomSearchItem[] | null): string | null {
+  const set = new Set<string>()
+  for (const r of items ?? []) { r.sameArtist.forEach(n => set.add(n)); r.sameSong.forEach(n => set.add(n)) }
+  const list = [...set]
+  if (list.length === 0) return null
+  return `${list.length <= 2 ? list.map(n => `${n}님`).join('·') : `${list[0]}님 외 ${list.length - 1}명`}도 이 가수를 담았어요`
+}
+
+/** 검색어가 없을 때: 우리 우주에 많은 가수 얼굴 칩(누르면 그 이름으로 검색) · 최근 검색어 */
+function SearchIdle({ roomId, map, recent, onPick, onClear }: { roomId: string; map: RoomMap | null; recent: string[]; onPick: (q: string) => void; onClear: () => void }) {
+  const top = topArtists(map, 8)
+  return (
+    <div className={sh.searchIdle}>
+      {top.length > 0 && (
+        <section aria-label="우리 우주에 많은 가수">
+          <h3 className={sh.idleHead}>우리 우주에 많은 가수</h3>
+          <div className={sh.idleArtists}>
+            {top.map(a => (
+              <button key={a.artistId} type="button" className={sh.idleArtist} onClick={() => onPick(a.name)} aria-label={`${a.name} 찾기, 우리 우주에 ${a.count}곡`}>
+                <IdleFace roomId={roomId} name={a.name} face={a.face} />
+                <span>{a.name}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      {recent.length > 0 && (
+        <section aria-label="최근 검색어">
+          <h3 className={sh.idleHead}>최근 검색어 <button type="button" onClick={onClear}>모두 지우기</button></h3>
+          <div className={sh.recents}>
+            {recent.map(q => (
+              <button key={q} type="button" className={sh.recentChip} onClick={() => onPick(q)}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>
+                {q}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}
+
+function IdleFace({ roomId, name, face }: { roomId: string; name: string; face: RoomMap['planets'][number]['face'] }) {
+  const fc = planetFace({ songs: [], face })
+  const { src, fail } = useImageChain(roomId, fc.kind === 'genre' ? sourcesOf([]) : fc.sources)
+  return (
+    <span className={sh.idleFace} aria-hidden="true" style={src ? undefined : { background: `radial-gradient(120% 120% at 30% 25%, ${memberColor(0).bg}, #2e2760 85%)` }}>
+      {src ? <img src={src} alt="" onError={fail} /> : Array.from(name)[0]}
+    </span>
   )
 }

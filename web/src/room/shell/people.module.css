@@ -1,0 +1,40 @@
+/* 참가자 판 (11-14 개편): 사람 카드 = 사람 색 고리 얼굴 + 이름 + 곡 수 + 취향 한 줄, ⋯는 모든 줄 같은 자리 */
+.hint { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; color: var(--r-text-2); }
+.people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.card { display: flex; align-items: center; gap: 4px; padding: 4px 4px 4px 0; border-radius: 20px; background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--person-c) 14%, transparent), var(--r-surface) 60%); box-shadow: inset 0 0 0 1px rgba(185, 162, 255, .1); }
+.cardOn { box-shadow: inset 0 0 0 1.5px var(--person-c), 0 0 18px color-mix(in srgb, var(--person-c) 25%, transparent); }
+.main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 10px 6px 10px 12px; border: 0; background: none; color: inherit; font: inherit; text-align: left; border-radius: 18px; }
+button.main { cursor: pointer; }
+button.main:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: -2px; }
+.ring { flex: none; display: inline-flex; border-radius: 50%; }
+.text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.nameLine { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.nameLine strong { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.role { flex: none; font-size: 11px; color: #e6dcff; border: 1px solid #6d5bd0; border-radius: 999px; padding: 0 7px; }
+.sub { font-size: 12px; color: var(--r-text-2); }
+.together { color: #ffe3b8; font-weight: 600; }
+.taste { display: flex; align-items: center; gap: 8px; min-width: 0; margin-top: 2px; }
+.genre { display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 60%; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, .06); font-size: 11px; color: var(--r-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.genre i { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+.faces { display: inline-flex; flex: none; }
+.face { width: 22px; height: 22px; border-radius: 50%; overflow: hidden; background: #2e2a55; box-shadow: 0 0 0 1.5px #1e1b36; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+.face + .face { margin-left: -6px; }
+.face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+.focusTag { flex: none; font-size: 11px; font-weight: 700; color: #16132b; border-radius: 999px; padding: 2px 8px; }
+.more, .moreSpace { flex: none; width: 44px; height: 44px; }
+.more { border: 0; border-radius: 50%; background: none; color: var(--r-text-2); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.more:hover { background: var(--r-field); }
+.more:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+/* 빈자리: 흐린 빈 얼굴 칸 + n자리 남았어요 (누르면 초대 링크) */
+.seats { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 14px; border: 0; border-radius: 18px; background: none; color: var(--r-text-2); font: inherit; font-size: 13px; cursor: pointer; }
+.seats:hover { background: rgba(255, 255, 255, .03); }
+.seats:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 2px; }
+.seatFaces { display: inline-flex; }
+.seatFaces i { width: 36px; height: 36px; border-radius: 50%; background: radial-gradient(circle at 50% 38%, rgba(255, 255, 255, .1) 0 28%, transparent 30%), rgba(255, 255, 255, .04); box-shadow: inset 0 0 0 1px rgba(185, 162, 255, .18), 0 0 0 2px #1e1b36; }
+.seatFaces i + i { margin-left: -8px; }
+/* 초대: 놀이터 A안 그라데이션 버튼 */
+.invite {
+  display: flex; align-items: center; justify-content: center; gap: 8px; height: 52px; border: 0; border-radius: 999px; font: inherit; font-size: 15px; font-weight: 700; color: #16132b; cursor: pointer;
+  background: linear-gradient(90deg, #b9a2ff, #e6dcff 50%, #e3a6b8); box-shadow: 0 8px 24px rgba(185, 162, 255, .25);
+}
+.invite:focus-visible { outline: 2px solid var(--r-accent-strong); outline-offset: 3px; }

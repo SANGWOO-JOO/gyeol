@@ -182,11 +182,11 @@ export function ArtistPage({ roomId, artist, roomCount, added, pending, busy, on
       )}
 
       {cur && cur.items.length > 0 && (sort === 'popular'
-        ? <ul className={sh.list} aria-label="인기순 노래">{cur.items.map((x, i) => row(x, x.rank ?? i + 1))}</ul>
+        ? <ul className={sh.songList} aria-label="인기순 노래">{cur.items.map((x, i) => row(x, x.rank ?? i + 1))}</ul>
         : groupByRelease(cur.items).map(g => (
           <div key={g.label} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <h3 className={sh.yearHead}>{g.label}{g.unknown && <small>날짜를 찾지 못한 노래</small>}</h3>
-            <ul className={sh.list}>{g.items.map(x => row(x, null))}</ul>
+            <ul className={sh.songList}>{g.items.map(x => row(x, null))}</ul>
           </div>
         )))}
 
