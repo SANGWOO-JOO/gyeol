@@ -63,8 +63,23 @@ data class ArtistCard(
  */
 data class RoomSearchResponse(val items: List<RoomSearchItem>, val source: String, val artist: ArtistCard? = null, val page: Int = 1, val hasMore: Boolean = false)
 
-data class MySongView(val id: Long, val trackId: Long, val title: String, val artist: String, val coverUrl: String?, val addedAt: Instant, val sharedWith: Int, val coverPath: String? = null)
-data class MySongsPage(val items: List<MySongView>, val nextCursor: Long?)
+/** 내 노래 정렬 묶음 (sort=genre|artist). key로 쪽 사이를 이어 붙인다. count는 쪽과 상관없는 그 묶음 전체 곡 수 */
+data class SongGroup(
+    val key: String, val kind: String, val name: String, val count: Int,
+    /** GENRE: 지도 장르 구역 id (분류 중이면 null) */
+    val galaxyId: Long? = null,
+    /** ARTIST: 가수 id, 지도와 같은 이름, 얼굴(사진 → 방 곡 표지 → DB 저장 표지 → NONE) */
+    val artistId: Long? = null, val displayName: String? = null, val face: Face? = null,
+)
+data class MySongView(
+    val id: Long, val trackId: Long, val title: String, val artist: String, val coverUrl: String?, val addedAt: Instant, val sharedWith: Int,
+    val coverPath: String? = null, val group: SongGroup? = null,
+)
+/**
+ * [sort]: recent(기본, 지금과 같음)·genre·artist. genre·artist는 첫 쪽의 [snapshot](그때까지 담은 곡의 마지막 id)을 다음 쪽 요청에 함께 보내면
+ * 그사이 곡을 더 담아도 묶음 순서가 흔들리지 않는다. recent는 snapshot이 null
+ */
+data class MySongsPage(val items: List<MySongView>, val nextCursor: Long?, val sort: String = "recent", val snapshot: Long? = null)
 
 /**
  * 지도. 좌표는 공용 지도 판(0~1). 활성 판이 없거나 아직 자리를 못 잡은 가수는 임시 자리(가수 mbid 해시)에 preparing=true.
@@ -102,6 +117,8 @@ const val SEARCH_PAGE_SIZE = 10
 const val SEARCH_PAGES = 5
 /** 검색 때 가수 미리 준비: 방당 하루 맡기는 가수 수 */
 const val PREPARE_PER_ROOM = 30
+/** 내 노래 장르 묶음: 장르 구역이 아직 없는 곡 */
+const val UNSORTED = "분류 중"
 private const val GHOSTS_PER_PLANET_MAX = 3
 
 @Service
@@ -265,11 +282,66 @@ class RoomSongService(
         rooms.bumpMapRev(ctx.room.id)
     }
 
-    fun mySongs(ctx: RoomContext, cursor: Long?, limit: Int): MySongsPage {
+    fun mySongs(ctx: RoomContext, cursor: Long?, limit: Int, sort: String = "recent", snapshot: Long? = null): MySongsPage {
         if (limit !in 1..100) throw ApiException.validation("limit은 1~100이에요")
+        if (sort == "genre" || sort == "artist") return groupedSongs(ctx, cursor, limit, sort, snapshot)
+        if (sort != "recent") throw ApiException.validation("sort는 recent·genre·artist예요")
         val rows = songs.mySongs(ctx.member.id, cursor, limit + 1)
         val page = rows.take(limit).map { MySongView(it.id, it.trackId, it.title, it.artistName, it.coverUrl, it.addedAt, it.sharedWith, covers.path(ctx.room.publicId, it.trackId, it.coverStored)) }
         return MySongsPage(page, if (rows.size > limit) page.last().id else null)
+    }
+
+    /**
+     * 내 노래 묶어 보기 (11-14). 첫 쪽에서 snapshot(지금까지 담은 곡의 마지막 id)을 정하고, 그 이하 곡만으로 순서를 만든다.
+     * 순서: 묶음은 곡 많은 순 → 이름 순, "분류 중"(장르 구역 없음)은 맨 뒤, 묶음 안은 최근 담은 순. 커서는 앞 쪽 마지막 곡 id.
+     * 같은 snapshot이면 순서가 같아 쪽 사이 중복·누락이 없다. 커서 곡을 그사이 뺐으면 409 CURSOR_STALE(처음부터 다시)
+     */
+    private fun groupedSongs(ctx: RoomContext, cursor: Long?, limit: Int, sort: String, snapshot: Long?): MySongsPage {
+        val rid = ctx.room.publicId
+        val all = songs.mySongs(ctx.member.id, (snapshot ?: Long.MAX_VALUE - 1) + 1, 100_000) // id 내림차순 = 최근 담은 순
+        val snap = snapshot ?: all.firstOrNull()?.id
+        val version = maps.activeVersion()
+        val galaxyOf = version?.let { v -> maps.positions(v, all.map { it.artistId }.toSet()).mapValues { it.value.galaxyId } }.orEmpty()
+        data class G(val key: String, val name: String, val unsorted: Boolean, val galaxyId: Long? = null, val artistId: Long? = null)
+        val groupOf: Map<Long, G> = if (sort == "genre") {
+            val names = maps.galaxies(galaxyOf.values.filterNotNull().toSet()).associate { it.id to (it.name ?: "이름 없는 구역") }
+            all.associate { s ->
+                val g = galaxyOf[s.artistId]
+                s.id to (if (g == null || g !in names) G("genre:none", UNSORTED, true) else G("genre:$g", names[g]!!, false, galaxyId = g))
+            }
+        } else {
+            all.associate { s -> s.id to G("artist:${s.artistId}", s.artistName, false, artistId = s.artistId) }
+        }
+        val counts = all.groupingBy { groupOf[it.id]!!.key }.eachCount()
+        val groupOrder = all.map { groupOf[it.id]!! }.distinctBy { it.key }
+            .sortedWith(compareBy<G> { it.unsorted }.thenByDescending { counts[it.key]!! }.thenBy { it.name }.thenBy { it.key })
+            .withIndex().associate { (i, g) -> g.key to i }
+        // 묶음 안은 all의 순서(최근 담은 순)를 그대로 쓴다 (안정 정렬)
+        val ordered = all.sortedBy { groupOrder[groupOf[it.id]!!.key]!! }
+        val start = if (cursor == null) 0 else ordered.indexOfFirst { it.id == cursor }.let { i ->
+            if (i < 0) throw ApiException(HttpStatus.CONFLICT, "CURSOR_STALE", "목록이 바뀌었어요. 처음부터 다시 불러 주세요")
+            i + 1
+        }
+        val page = ordered.drop(start).take(limit)
+        // 가수 묶음 얼굴: 이 쪽에 나온 가수만 (사진 → 방 곡 표지 → DB 저장 표지 → NONE)
+        val faceOf = if (sort != "artist" || page.isEmpty()) emptyMap() else {
+            val ids = page.map { it.artistId }.toSet()
+            val roomCover = songs.mapSongs(ctx.room.id).filter { it.artistId in ids }.groupBy { it.artistId }
+                .mapValues { (_, xs) -> xs.map { it.view(rid) }.firstNotNullOfOrNull { it.coverPath ?: it.coverUrl } }
+            faces.faces(rid, ids.associateWith { a ->
+                galaxyOf[a] to (roomCover[a] ?: songs.artistStoredCoverTrack(a)?.let { covers.path(rid, it, true) })
+            })
+        }
+        val items = page.map {
+            val g = groupOf[it.id]!!
+            val group = SongGroup(
+                g.key, if (sort == "genre") "GENRE" else "ARTIST", g.name, counts[g.key]!!, g.galaxyId,
+                g.artistId, g.artistId?.let { _ -> g.name }, g.artistId?.let(faceOf::get),
+            )
+            MySongView(it.id, it.trackId, it.title, it.artistName, it.coverUrl, it.addedAt, it.sharedWith, covers.path(rid, it.trackId, it.coverStored), group)
+        }
+        val next = if (start + page.size < ordered.size) page.lastOrNull()?.id else null
+        return MySongsPage(items, next, sort, snap)
     }
 
     /** 공용 지도에 자리가 없는 가수면 worker에 준비를 맡긴다 (한 번만, 커밋 뒤) */
@@ -381,7 +453,8 @@ class RoomSongController(private val service: RoomSongService, private val faces
     fun mySongs(
         @PathVariable rid: String, @RoomMember ctx: RoomContext,
         @RequestParam(required = false) cursor: Long?, @RequestParam(defaultValue = "30") limit: Int,
-    ): MySongsPage = service.mySongs(ctx, cursor, limit)
+        @RequestParam(defaultValue = "recent") sort: String, @RequestParam(required = false) snapshot: Long?,
+    ): MySongsPage = service.mySongs(ctx, cursor, limit, sort, snapshot)
 
     @GetMapping("/api/rooms/{rid}/artists/{artistId}")
     fun artist(@PathVariable rid: String, @PathVariable artistId: Long, @RoomMember ctx: RoomContext): ArtistView = service.artist(ctx, artistId)

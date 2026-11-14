@@ -506,3 +506,12 @@
   - 유승준: 첫 검색 카드 artistId null·NONE → 17초 뒤 DONE(가수 1854) → 다시 검색하면 카드 PHOTO(MBC PD수첩, CC BY 3.0)이고 노래 줄 가위·나나나·사랑해 누나에 trackId·표지가 붙는다.
   - 비: **한 글자라 검색 자체가 400**(검색어 2~100자)이다. 그래서 큐에 직접 넣어 확인했다. 10초 뒤 DONE(가수 1857 RAIN, 별칭 비·Rain) → "Rain" 검색에서 DB 카드(PHOTO, TV10 CC BY 4.0)가 나오고 Rainism·Hip Song·Only You 줄에 표지가 붙는다. 준비 전 "Rain" 검색은 카드가 없었다.
   - `llm_call` 1666 → 1666(유료 0). 공용 지도 준비(`artist_prepare`)는 0행이다.
+
+### 내 노래 정렬 recent·genre·artist (11-14, 사용자 승인)
+- `GET /api/rooms/{rid}/me/songs?sort=recent|genre|artist&cursor=&limit=&snapshot=`. 기본 recent는 지금과 같다(`snapshot` null).
+- genre·artist는 첫 쪽에서 `snapshot`(그때까지 담은 곡의 마지막 id)을 돌려준다. 다음 쪽에 함께 보내면 그 이하 곡만으로 순서를 만든다. 순서가 고정돼 쪽 사이 중복·누락이 없다. 커서는 앞 쪽 마지막 곡 id다. 커서 곡을 그사이 뺐으면 409 `CURSOR_STALE`(처음부터 다시).
+- 묶음 순서: 곡 많은 순 → 이름 순, "분류 중"(활성 지도에 장르 구역 없음)은 맨 뒤. 묶음 안은 최근 담은 순이다.
+- 곡마다 `group = {key, kind(GENRE|ARTIST), name, count(쪽과 상관없는 전체 수), galaxyId?, artistId?, displayName?, face?}`.
+  - artist의 face는 사진 → 방 곡 표지 → DB 저장 표지 → NONE이고, 그 쪽에 나온 가수만 계산한다.
+  - genre 묶음 이름은 지도 구역 이름이고, 이름이 비어 있으면 "이름 없는 구역"이다.
+- 테스트: api 1개(recent 호환, genre·artist 순서, groupCount, 분류 중 맨 뒤, 쪽 3곡씩 = 한 번에, snapshot 뒤 담은 곡은 안 섞임, 잘못된 sort 400). api 91(건너뜀 1) 통과. 18:00:00 api 재시작.

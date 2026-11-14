@@ -1444,4 +1444,75 @@ class RoomApiIntegrationTest {
         assertEquals("DONE", prepRow("n:준비가수"), "상한이면 키도 바꾸지 않는다")
         assertEquals(0, prepareMessages("n:준비가수"))
     }
+
+    @Test
+    fun `내 노래 정렬 - recent는 그대로, genre·artist 묶음 순서·groupCount·분류 중, 쪽 경계에서도 중복·누락 없음, snapshot 뒤 담은 곡은 안 섞임`() {
+        val host = newRoom()
+        fun artist(name: String) = ArtistInfo(UUID.randomUUID(), name, name, emptyList())
+        val a = artist("정렬가수가"); val b = artist("정렬가수나"); val c = artist("정렬가수다"); val d = artist("정렬가수라")
+        fun add(info: ArtistInfo, title: String): Long {
+            val t = identify.upsertTrack(TrackInfo(UUID.randomUUID(), title, info, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
+            assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to t), host.key).status)
+            return t
+        }
+        // 담은 순서: A1 B1 D1 A2 C1 B2 A3 D2
+        val tA1 = add(a, "가1"); add(b, "나1"); add(d, "라1"); add(a, "가2"); add(c, "다1"); add(b, "나2"); add(a, "가3"); add(d, "라2")
+        val aid = songs.trackArtist(tA1)!!
+        fun idOf(info: ArtistInfo) = jdbc.sql("SELECT id FROM artist WHERE mbid = :m").param("m", info.mbid).query(Long::class.java).single()
+        jdbc.sql("UPDATE map_version SET active = false").update()
+        val version = jdbc.sql("INSERT INTO map_version (params, artist_count, active) VALUES ('{}', 3, true) RETURNING id").query(Long::class.java).single()
+        val ballad = jdbc.sql("INSERT INTO galaxy (map_version, label, name, cx, cy) VALUES (:v, 0, '발라드', 0.2, 0.2) RETURNING id").param("v", version).query(Long::class.java).single()
+        val dance = jdbc.sql("INSERT INTO galaxy (map_version, label, name, cx, cy) VALUES (:v, 1, '댄스', 0.8, 0.8) RETURNING id").param("v", version).query(Long::class.java).single()
+        maps.savePosition(version, aid, 0.2, 0.2, ballad, "UMAP")
+        maps.savePosition(version, idOf(c), 0.21, 0.2, ballad, "UMAP")
+        maps.savePosition(version, idOf(b), 0.8, 0.8, dance, "UMAP") // D는 자리 없음 → 분류 중
+        val base = "/api/rooms/${host.rid}/me/songs"
+
+        // recent: sort 없이와 같고 최근 담은 순
+        val recent = call("GET", "$base?limit=100", key = host.key).body!!
+        assertEquals(recent.toString(), call("GET", "$base?limit=100&sort=recent", key = host.key).body!!.toString())
+        assertEquals(listOf("라2", "가3", "나2", "다1", "가2", "라1", "나1", "가1"), recent["items"].toList().map { it["title"].asString() })
+        assertTrue(recent["snapshot"].isNull)
+
+        fun all(sort: String, limit: Int): List<JsonNode> {
+            val out = mutableListOf<JsonNode>()
+            var cursor: Long? = null
+            var snap: Long? = null
+            do {
+                val q = "$base?sort=$sort&limit=$limit" + (cursor?.let { "&cursor=$it" } ?: "") + (snap?.let { "&snapshot=$it" } ?: "")
+                val pg = call("GET", q, key = host.key).body!!
+                assertEquals(sort, pg["sort"].asString())
+                snap = pg["snapshot"].asLong()
+                out += pg["items"].toList()
+                cursor = pg["nextCursor"].takeUnless { it.isNull }?.asLong()
+            } while (cursor != null)
+            return out
+        }
+        // genre: 발라드(A3+C1=4) → 댄스(2)·분류 중(2)은 분류 중이 맨 뒤, 묶음 안은 최근 담은 순. 3곡씩 끊어도 같다
+        val genre = all("genre", 3)
+        assertEquals(listOf("가3", "다1", "가2", "가1", "나2", "나1", "라2", "라1"), genre.map { it["title"].asString() })
+        assertEquals(listOf(4, 4, 4, 4, 2, 2, 2, 2), genre.map { it["group"]["count"].asInt() }, "groupCount는 쪽과 상관없이 전체 수")
+        assertEquals(listOf("발라드", "댄스", "분류 중"), genre.map { it["group"]["name"].asString() }.distinct())
+        assertEquals(ballad, genre.first()["group"]["galaxyId"].asLong())
+        assertTrue(genre.last()["group"]["galaxyId"].isNull)
+        assertEquals(genre.map { it["id"].asLong() }, all("genre", 100).map { it["id"].asLong() }, "쪽 크기와 상관없이 같은 순서")
+        // artist: A(3) → B(2)·D(2)는 이름 순 → C(1)
+        val byArtist = all("artist", 3)
+        assertEquals(listOf("가3", "가2", "가1", "나2", "나1", "라2", "라1", "다1"), byArtist.map { it["title"].asString() })
+        val g = byArtist.first()["group"]
+        assertEquals("ARTIST", g["kind"].asString())
+        assertEquals(aid, g["artistId"].asLong())
+        assertEquals("정렬가수가", g["displayName"].asString())
+        assertEquals(3, g["count"].asInt())
+        assertTrue(g["face"]["kind"].asString() in setOf("PHOTO", "COVER", "NONE"))
+        assertEquals(byArtist.size, byArtist.map { it["id"].asLong() }.toSet().size, "중복 없음")
+
+        // snapshot: 첫 쪽 뒤에 곡을 더 담아도 다음 쪽에 섞이지 않는다
+        val first = call("GET", "$base?sort=genre&limit=3", key = host.key).body!!
+        add(a, "가4")
+        val second = call("GET", "$base?sort=genre&limit=100&cursor=${first["nextCursor"].asLong()}&snapshot=${first["snapshot"].asLong()}", key = host.key).body!!
+        assertEquals(listOf("가1", "나2", "나1", "라2", "라1"), second["items"].toList().map { it["title"].asString() })
+        assertEquals(400, call("GET", "$base?sort=popular", key = host.key).status)
+        jdbc.sql("UPDATE map_version SET active = false WHERE id = :v").param("v", version).update()
+    }
 }
