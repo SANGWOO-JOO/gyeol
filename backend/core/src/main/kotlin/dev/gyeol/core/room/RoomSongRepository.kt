@@ -24,6 +24,8 @@ data class MySong(
 data class SongRequest(
     val id: Long, val roomId: Long, val memberId: Long, val title: String, val artist: String, val mbid: UUID?,
     val status: String, val trackId: Long?, val roomSongId: Long?, val failReason: String?,
+    /** I-51: 이 요청으로 담긴 곡이 만든 선물 상자와 그때 상태 (없으면 null) */
+    val giftBoxId: Long? = null, val giftStatus: String? = null,
 )
 
 /** 방 노래·식별 요청·하루 한도 (V22) */
@@ -149,9 +151,14 @@ class RoomSongRepository(private val jdbc: JdbcClient) {
             SongRequest(
                 rs.getLong("id"), rs.getLong("room_id"), rs.getLong("member_id"), rs.getString("title"), rs.getString("artist"),
                 rs.getObject("mbid") as UUID?, rs.getString("status"), rs.getObject("track_id") as Long?, rs.getObject("room_song_id") as Long?,
-                rs.getString("fail_reason"),
+                rs.getString("fail_reason"), rs.getObject("gift_box_id") as Long?, rs.getString("gift_status"),
             )
         }.optional().orElse(null)
+
+    /** I-51: 식별로 담은 곡이 상자를 만들었으면 요청에 남긴다 (요청 결과 응답의 gift) */
+    fun setRequestGift(id: Long, boxId: Long, status: String) {
+        jdbc.sql("UPDATE song_request SET gift_box_id = :b, gift_status = :s WHERE id = :id").param("b", boxId).param("s", status).param("id", id).update()
+    }
 
     fun pendingRequests(memberId: Long): Int =
         jdbc.sql("SELECT count(*) FROM song_request WHERE member_id = :m AND status = 'IDENTIFYING'").param("m", memberId).query(Int::class.java).single()

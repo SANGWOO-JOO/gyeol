@@ -345,6 +345,7 @@ class RoomApiIntegrationTest {
         val done = call("GET", "/api/rooms/${host.rid}/song-requests/$requestId", key = host.key).body!!
         assertEquals("DONE", done["status"].asString())
         assertEquals("새 노래", done["song"]["title"].asString())
+        assertTrue(done["gift"].isNull, "상자가 생기지 않았으면 gift는 null (I-51)")
 
         // 내 노래: 최근 담은 순, 커서
         val page1 = call("GET", "/api/rooms/${host.rid}/me/songs?limit=1", key = host.key).body!!
@@ -1194,5 +1195,39 @@ class RoomApiIntegrationTest {
         val res = call("GET", "/api/rooms/${host.rid}/map", key = host.key, headers = mapOf("If-None-Match" to etag0))
         assertEquals(200, res.status, "표지 저장본이 생기면 coverPath가 바뀌므로 새 본문")
         assertTrue(res.headers["etag"]!!.single() != etag0)
+    }
+
+    @Test
+    fun `I-51 식별 결과에 상자 - 생긴 순간의 상태로 201과 같은 모양, 다시 받아도 같은 boxId, 상자가 지워지면 null`() {
+        val host = newRoom()
+        val songsPath = "/api/rooms/${host.rid}/songs"
+        val requestId = call("POST", songsPath, mapOf("title" to "상자 노래", "artist" to "가수 A"), host.key).body!!["requestId"].asLong()
+        val path = "/api/rooms/${host.rid}/song-requests/$requestId"
+        assertTrue(call("GET", path, key = host.key).body!!["gift"].isNull, "식별 중에는 gift 없음")
+
+        // worker 흉내: 곡을 담고 100곡째 상자가 WAITING으로 생김 (오늘 상자는 이미 받음)
+        val rid = jdbc.sql("SELECT id FROM room WHERE public_id = :p").param("p", host.rid).query(Long::class.java).single()
+        val t = track("상자 노래")
+        val songId = songs.add(rid, host.memberId, t, songs.trackArtist(t)!!)!!
+        songs.finishRequest(requestId, "DONE", t, songId, null)
+        val boxId = jdbc.sql("INSERT INTO gift_box (member_id, milestone, status) VALUES (:m, 100, 'WAITING') RETURNING id")
+            .param("m", host.memberId).query(Long::class.java).single()
+        songs.setRequestGift(requestId, boxId, "WAITING")
+
+        val first = call("GET", path, key = host.key).body!!
+        assertEquals("DONE", first["status"].asString())
+        val gift = first["gift"]
+        assertEquals(setOf("boxId", "milestone", "status"), gift.propertyNames().toSet(), "201 응답의 gift와 같은 필드")
+        assertEquals(boxId, gift["boxId"].asLong())
+        assertEquals(100, gift["milestone"].asInt())
+        assertEquals("WAITING", gift["status"].asString())
+        // 다시 받아도 같은 boxId (화면은 이것으로 알림을 한 번만), 다음 날 READY가 돼도 알림용 상태는 생긴 순간 값
+        jdbc.sql("UPDATE gift_box SET status = 'READY', ready_on = current_date WHERE id = :b").param("b", boxId).update()
+        val again = call("GET", path, key = host.key).body!!["gift"]
+        assertEquals(boxId, again["boxId"].asLong())
+        assertEquals("WAITING", again["status"].asString())
+        // 상자가 지워지면 gift도 없음
+        jdbc.sql("DELETE FROM gift_box WHERE id = :b").param("b", boxId).update()
+        assertTrue(call("GET", path, key = host.key).body!!["gift"].isNull)
     }
 }

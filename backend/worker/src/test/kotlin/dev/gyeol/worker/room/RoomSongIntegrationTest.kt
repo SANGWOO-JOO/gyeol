@@ -172,6 +172,8 @@ class RoomSongIntegrationTest {
         assertEquals(r.roomSongId, songs.mySongs(s.memberId, null, 10).single().id)
         assertEquals(rev + 1, mapRev(s.roomId))
         assertEquals(1, songs.daily(s.memberId, today))
+        assertNull(r.giftBoxId, "상자가 생기지 않은 요청은 gift가 없다 (I-51)")
+        assertNull(r.giftStatus)
         // 다른 시험도 같은 큐에 보내므로 이 곡의 메시지가 있는지만 본다
         val enrich = sqs.receiveMessage { it.queueUrl(songQueueUrl).maxNumberOfMessages(10).waitTimeSeconds(5) }.messages()
             .map { json.readTree(it.body()) }.filter { it["type"].asString() == "ENRICH" }
@@ -229,23 +231,51 @@ class RoomSongIntegrationTest {
         assertEquals(0, songs.daily(s.memberId, today))
     }
 
+    /** 식별을 거치지 않고 곡 [n]개를 바로 담는다 (API 바로 담기처럼 상자 규칙도 돌린다) */
+    private fun fill(s: Setup, n: Int) = repeat(n) { i ->
+        val a = ArtistInfo(UUID.randomUUID(), "가수 $i", "가수 $i", emptyList())
+        val t = identifyRepo.upsertTrack(TrackInfo(UUID.randomUUID(), "노래 $i", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
+        songs.add(s.roomId, s.memberId, t, songs.trackArtist(t)!!)
+        gifts.onSongAdded(s.memberId, today)
+    }
+
     @Test
     fun `식별로 담은 곡이 50곡째면 선물 상자가 생긴다 (API 바로 담기와 같은 규칙)`() {
         val s = setup()
-        repeat(49) { i ->
-            val a = ArtistInfo(UUID.randomUUID(), "가수 $i", "가수 $i", emptyList())
-            val t = identifyRepo.upsertTrack(TrackInfo(UUID.randomUUID(), "노래 $i", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
-            songs.add(s.roomId, s.memberId, t, songs.trackArtist(t)!!)
-            gifts.onSongAdded(s.memberId, today)
-        }
+        fill(s, 49)
         assertTrue(gifts.boxes(s.memberId).isEmpty())
 
-        service.identifyRequest(request(s, "곡1", "가수A"))
+        val id = request(s, "곡1", "가수A")
+        service.identifyRequest(id)
 
         val box = gifts.boxes(s.memberId).single()
         assertEquals(50, box.milestone)
         assertEquals("READY", box.status.name)
         assertEquals(today, box.readyOn)
+        // I-51: 요청 결과에도 상자와 그때 상태를 남긴다
+        val r = songs.request(id)!!
+        assertEquals(box.id, r.giftBoxId)
+        assertEquals("READY", r.giftStatus)
+        // 같은 메시지를 다시 받아도 상자·요청 표시는 그대로
+        service.identifyRequest(id)
+        assertEquals(1, gifts.boxes(s.memberId).size)
+        assertEquals(box.id, songs.request(id)!!.giftBoxId)
+    }
+
+    @Test
+    fun `I-51 오늘 상자를 이미 받았으면 식별로 만든 100곡째 상자는 WAITING으로 요청에 남는다`() {
+        val s = setup()
+        fill(s, 99) // 50곡째 상자는 오늘 READY
+        assertEquals(listOf("READY"), gifts.boxes(s.memberId).map { it.status.name })
+
+        val id = request(s, "곡1", "가수A")
+        service.identifyRequest(id)
+
+        val waiting = gifts.boxes(s.memberId).single { it.milestone == 100 }
+        assertEquals("WAITING", waiting.status.name)
+        val r = songs.request(id)!!
+        assertEquals(waiting.id, r.giftBoxId)
+        assertEquals("WAITING", r.giftStatus)
     }
 
     @Test

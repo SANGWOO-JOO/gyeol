@@ -38,7 +38,11 @@ data class AddSongResponse(val status: String, val song: SongView?, val requestI
 /** status: READY(바로 열 수 있음) 또는 WAITING(오늘 이미 받아 내일 열림) */
 data class GiftNotice(val boxId: Long, val milestone: Int, val status: String)
 
-data class RequestView(val id: Long, val status: String, val song: SongView?, val failReason: String?)
+/**
+ * gift (I-51): 식별이 끝나 곡이 담기면서 50곡 단위 상자가 생겼을 때만 값이 있다. 201 응답의 gift와 같은 모양이고 status는 생긴 순간의 값이다.
+ * 같은 결과를 여러 번 받아도 boxId가 같으므로 화면은 boxId로 알림을 한 번만 띄운다
+ */
+data class RequestView(val id: Long, val status: String, val song: SongView?, val failReason: String?, val gift: GiftNotice? = null)
 
 /** 검색 결과 + 방 안 표시: mine(내가 담음), sameSong(같은 노래를 담은 사람), sameArtist(같은 가수 다른 노래를 담은 사람) */
 data class RoomSearchItem(val item: TrackItem, val mine: Boolean, val sameSong: List<String>, val sameArtist: List<String>)
@@ -190,7 +194,8 @@ class RoomSongService(
         val r = songs.request(id)?.takeIf { it.roomId == ctx.room.id && it.memberId == ctx.member.id }
             ?: throw ApiException(HttpStatus.NOT_FOUND, "REQUEST_NOT_FOUND", "없는 요청이에요")
         val song = r.roomSongId?.let { sid -> runCatching { songView(ctx.room.publicId, ctx.room.id, ctx.member.id, sid) }.getOrNull() }
-        return RequestView(r.id, r.status, song, r.failReason)
+        val gift = r.giftBoxId?.let { b -> gifts.box(b)?.let { GiftNotice(it.id, it.milestone, r.giftStatus ?: it.status.name) } }
+        return RequestView(r.id, r.status, song, r.failReason, gift)
     }
 
     @Transactional

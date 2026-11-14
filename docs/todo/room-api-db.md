@@ -457,3 +457,11 @@
 - 4-3: 쓰이지 않는 채널 프로필 호출을 지웠다. fetcher `YouTubeClient.channelImage()`·`GET /internal/youtube/channel-image`·`DefaultAvatar.kt`(+`DefaultAvatarTest` 3개), worker `FetcherClient.channelImage()`(+`ArtistImageBulkTest`의 never 검증 2줄). 이제 YouTube API 호출은 videos.list categoryId 하나뿐이다. CHECK 제약의 'YOUTUBE' 값은 그대로 뒀다.
 - 4-2(판정을 거친 제목의 전역 테이블 보관, III.E.4.h)는 관리 세션이 정책 원문을 확인한 뒤 정한다.
 - 테스트: fetcher 52(전 55, DefaultAvatarTest 3개 삭제)·worker 82·api 81(건너뜀 1) 통과. 15:54:01 fetcher·worker·api 재시작.
+
+### I-51 식별(202) 결과에 선물 상자 (11-14, 사용자 승인)
+- 문제: 식별을 거쳐 담긴 곡이 상자를 만들어도 `GET /api/rooms/{rid}/song-requests/{id}`(RequestView)에 상자가 없어, 화면이 WAITING 알림을 띄우지 못했다.
+- V31: `song_request.gift_box_id`(→ gift_box, ON DELETE SET NULL), `gift_status`(생긴 순간 상태). worker `RoomSongService.identifyRequest`가 `gifts.onSongAdded` 결과를 `setRequestGift`로 남긴다(방 행 잠금 트랜잭션 안).
+- 응답: `RequestView.gift = {boxId, milestone, status}`(201 `AddSongResponse.gift`와 같은 `GiftNotice`). 상자가 생긴 요청만 값이 있고, 아니면 null. status는 생긴 순간 값(WAITING·READY)이다. 지금 상태는 `GET /me`의 선물 요약으로 본다. 상자가 지워지면 null.
+- 한 번만 알림: boxId가 상자마다 하나이고 같은 요청을 여러 번 받아도 같으므로, 화면은 본 boxId를 기억해 한 번만 띄운다(201과 202 결과에 같은 상자가 함께 나오지 않는다. 담기 한 번에 상자는 최대 1개).
+- 테스트: worker `RoomSongIntegrationTest`(50곡째 READY·요청 표시·재처리 그대로, 100곡째 WAITING, 상자 없는 요청 null), api `RoomApiIntegrationTest`(I-51 모양·같은 boxId·생긴 순간 상태·삭제 시 null, 기존 흐름 null). worker 83·api 82(건너뜀 1)·fetcher 52 통과. 16:32:49 api·worker 재시작.
+- 참고: I-48 4-2를 구현하게 되면 그 마이그레이션은 V32가 된다.

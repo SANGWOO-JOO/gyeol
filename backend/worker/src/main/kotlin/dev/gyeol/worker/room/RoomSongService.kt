@@ -102,8 +102,9 @@ class RoomSongService(
             } else {
                 rooms.bumpMapRev(r.roomId)
                 songs.finishRequest(requestId, "DONE", trackId, songId, null)
-                // 50곡 단위 상자 (API의 바로 담기와 같은 규칙, 방 행 잠금 안). 화면은 내 정보의 선물 요약으로 안다
-                gifts.onSongAdded(r.memberId, java.time.LocalDate.now(kst))
+                // 50곡 단위 상자 (API의 바로 담기와 같은 규칙, 방 행 잠금 안).
+                // I-51: 요청에 상자를 남겨 요청 결과 응답(gift)으로 화면이 WAITING 알림을 띄울 수 있게 한다
+                gifts.onSongAdded(r.memberId, java.time.LocalDate.now(kst))?.let { songs.setRequestGift(requestId, it.id, it.status.name) }
             }
             true
         } ?: false
