@@ -313,11 +313,11 @@ export function appendSearch<T extends { item: Parameters<typeof trackKey>[0] }>
   return [...prev, ...next.filter(x => { const k = trackKey(x.item); if (seen.has(k)) return false; seen.add(k); return true })]
 }
 
-/**
- * 검색 가수 카드 얼굴 주소: DB 가수(artistId)면 방 사진 주소(/api/rooms/{rid}/artists/{id}/image).
- * 검색 응답엔 사진 여부(photo)가 없어서 주소를 만들어 시도하고, 없으면 404 → 이니셜. DB에 없는 가수는 null(이니셜)
- */
-export function artistPhotoUrl(roomId: string, a: { artistId: number | null; photo?: { url?: string | null } | null }): string | null {
-  if (a.photo?.url) return a.photo.url
-  return a.artistId != null ? `/api/rooms/${encodeURIComponent(roomId)}/artists/${a.artistId}/image` : null
+/** 검색 가수 카드 얼굴 주소: 응답의 face(PHOTO 사진 · COVER 방 곡 표지)를 그대로, NONE이거나 없으면 null(이니셜) */
+export function artistFaceUrl(a: { face?: { kind: string; url: string | null } | null }): string | null {
+  const f = a.face
+  return f && (f.kind === 'PHOTO' || f.kind === 'COVER') && f.url ? f.url : null
 }
+
+/** 검색 가수 표시 이름: DB 이름(displayName, 지도와 같음) → MusicBrainz 이름 */
+export const artistDisplayName = (a: { name: string; displayName?: string | null }) => a.displayName || a.name

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { roomApi, RoomApiError, type RoomSearchItem, type SearchArtist } from '../roomApi'
-import { appendSearch, artistCardSub, artistPhotoUrl, searchBadge, showArtistMore, sharedWithText, trackKey } from '../roomLogic'
+import { appendSearch, artistCardSub, artistDisplayName, artistFaceUrl, searchBadge, showArtistMore, sharedWithText, trackKey } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { ArtistFace } from './ArtistFace'
 import { CoverImg } from './CoverImg'
@@ -11,7 +11,7 @@ export const itemKey = trackKey
 
 /** 4-d 노래 검색해 담기. 담는 일은 부모(RoomShell)가 하고, 여기서는 찾기와 표시만 */
 export function SearchPanel({
-  roomId, query, setQuery, added, pending, busy, onAdd, onOpenArtist, displayName,
+  roomId, query, setQuery, added, pending, busy, onAdd, onOpenArtist,
 }: {
   roomId: string
   query: string
@@ -25,12 +25,11 @@ export function SearchPanel({
   onAdd: (r: RoomSearchItem) => void
   /** 가수 카드 → 가수 화면 (I-30) */
   onOpenArtist: (a: SearchArtist) => void
-  /** 지도에 같은 가수(artistId)가 있으면 그 표시 이름(DB 이름, 예: "윤하"). 검색 카드는 MusicBrainz 이름(예: "YOUNHA")이라 맞춘다 */
-  displayName?: (artistId: number) => string | undefined
 }) {
   const [items, setItems] = useState<RoomSearchItem[] | null>(null)
   const [rawArtist, setArtist] = useState<SearchArtist | null>(null)
-  const artist = rawArtist && rawArtist.artistId != null && displayName?.(rawArtist.artistId) ? { ...rawArtist, name: displayName(rawArtist.artistId)! } : rawArtist
+  // 표시 이름은 DB 이름(displayName, 지도와 같음): 카드·목록 끝 버튼·가수 화면 제목이 모두 이 name을 쓴다
+  const artist = rawArtist ? { ...rawArtist, name: artistDisplayName(rawArtist) } : null
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // 오류 뒤 같은 검색어로 다시 (I-42 D): Enter 또는 [다시 시도]
@@ -153,8 +152,8 @@ function ArtistCard({ roomId, artist, onOpen }: { roomId: string; artist: Search
   const sub = artistCardSub(artist)
   return (
     <button type="button" className={sh.artistCard} onClick={onOpen} aria-label={`${artist.name} 노래 전체 보기`}>
-      {/* 얼굴: Commons 사진(없으면 404 → 이니셜). 카드 전체가 버튼이라 ⓘ 출처 버튼은 넣지 않는다(출처는 가수 화면에서) */}
-      <ArtistFace roomId={roomId} name={artist.name} className={sh.artistOrb} photoUrl={artistPhotoUrl(roomId, artist)} />
+      {/* 얼굴: 응답 face(PHOTO 사진 · COVER 방 곡 표지 · NONE 이니셜). 카드 전체가 버튼이라 ⓘ 출처 버튼은 넣지 않는다(출처는 가수 화면에서) */}
+      <ArtistFace roomId={roomId} name={artist.name} className={sh.artistOrb} photoUrl={artistFaceUrl(artist)} />
       <span className={sh.rowText}>
         <strong className={sh.artistName}>{artist.name}</strong>
         {sub && <span className={sh.songSub}>{sub}</span>}

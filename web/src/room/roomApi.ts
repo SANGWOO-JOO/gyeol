@@ -25,7 +25,7 @@ export interface TrackItem { title: string; artist: string; mbid: string | null;
 /** mine: 내가 이미 담음 · sameSong: 이 노래를 담은 사람 · sameArtist: 같은 가수의 다른 노래를 담은 사람 */
 export interface RoomSearchItem { item: TrackItem; mine: boolean; sameSong: string[]; sameArtist: string[] }
 /** 검색어가 가수와 맞을 때 결과 맨 위 가수 카드 (I-30 ①). DB에 없는 가수는 artistId 없음 */
-export interface SearchArtist { artistId: number | null; name: string; aliases?: string[] | null; songCountInRoom?: number | null; onMap?: boolean | null; /** I-44 가수 화면 머리 사진 출처 */ photo?: PhotoCredit | null }
+export interface SearchArtist { artistId: number | null; name: string; /** DB 표시 이름(지도와 같음, 예: 윤하). DB에 없는 가수는 null */ displayName?: string | null; /** 얼굴: PHOTO 사진 · COVER 방 곡 표지 · NONE */ face?: Face | null; aliases?: string[] | null; songCountInRoom?: number | null; onMap?: boolean | null; /** I-44 가수 화면 머리 사진 출처 */ photo?: PhotoCredit | null }
 /** 방 검색 한 쪽(10곡). page 1~5, artist는 1쪽에만(2쪽부터 null), 5쪽은 늘 hasMore=false. 예전 서버는 page·hasMore가 없다 */
 export interface SearchResponse { items: RoomSearchItem[]; source: string; artist?: SearchArtist | null; page?: number; hasMore?: boolean }
 /** 가수 화면 (I-30 ②③): 인기순·최신순 20곡씩 */

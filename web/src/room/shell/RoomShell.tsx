@@ -305,7 +305,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       roomCount={artistPage.artistId != null && map ? (map.planets.find(p => p.artistId === artistPage.artistId)?.songs.length ?? 0) : undefined} pending={pendingKeys} busy={busy} onAdd={add}
       onError={handle} backLabel={artistPage.fromPlanet != null ? `${artistPage.name} 가수 판으로` : artistPage.fromMap ? '지도로' : '검색 결과로'} onBack={backFromArtist} />
   ) : (
-    <SearchPanel roomId={roomId} query={query} displayName={id => map?.planets.find(p => p.artistId === id)?.name} setQuery={setQuery} added={added}
+    <SearchPanel roomId={roomId} query={query} setQuery={setQuery} added={added}
       pending={pendingKeys} busy={busy} onAdd={add} onOpenArtist={a => setArtistPage({ artistId: a.artistId, name: a.name, songCountInRoom: a.songCountInRoom, onMap: a.onMap })} />
   )
   const playTab = <PlayTab roomId={roomId} meId={me?.member.id ?? -1} version={version} onError={handle} show={show} />

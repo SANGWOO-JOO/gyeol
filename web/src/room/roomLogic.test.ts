@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { addedMessage, appendSearch, artistPhotoUrl, isNewArtist, showArtistMore, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import { addedMessage, appendSearch, artistDisplayName, artistFaceUrl, isNewArtist, showArtistMore, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -287,10 +287,15 @@ describe('검색 더보기 이어 붙이기', () => {
   })
 })
 
-describe('검색 가수 카드 얼굴 주소', () => {
-  it('DB 가수면 방 사진 주소, 아니면 null(이니셜)', () => {
-    expect(artistPhotoUrl('r1', { artistId: 7 })).toBe('/api/rooms/r1/artists/7/image')
-    expect(artistPhotoUrl('r1', { artistId: null })).toBeNull()
-    expect(artistPhotoUrl('r1', { artistId: 7, photo: { url: '/x' } })).toBe('/x')
+describe('검색 가수 카드 얼굴·이름', () => {
+  it('PHOTO·COVER는 그 주소, NONE·없음은 null(이니셜)', () => {
+    expect(artistFaceUrl({ face: { kind: 'PHOTO', url: '/api/rooms/r/artists/7/image' } })).toBe('/api/rooms/r/artists/7/image')
+    expect(artistFaceUrl({ face: { kind: 'COVER', url: '/api/rooms/r/covers/3' } })).toBe('/api/rooms/r/covers/3')
+    expect(artistFaceUrl({ face: { kind: 'NONE', url: null } })).toBeNull()
+    expect(artistFaceUrl({})).toBeNull()
+  })
+  it('이름은 displayName, 없으면 MusicBrainz 이름', () => {
+    expect(artistDisplayName({ name: 'YOUNHA', displayName: '윤하' })).toBe('윤하')
+    expect(artistDisplayName({ name: 'ZARD', displayName: null })).toBe('ZARD')
   })
 })

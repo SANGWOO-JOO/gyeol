@@ -108,7 +108,9 @@ export function ArtistPage({ roomId, artist, roomCount, added, pending, busy, on
     return () => io.disconnect()
   }, [more])
 
-  const merged = mergeArtist({ artistId: artist.artistId, name: artist.name, songCountInRoom: artist.songCountInRoom, onMap: artist.onMap }, info)
+  const mergedRaw = mergeArtist({ artistId: artist.artistId, name: artist.name, songCountInRoom: artist.songCountInRoom, onMap: artist.onMap }, info)
+  // 제목은 DB 표시 이름(displayName) → 연 곳에서 받은 이름(검색 카드·지도 행성, 이미 표시 이름) 순. 가수 노래 응답의 name(MusicBrainz, 예: zard)으로 덮지 않는다
+  const merged = { ...mergedRaw, name: mergedRaw.displayName || artist.name }
   // 담기·빼기 뒤에는 지도 곡 수가 더 최신이다 (I-42 C)
   const shown = roomCount != null ? { ...merged, songCountInRoom: roomCount } : merged
   const sub = artistCardSub(shown)
