@@ -43,7 +43,7 @@ export interface ArtistSongsPage {
 export interface SongView { id: number; trackId: number; title: string; artist: string; coverUrl: string | null; coverPath?: string | null; sharedCount: number }
 export interface GiftNotice { boxId: number; milestone: number; status: string }
 /** 201 ADDED(바로 담김) · 202 IDENTIFYING(식별 맡김, requestId로 확인) */
-export interface AddSongResponse { status: 'ADDED' | 'IDENTIFYING'; song: SongView | null; requestId: number | null; todayAdded: number; dailyLimit: number; gift: GiftNotice | null }
+export interface AddSongResponse { status: 'ADDED' | 'IDENTIFYING' | 'FAILED'; song: SongView | null; requestId: number | null; todayAdded: number; dailyLimit: number; gift: GiftNotice | null; failReason?: string | null }
 /** failReason: NOT_FOUND · REJECTED · ERROR · MEMBER_REMOVED, DONE인데 ALREADY_ADDED면 이미 담은 노래 */
 /** gift (I-51): 식별이 끝나 담기면서 50곡 단위 상자가 생겼을 때만 (201 응답의 gift와 같은 모양) */
 export interface RequestView { id: number; status: 'IDENTIFYING' | 'DONE' | 'FAILED'; song: SongView | null; failReason: string | null; gift?: GiftNotice | null }

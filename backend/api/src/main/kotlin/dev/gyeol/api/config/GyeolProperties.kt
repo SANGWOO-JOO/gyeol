@@ -50,6 +50,8 @@ data class GyeolProperties(
         val dailySongLimit: Int = 100,
         /** 한 사람이 동시에 식별을 기다리는 곡 수 */
         val maxPendingRequests: Int = 3,
+        /** I-75: 못 찾음 식별 캐시를 믿는 기간 (worker gyeol.worker.identify.not-found-retry와 같은 30일). 지나면 다시 식별 */
+        val notFoundRetry: java.time.Duration = java.time.Duration.ofDays(30),
         val pinMaxFails: Int = 5,
         val pinLock: Duration = Duration.ofMinutes(10),
         val draftTtl: Duration = Duration.ofHours(1),

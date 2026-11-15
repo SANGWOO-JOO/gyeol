@@ -202,6 +202,9 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
         setAdded(prev => new Map(prev).set(key, res.song!.id))
         announceAdded(res.song, r.sameSong)
         notifyGift(res.gift)
+      } else if (res.status === 'FAILED') {
+        // I-75: 못 찾음 캐시에 걸린 곡은 API가 바로 FAILED로 돌려준다 → 요청 조회를 기다리지 않고 바로 안내
+        setNotFound({ title: r.item.title, text: failText(res.failReason ?? null) })
       } else if (res.requestId != null) {
         setPending(prev => [...prev, { requestId: res.requestId!, key, title: r.item.title, artist: r.item.artist, sameSong: r.sameSong }])
         show({ title: '노래를 찾고 있어요', sub: `${r.item.title} · 찾으면 바로 우주에 떠요` })

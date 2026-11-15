@@ -676,3 +676,15 @@
   | 제목만, 못 찾는 곡 | 33.9s / 다른 방 8.3s | 23.2s / 다른 방 3.5s(그대로, 못 찾음 캐시도 큐를 거친다) |
 
 - 테스트: api 1개(식별 캐시로 201, 같은 가수 제목 표기로 201, 이미 담음 409, DB 없으면 202). api 102(건너뜀 1) 통과. 12:16 api 재시작.
+
+### I-75 못 찾음 캐시는 담기 때 바로 끝내기 (11-15, 사용자 승인)
+- 제목·가수로 담을 때 I-74 DB 매칭에 걸리지 않고, worker와 같은 키(`"제목|가수 - Topic"`)의 식별 캐시가 NOT_FOUND이고 `notFoundRetry`(30일, worker와 같음) 안이면, 식별 큐 없이 바로 끝낸다.
+  - `song_request`를 FAILED·NOT_FOUND로 만들어 두고 **HTTP 200** `{status: "FAILED", failReason: "NOT_FOUND", requestId, todayAdded, dailyLimit}`를 돌려준다.
+  - 하루 한도는 세지 않는다(worker 실패도 한도에서 빼므로 결과가 같다). 30일 지난 캐시는 지금처럼 202로 다시 식별한다.
+- 웹: 지금 코드(`RoomShell.tsx` add())는 ADDED가 아니고 requestId가 있으면 "찾는 중" 흐름을 탄다. 2초 뒤 요청 조회에서 FAILED·NOT_FOUND를 받아 같은 "찾지 못했어요" 창을 띄우므로 고치지 않아도 동작한다.
+  - 바로 띄우려면 add()에 `res.status === 'FAILED'` 분기 한 줄(`setNotFound({ title: r.item.title, text: failText(res.failReason) })`)과 `roomApi.ts` `AddSongResponse`에 `failReason?: string | null`을 더하면 된다(웹 세션).
+- 측정(시험 방은 쓰고 지움)
+  - 전: 한가할 때 0.13~0.14s(202 → worker), 미리 준비 동시 7.8s·10.1s
+  - 후: 0.02~0.08s(200), 미리 준비 동시 0.02·0.03s
+  - 하루 담은 수는 전·후 모두 그대로다.
+- 테스트: api 1개(200 FAILED·NOT_FOUND, 한도 그대로, 요청 조회 FAILED, 31일 지난 캐시는 202). api 103(건너뜀 1) 통과. 13:19 api 재시작.

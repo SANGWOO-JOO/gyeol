@@ -34,7 +34,14 @@ data class AddSongRequest(val trackId: Long?, val title: String?, val artist: St
 data class SongView(val id: Long, val trackId: Long, val title: String, val artist: String, val coverUrl: String?, val sharedCount: Int, val coverPath: String? = null)
 
 /** 201: song이 있음. 202: requestId로 식별 상태를 읽는다. gift: 이번 담기로 50곡 단위 상자가 생겼으면 (④) */
-data class AddSongResponse(val status: String, val song: SongView?, val requestId: Long?, val todayAdded: Int, val dailyLimit: Int, val gift: GiftNotice? = null)
+/**
+ * [status]: ADDED(201, 바로 담음) · IDENTIFYING(202, 식별 중) · FAILED(200, I-75: 못 찾음 캐시로 바로 끝남 — 하루 한도는 세지 않음).
+ * FAILED도 [requestId]가 있어 song-requests/{id}로 같은 실패(FAILED·NOT_FOUND)를 읽을 수 있다. [failReason]은 FAILED일 때만
+ */
+data class AddSongResponse(
+    val status: String, val song: SongView?, val requestId: Long?, val todayAdded: Int, val dailyLimit: Int, val gift: GiftNotice? = null,
+    val failReason: String? = null,
+)
 
 /** status: READY(바로 열 수 있음) 또는 WAITING(오늘 이미 받아 내일 열림) */
 data class GiftNotice(val boxId: Long, val milestone: Int, val status: String)
@@ -138,6 +145,7 @@ private const val GHOSTS_PER_PLANET_MAX = 3
 
 @Service
 class RoomSongService(
+    private val identifyRepo: dev.gyeol.core.identify.IdentifyRepository,
     private val rooms: RoomRepository,
     private val songs: RoomSongRepository,
     private val search: TrackSearchController,
@@ -311,6 +319,15 @@ class RoomSongService(
         merger.mapRemote(listOf(TrackItem(title, artist, mbid?.toString(), null, null, null, null, null))).firstOrNull()?.trackId?.let { known ->
             return add(ctx, body.copy(trackId = known))
         }
+        // I-75: 같은 제목·가수를 MusicBrainz에서 못 찾았다는 캐시가 아직 유효하면(worker와 같은 키·기간) 식별 큐 없이 바로 끝낸다.
+        // 하루 한도는 세지 않는다(worker 실패도 한도에서 빼므로 같은 결과). 요청 행을 FAILED로 남겨 웹의 요청 조회 흐름도 그대로 맞는다
+        identifyRepo.findAlias(dev.gyeol.core.identify.AliasKey.of(title, "$artist - Topic"))
+            ?.takeIf { it.status == dev.gyeol.core.identify.AliasStatus.NOT_FOUND && it.isFresh(java.time.Instant.now().minus(p.notFoundRetry)) }
+            ?.let {
+                val requestId = songs.createRequest(room.id, me, title, artist, mbid)
+                songs.finishRequest(requestId, "FAILED", null, null, "NOT_FOUND")
+                return HttpStatus.OK to AddSongResponse("FAILED", null, requestId, songs.daily(me, todayKst()), p.dailySongLimit, failReason = "NOT_FOUND")
+            }
         if (songs.pendingRequests(me) >= p.maxPendingRequests) throw ApiException.tooMany("TOO_MANY_PENDING", "찾는 중인 노래가 많아요. 잠시 뒤 다시 담아 주세요")
         val today = countToday(me)
         val requestId = songs.createRequest(room.id, me, title, artist, mbid)

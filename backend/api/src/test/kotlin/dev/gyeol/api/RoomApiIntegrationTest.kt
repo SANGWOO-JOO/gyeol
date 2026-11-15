@@ -1680,4 +1680,26 @@ class RoomApiIntegrationTest {
         val unknown = call("POST", path, mapOf("title" to "없는 노래 I-74", "artist" to "바로가수"), host.key)
         assertEquals(202, unknown.status, "우리 DB에 없으면 지금처럼 식별")
     }
+
+    @Test
+    fun `I-75 못 찾음 캐시가 유효하면 식별 큐 없이 바로 FAILED·NOT_FOUND, 하루 한도는 세지 않고, 30일 지난 캐시는 다시 식별`() {
+        val host = newRoom()
+        val path = "/api/rooms/${host.rid}/songs"
+        val key = dev.gyeol.core.identify.AliasKey.of("못찾는 노래 I-75", "못찾가수 - Topic")
+        identify.saveAlias(key, null, dev.gyeol.core.identify.AliasMethod.RULE, dev.gyeol.core.identify.Query("못찾가수", "못찾는 노래 I-75", false), reason = "NOT_IN_MUSICBRAINZ")
+        val before = call("GET", "/api/rooms/${host.rid}/me", key = host.key).body!!["todayAdded"].asInt()
+
+        val r = call("POST", path, mapOf("title" to "못찾는 노래 I-75", "artist" to "못찾가수"), host.key)
+        assertEquals(200, r.status)
+        assertEquals("FAILED", r.body!!["status"].asString())
+        assertEquals("NOT_FOUND", r.body["failReason"].asString())
+        assertEquals(before, r.body["todayAdded"].asInt(), "하루 한도를 세지 않는다")
+        assertEquals(before, call("GET", "/api/rooms/${host.rid}/me", key = host.key).body!!["todayAdded"].asInt())
+        // 웹의 요청 조회 흐름(찾지 못했어요)도 그대로
+        val req = call("GET", "/api/rooms/${host.rid}/song-requests/${r.body["requestId"].asLong()}", key = host.key).body!!
+        assertEquals("FAILED", req["status"].asString()); assertEquals("NOT_FOUND", req["failReason"].asString())
+        // 30일 지난 캐시는 지금처럼 202로 다시 식별
+        jdbc.sql("UPDATE title_alias SET checked_at = now() - interval '31 days' WHERE alias_key = :k").param("k", key).update()
+        assertEquals(202, call("POST", path, mapOf("title" to "못찾는 노래 I-75", "artist" to "못찾가수"), host.key).status)
+    }
 }
