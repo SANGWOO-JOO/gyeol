@@ -1392,20 +1392,24 @@ class RoomApiIntegrationTest {
     private fun prepRow(key: String) = jdbc.sql("SELECT status FROM search_artist_prep WHERE prep_key = :k").param("k", key).query(String::class.java).optional().orElse(null)
 
     @Test
-    fun `미리 준비 - 우리 DB에 없는 가수 카드면 한 번 맡기고, 연타해도 메시지는 하나`() {
+    fun `미리 준비 - 우리 DB에 없는 가수 카드면 한 번 맡기고, 연타해도 메시지는 하나, 더보기는 창을 20위로 넓힌다`() {
         val host = newRoom()
+        jdbc.sql("DELETE FROM search_artist_prep WHERE prep_key = 'n:준비가수'").update()
+        jdbc.sql("DELETE FROM artist_top_track WHERE prep_key = 'n:준비가수'").update()
         val q = "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("준비가수", "UTF-8")
-        val card = call("GET", q, key = host.key).body!!["artist"]
-        assertTrue(card["artistId"].isNull)
+        val first = call("GET", q, key = host.key).body!!
+        assertTrue(first["artist"]["artistId"].isNull)
+        assertTrue(first["pending"].asBoolean(), "맡겼으면 pending")
         repeat(3) { call("GET", q, key = host.key) }
         assertEquals("QUEUED", prepRow("n:준비가수"))
         assertEquals(1, prepareMessages("n:준비가수"))
         assertEquals(1, jdbc.sql("SELECT count FROM search_artist_prep_daily WHERE room_id = (SELECT id FROM room WHERE public_id = :p)").param("p", host.rid).query(Int::class.java).single())
-        assertEquals(0, call("GET", "$q&page=2", key = host.key).let { prepareMessages("n:준비가수") }, "2쪽 이후는 맡기지 않는다")
+        assertEquals(0, call("GET", "$q&page=2", key = host.key).let { prepareMessages("n:준비가수") }, "진행 중이면 새로 맡기지 않는다")
+        assertEquals(20, jdbc.sql("SELECT window_end FROM search_artist_prep WHERE prep_key = 'n:준비가수'").query(Int::class.java).single(), "더보기는 진행 중인 준비의 창을 20위로 넓힌다")
     }
 
     @Test
-    fun `미리 준비 - 얼굴이 PHOTO나 COVER인 우리 가수면 맡기지 않고, NONE이면 id 키로 맡긴다`() {
+    fun `미리 준비 - 우리 가수 카드도 id 키로 맡긴다 (얼굴과 상관없이 인기곡 표지 준비)`() {
         val host = newRoom()
         val a = ArtistInfo(UUID.randomUUID(), "준비얼굴가수", "Prep Face", emptyList())
         val t = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "준비얼굴 노래", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
@@ -1413,42 +1417,92 @@ class RoomApiIntegrationTest {
         val q = "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("준비얼굴가수", "UTF-8")
         jdbc.sql("UPDATE track SET cover_key = 'covers/prep' WHERE id = :t").param("t", t).update()
         assertEquals("COVER", call("GET", q, key = host.key).body!!["artist"]["face"]["kind"].asString())
-        assertNull(prepRow("id:$aid"), "얼굴이 있으면 맡기지 않는다")
-        jdbc.sql("UPDATE track SET cover_key = NULL WHERE id = :t").param("t", t).update()
-        assertEquals("NONE", call("GET", q, key = host.key).body!!["artist"]["face"]["kind"].asString())
         assertEquals("QUEUED", prepRow("id:$aid"))
         assertEquals(1, prepareMessages("id:$aid"))
     }
 
+    private fun topList(key: String, n: Int, ready: Map<Int, Long> = emptyMap(), status: String = "PENDING") {
+        jdbc.sql("DELETE FROM artist_top_track WHERE prep_key = :k").param("k", key).update()
+        (1..n).forEach { r ->
+            jdbc.sql("INSERT INTO artist_top_track (prep_key, rank, title, track_id, status, tried_at) VALUES (:k, :r, :t, :tr, :s, CASE WHEN :s = 'PENDING' THEN NULL ELSE now() END)")
+                .param("k", key).param("r", r).param("t", "인기 $r").param("tr", ready[r]).param("s", if (r in ready) "READY" else status).update()
+        }
+    }
+
     @Test
-    fun `미리 준비 - 하루 지난 끝난 키와 1시간 넘게 멈춘 QUEUED는 다시 맡기고, 방당 하루 30명을 넘으면 맡기지 않는다`() {
+    fun `미리 준비 - 다시 맡기는 조건 (창 안에 남은 순위·실패 하루·멈춘 QUEUED·가수 하루 묶음·방 하루 상한)`() {
         val host = newRoom()
         val roomId = jdbc.sql("SELECT id FROM room WHERE public_id = :p").param("p", host.rid).query(Long::class.java).single()
         val q = "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("준비가수", "UTF-8")
-        jdbc.sql("DELETE FROM search_artist_prep WHERE prep_key = 'n:준비가수'").update()
+        val key = "n:준비가수"
+        jdbc.sql("DELETE FROM search_artist_prep WHERE prep_key = :k").param("k", key).update()
+        call("GET", q, key = host.key); prepareMessages(key)
+        // 끝났고 목록의 1~10위가 모두 시도됨 → 맡기지 않음
+        jdbc.sql("UPDATE search_artist_prep SET status = 'DONE' WHERE prep_key = :k").param("k", key).update()
+        topList(key, 12, status = "NO_MATCH")
         call("GET", q, key = host.key)
-        prepareMessages("n:준비가수")
-        // 끝났지만 하루가 안 지남 → 다시 맡기지 않음
-        jdbc.sql("UPDATE search_artist_prep SET status = 'DONE' WHERE prep_key = 'n:준비가수'").update()
+        assertEquals("DONE", prepRow(key))
+        // 10위 안에 아직 안 한 순위가 있으면 → 다시
+        jdbc.sql("UPDATE artist_top_track SET status = 'PENDING', tried_at = NULL WHERE prep_key = :k AND rank = 7").param("k", key).update()
         call("GET", q, key = host.key)
-        assertEquals("DONE", prepRow("n:준비가수"))
-        // 하루가 지남 → 다시
-        jdbc.sql("UPDATE search_artist_prep SET requested_at = now() - interval '25 hours' WHERE prep_key = 'n:준비가수'").update()
-        call("GET", q, key = host.key)
-        assertEquals("QUEUED", prepRow("n:준비가수"))
-        assertEquals(1, prepareMessages("n:준비가수"))
+        assertEquals("QUEUED", prepRow(key)); assertEquals(1, prepareMessages(key))
         // 진행 중(1시간 안) → 그대로, 1시간 넘게 멈춤 → 다시
         call("GET", q, key = host.key)
-        assertEquals(0, prepareMessages("n:준비가수"))
-        jdbc.sql("UPDATE search_artist_prep SET requested_at = now() - interval '61 minutes' WHERE prep_key = 'n:준비가수'").update()
+        assertEquals(0, prepareMessages(key))
+        jdbc.sql("UPDATE search_artist_prep SET requested_at = now() - interval '61 minutes' WHERE prep_key = :k").param("k", key).update()
         call("GET", q, key = host.key)
-        assertEquals(1, prepareMessages("n:준비가수"))
+        assertEquals(1, prepareMessages(key))
+        // 동명이인 등으로 건너뛴 키는 하루 안에 다시 맡기지 않는다
+        jdbc.sql("UPDATE search_artist_prep SET status = 'SKIPPED', requested_at = now() WHERE prep_key = :k").param("k", key).update()
+        call("GET", q, key = host.key)
+        assertEquals("SKIPPED", prepRow(key))
+        // 가수 하루 묶음 상한
+        jdbc.sql("UPDATE search_artist_prep SET status = 'DONE', requested_at = now() - interval '2 days', batches_day = :d, batches = ${dev.gyeol.api.room.PREPARE_BATCHES_PER_DAY} WHERE prep_key = :k")
+            .param("k", key).param("d", java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul"))).update()
+        call("GET", q, key = host.key)
+        assertEquals("DONE", prepRow(key), "가수 하루 묶음 상한")
         // 방당 하루 상한
-        jdbc.sql("UPDATE search_artist_prep SET requested_at = now() - interval '2 days', status = 'DONE' WHERE prep_key = 'n:준비가수'").update()
+        jdbc.sql("UPDATE search_artist_prep SET batches = 0 WHERE prep_key = :k").param("k", key).update()
         jdbc.sql("UPDATE search_artist_prep_daily SET count = ${dev.gyeol.api.room.PREPARE_PER_ROOM} WHERE room_id = :r").param("r", roomId).update()
         call("GET", q, key = host.key)
-        assertEquals("DONE", prepRow("n:준비가수"), "상한이면 키도 바꾸지 않는다")
-        assertEquals(0, prepareMessages("n:준비가수"))
+        assertEquals("DONE", prepRow(key), "방 하루 상한이면 키도 바꾸지 않는다")
+        assertEquals(0, prepareMessages(key))
+        jdbc.sql("DELETE FROM artist_top_track WHERE prep_key = :k").param("k", key).update()
+    }
+
+    @Test
+    fun `I-72 인기곡 목록이 있으면 그 순서로 쪽을 채운다 - 준비된 순위는 우리 곡(표지·연도), 나머지는 제목만, 준비 중이면 pending`() {
+        val host = newRoom()
+        val a = ArtistInfo(UUID.randomUUID(), "목록가수", "List", emptyList())
+        val t = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "인기 1", a, UUID.randomUUID(), UUID.randomUUID(), "첫 음반", "2019-05-01", "Album"))
+        jdbc.sql("UPDATE track SET cover_url = 'https://coverartarchive.org/x.jpg' WHERE id = :t").param("t", t).update()
+        val aid = songs.trackArtist(t)!!
+        val key = "id:$aid"
+        topList(key, 12, ready = mapOf(1 to t))
+        jdbc.sql("INSERT INTO search_artist_prep (prep_key, name, status) VALUES (:k, '목록가수', 'RUNNING') ON CONFLICT (prep_key) DO UPDATE SET status = 'RUNNING', requested_at = now()").param("k", key).update()
+        val q = "/api/rooms/${host.rid}/search?q=" + java.net.URLEncoder.encode("목록가수", "UTF-8")
+
+        val p1 = call("GET", q, key = host.key).body!!
+        assertEquals("db+toplist", p1["source"].asString())
+        val items = p1["items"].toList().map { it["item"] }
+        assertEquals((1..10).map { "인기 $it" }, items.map { it["title"].asString() })
+        assertEquals(t, items[0]["trackId"].asLong())
+        assertEquals("https://coverartarchive.org/x.jpg", items[0]["coverUrl"].asString())
+        assertEquals(2019, items[0]["releaseYear"].asInt())
+        assertTrue(items[1]["trackId"].isNull && items[1]["coverUrl"].isNull, "아직 준비 안 된 순위는 제목만")
+        assertEquals(aid, items[1]["artistId"].asLong())
+        assertTrue(p1["pending"].asBoolean())
+        assertTrue(p1["hasMore"].asBoolean())
+        assertEquals(aid, p1["artist"]["artistId"].asLong())
+        val p2 = call("GET", "$q&page=2", key = host.key).body!!
+        assertEquals(listOf("인기 11", "인기 12"), p2["items"].toList().map { it["item"]["title"].asString() })
+        assertTrue(!p2["hasMore"].asBoolean())
+        assertTrue(p2["artist"].isNull)
+        // 준비가 끝나면 pending false
+        jdbc.sql("UPDATE search_artist_prep SET status = 'DONE' WHERE prep_key = :k").param("k", key).update()
+        jdbc.sql("UPDATE artist_top_track SET status = 'NO_MATCH', tried_at = now() WHERE prep_key = :k AND status = 'PENDING'").param("k", key).update()
+        assertTrue(!call("GET", q, key = host.key).body!!["pending"].asBoolean())
+        jdbc.sql("DELETE FROM artist_top_track WHERE prep_key = :k").param("k", key).update()
     }
 
     @Test

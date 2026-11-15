@@ -16,12 +16,12 @@ class IdentifyController(musicBrainz: MusicBrainzClient, lastFm: LastFmClient) {
     private val identifier = MusicBrainzIdentifier(musicBrainz::fetch, lastFm::spellings)
 
     @PostMapping("/internal/musicbrainz/identify")
-    fun identify(@RequestBody req: IdentifyRequest): IdentifyResult {
+    fun identify(@RequestBody req: IdentifyRequest, @org.springframework.web.bind.annotation.RequestParam(required = false) priority: String?): IdentifyResult {
         val artist = req.artist?.trim().orEmpty()
         val title = req.title?.trim().orEmpty()
         require(artist.length in 1..200 && title.length in 1..300) { "artist는 1~200자, title은 1~300자여야 합니다" }
-        val r = identifier.identify(artist, title)
-        log.info("식별 {}: {} - {} → {} {} (호출 {}번, {}ms)", r.status, artist, title, r.release?.title ?: r.reason, r.release?.date ?: "", r.calls, r.ms)
+        val r = lowPriority(priority == "low") { identifier.identify(artist, title) }
+        log.info("식별 {}{}: {} - {} → {} {} (호출 {}번, {}ms)", r.status, if (priority == "low") "(낮은 순위)" else "", artist, title, r.release?.title ?: r.reason, r.release?.date ?: "", r.calls, r.ms)
         return r
     }
 }

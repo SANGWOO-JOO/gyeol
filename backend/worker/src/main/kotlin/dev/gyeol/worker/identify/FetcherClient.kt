@@ -42,9 +42,11 @@ class FetcherClient(props: WorkerProperties) {
     }
 
     /** Topic 채널 이름으로 찾은 MusicBrainz 가수 mbid. 확실하지 않으면 null */
-    fun findArtist(name: String, titles: List<String>): String? = try {
+    /** [lowPriority]: I-72 B-3 검색 미리 준비는 MusicBrainz 차례를 담기·업로드 식별 뒤로 */
+    fun findArtist(name: String, titles: List<String>, lowPriority: Boolean = false): String? = try {
         http.get().uri { b ->
             b.path("/internal/artist-image/find-artist").queryParam("name", "{n}")
+            if (lowPriority) b.queryParam("priority", "low")
             titles.indices.forEach { i -> b.queryParam("title", "{t$i}") }
             b.build(mapOf("n" to name) + titles.mapIndexed { i, t -> "t$i" to t })
         }.retrieve()
@@ -85,8 +87,8 @@ class FetcherClient(props: WorkerProperties) {
             .retrieve().body(JsonNode::class.java) ?: error("fetcher 응답이 비어 있습니다")
 
     /** 찾으면 곡 정보, 못 찾으면 null */
-    fun identify(artist: String, title: String): TrackInfo? {
-        val r = http.post().uri("/internal/musicbrainz/identify")
+    fun identify(artist: String, title: String, lowPriority: Boolean = false): TrackInfo? {
+        val r = http.post().uri { b -> b.path("/internal/musicbrainz/identify").apply { if (lowPriority) queryParam("priority", "low") }.build() }
             .body(mapOf("artist" to artist, "title" to title))
             .retrieve()
             .body(JsonNode::class.java) ?: error("fetcher 응답이 비어 있습니다")

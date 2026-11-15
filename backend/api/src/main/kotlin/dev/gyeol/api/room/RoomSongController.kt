@@ -61,7 +61,11 @@ data class ArtistCard(
  * 더보기: [page] 1~5, 한 쪽 10곡. [hasMore]는 다음 쪽이 있을 수 있는지 (1쪽은 10곡이 꽉 찼으면 true, 2쪽 이후는 이어 붙인 목록 기준).
  * 가수 카드([artist])는 1쪽에만
  */
-data class RoomSearchResponse(val items: List<RoomSearchItem>, val source: String, val artist: ArtistCard? = null, val page: Int = 1, val hasMore: Boolean = false)
+data class RoomSearchResponse(
+    val items: List<RoomSearchItem>, val source: String, val artist: ArtistCard? = null, val page: Int = 1, val hasMore: Boolean = false,
+    /** I-72: 이 가수의 인기곡을 지금 준비 중(표지·연도가 곧 채워짐). 몇 초 뒤 같은 검색을 다시 부르면 바뀐 줄을 받는다 */
+    val pending: Boolean = false,
+)
 
 /** 내 노래 정렬 묶음 (sort=genre|artist). key로 쪽 사이를 이어 붙인다. count는 쪽과 상관없는 그 묶음 전체 곡 수 */
 data class SongGroup(
@@ -124,6 +128,10 @@ const val SEARCH_PAGE_SIZE = 10
 const val SEARCH_PAGES = 5
 /** 검색 때 가수 미리 준비: 방당 하루 맡기는 가수 수 */
 const val PREPARE_PER_ROOM = 30
+/** I-72: 첫 검색은 10위, 더보기는 20위까지 준비. 가수 키당 하루 묶음(3곡) 상한 (worker ArtistPrepareService와 같은 값) */
+const val PREPARE_WINDOW = 10
+const val PREPARE_WINDOW_MORE = 20
+const val PREPARE_BATCHES_PER_DAY = 10
 /** 내 노래 장르 묶음: 장르 구역이 아직 없는 곡 */
 const val UNSORTED = "분류 중"
 private const val GHOSTS_PER_PLANET_MAX = 3
@@ -155,38 +163,73 @@ class RoomSongService(
         val boost = if (!single) null else merger.resolveArtists(listOf(q!!.trim()))[dev.gyeol.core.identify.SearchText.norm(q)]?.id
         fun boosted(items: List<TrackItem>) = if (boost == null) items else items.sortedBy { if (it.artistId == boost) 0 else 1 }
         val first = search.find(q, SEARCH_PAGE_SIZE, allowSingleCjk = true).let { it.copy(items = boosted(it.items)) }
+        val card = artistCard(ctx, q.orEmpty(), first.items)
+        // I-72: 가수 카드가 있으면 인기곡 목록을 준비하고(첫 쪽 10위, 더보기 20위까지), 목록이 있으면 그 순서로 쪽을 채운다
+        val key = card?.let(::prepKey)
+        val list = key?.let { prepares.topTracks(it) }.orEmpty()
+        val window = if (page == 1) PREPARE_WINDOW else PREPARE_WINDOW_MORE
+        // I-72: 목록 순위 중 이미 우리 DB에 있는 곡(다른 표기·식별 캐시)은 검색 합치기와 같은 규칙으로 바로 잇고 READY로 남긴다
+        // → 미리 준비가 그 순위에 MusicBrainz를 부르지 않는다
+        val linked = if (card != null && key != null && list.isNotEmpty()) linkTopList(key, card, list.filter { it.rank <= maxOf(window, page * SEARCH_PAGE_SIZE) }) else emptyMap()
+        val queued = card != null && key != null && prepareIfNeeded(ctx, card, key, window)
+        val pending = key != null && (queued || prepares.inProgress(key))
+        if (card != null && list.isNotEmpty()) {
+            val slice = list.drop((page - 1) * SEARCH_PAGE_SIZE).take(SEARCH_PAGE_SIZE)
+            val readyIds = slice.mapNotNull { r -> linked[r.rank] ?: r.trackId?.takeIf { r.status == "READY" } }
+            val hits = trackSearch.hits(readyIds).associateBy { it.trackId }
+            val shown = card.displayName ?: card.name
+            val items = slice.map { r ->
+                (linked[r.rank] ?: r.trackId?.takeIf { r.status == "READY" })?.let(hits::get)?.let(dev.gyeol.api.search.TrackMerger::item)
+                    ?: TrackItem(r.title, shown, null, null, null, null, null, card.artistId)
+            }
+            return decorate(ctx, merger.unifyArtistNames(items), "db+toplist").copy(
+                artist = card.takeIf { page == 1 }, page = page, pending = pending,
+                hasMore = page < SEARCH_PAGES && list.size > page * SEARCH_PAGE_SIZE,
+            )
+        }
         if (page == 1) {
             val res = decorate(ctx, first.items, first.source)
-            val card = artistCard(ctx, q.orEmpty(), first.items)
-            card?.let { prepareIfNeeded(ctx, it) }
-            return res.copy(artist = card, page = 1, hasMore = first.items.size >= SEARCH_PAGE_SIZE)
+            return res.copy(artist = card, page = 1, hasMore = first.items.size >= SEARCH_PAGE_SIZE, pending = pending)
         }
         val more = search.find(q, SEARCH_PAGE_SIZE * SEARCH_PAGES, allowSingleCjk = true)
         val all = merger.dedupe(first.items + boosted(more.items)).take(SEARCH_PAGE_SIZE * SEARCH_PAGES)
         val slice = all.drop((page - 1) * SEARCH_PAGE_SIZE).take(SEARCH_PAGE_SIZE)
-        return decorate(ctx, slice, more.source).copy(page = page, hasMore = page < SEARCH_PAGES && all.size > page * SEARCH_PAGE_SIZE)
+        return decorate(ctx, slice, more.source).copy(page = page, hasMore = page < SEARCH_PAGES && all.size > page * SEARCH_PAGE_SIZE, pending = pending)
     }
 
-    /**
-     * 검색 때 가수 미리 준비 (11-14, B안): 카드가 우리 DB에 없는 가수거나 얼굴이 NONE이면 worker에 맡기고 기다리지 않는다.
-     * 같은 이름(가수)은 하루 1번, 진행 중이면 다시 맡기지 않는다(1시간 넘게 멈추면 다시). 방당 하루 [PREPARE_PER_ROOM]명
-     */
-    private fun prepareIfNeeded(ctx: RoomContext, card: ArtistCard) {
-        val key = when {
-            card.artistId == null -> "n:" + dev.gyeol.core.identify.SearchText.norm(card.name)
-            card.face?.kind == "NONE" -> "id:${card.artistId}"
-            else -> return
+    /** 아직 READY가 아닌 순위를 우리 곡에 이어 READY로 남긴다 (같은 가수의 곡일 때만). (순위 → 곡 id) */
+    private fun linkTopList(key: String, card: ArtistCard, ranks: List<dev.gyeol.core.identify.ArtistPrepareRepository.TopTrack>): Map<Int, Long> {
+        val todo = ranks.filter { it.status != "READY" || it.trackId == null }
+        if (todo.isEmpty()) return emptyMap()
+        val mapped = merger.mapRemote(todo.map { TrackItem(it.title, card.name, null, null, null, null, null, card.artistId) })
+        val out = mutableMapOf<Int, Long>()
+        todo.zip(mapped).forEach { (r, m) ->
+            val tid = m.trackId ?: return@forEach
+            if (card.artistId != null && m.artistId != card.artistId) return@forEach
+            prepares.markRank(key, r.rank, "READY", tid)
+            out[r.rank] = tid
         }
-        if (key == "n:") return
+        return out
+    }
+
+    /** 미리 준비 키: 우리 가수면 id:, 처음 보는 가수면 정규화 이름 (worker가 n: 키를 준비해 우리 가수가 되면 목록을 id: 키로 복사한다) */
+    private fun prepKey(card: ArtistCard): String? =
+        card.artistId?.let { "id:$it" } ?: ("n:" + dev.gyeol.core.identify.SearchText.norm(card.name)).takeIf { it != "n:" }
+
+    /**
+     * 검색 때 가수 미리 준비 (11-14 B안 → I-72): 가수 카드가 있으면 [windowEnd]위까지 준비할 인기곡이 남았을 때 worker에 맡기고 기다리지 않는다.
+     * 진행 중이면 창만 넓힌다. 가수 키당 하루 [PREPARE_BATCHES_PER_DAY]묶음, 방당 하루 [PREPARE_PER_ROOM]명. 새로 맡겼으면 true
+     */
+    private fun prepareIfNeeded(ctx: RoomContext, card: ArtistCard, key: String, windowEnd: Int): Boolean =
         try {
-            if (prepares.request(key, card.name, ctx.room.id, todayKst(), PREPARE_PER_ROOM)) {
-                sender.send(p.songQueue, json.writeValueAsString(mapOf("type" to "PREPARE_SEARCH_ARTIST", "prepKey" to key, "name" to card.name, "artistId" to card.artistId)))
+            prepares.request(key, card.name, ctx.room.id, todayKst(), PREPARE_PER_ROOM, windowEnd, PREPARE_BATCHES_PER_DAY).also { queued ->
+                if (queued) sender.send(p.songQueue, json.writeValueAsString(mapOf("type" to "PREPARE_SEARCH_ARTIST", "prepKey" to key, "name" to card.name, "artistId" to card.artistId)))
             }
         } catch (e: RuntimeException) {
             // 준비는 덤이다: 실패해도 검색 응답은 그대로
             org.slf4j.LoggerFactory.getLogger(javaClass).warn("가수 미리 준비를 맡기지 못함: {} {}", key, e.message)
+            false
         }
-    }
 
     private fun decorate(ctx: RoomContext, found: List<TrackItem>, source: String): RoomSearchResponse {
         val r = TrackSearchResponse(found, source)

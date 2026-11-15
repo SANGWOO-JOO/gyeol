@@ -57,6 +57,7 @@ class MusicBrainzIdentifier(
         var calls = 0
         val call = { path: String, params: Map<String, Any> -> calls++; mb(path, params) }
         val queryLang = languageMark.containsMatchIn(title)
+        val quick = MbPriority.low.get() == true
         fun done(r: IdentifyResult) = r.copy(
             calls = calls, ms = (System.nanoTime() - started) / 1_000_000,
             languageVersion = !queryLang && r.recording?.languageVersion == true,
@@ -81,7 +82,8 @@ class MusicBrainzIdentifier(
                     alt = spellings(artistName, title).firstOrNull { TitleMatch.norm(it) == TitleMatch.norm(title) && it != title }
                     if (alt != null) recs = recordings(artist.mbid, title, alt, call, n)
                 }
-                if (recs.isEmpty()) recs = scanArtist(artist.mbid, title, call, n)
+                // I-72: 낮은 순위(검색 미리 준비)는 가수 녹음 훑기(최대 5번 호출)를 건너뛴다. 못 찾으면 담기·업로드 때 제대로 찾는다
+                if (recs.isEmpty() && !quick) recs = scanArtist(artist.mbid, title, call, n)
                 if (recs.isEmpty()) continue
 
                 val best = earliestRelease(recs)
@@ -95,6 +97,14 @@ class MusicBrainzIdentifier(
         }
 
         tryArtists(artists)?.let { return it }
+        if (quick) {
+            // 넓은 가수 검색·첫 사람·잘린 제목은 건너뛰고, 원곡 음반이 없는 녹음만 차선으로 인정한다
+            withoutRelease?.let { (artist, recs) ->
+                val fallback = earliestRelease(recs, relaxed = true)
+                return done(IdentifyResult("MATCHED", recording = fallback?.first ?: idRecording(recs.minBy { isVariantRecording(it) }), artist = artist, release = fallback?.second))
+            }
+            return done(IdentifyResult("NOT_FOUND", reason = if (artists.isEmpty()) "ARTIST" else "RECORDING"))
+        }
         // 흔한 이름은 필드 검색 상위 10명에 실제 가수가 없을 수 있다 ("Buzz"의 버즈). 넓은 검색으로 이름이 정확히 같은 다른 후보를 한 번 더 본다
         val wider = findArtists(artistName, call, wide = true).filter { w -> artists.none { it.mbid == w.mbid } }
         tryArtists(wider)?.let { return it }

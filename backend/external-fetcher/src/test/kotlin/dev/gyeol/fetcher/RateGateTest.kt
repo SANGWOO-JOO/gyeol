@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test
 import java.time.Duration
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 /** 가짜 시계로 초당 1회 제한을 확인한다 (실제로 기다리지 않아 테스트가 빠르다) */
 class RateGateTest {
@@ -35,5 +36,38 @@ class RateGateTest {
         now += 5_000_000_000L // 5초 뒤
         gate.acquire()
         assertEquals(listOf(0L, 0L), waits)
+    }
+
+    /** 기다리면 시계가 흐르는 게이트 (낮은 순위는 짧게 쉬며 다시 본다) */
+    private fun flowingGate(): Pair<RateGate, () -> Long> {
+        var t = 0L
+        val g = RateGate(Duration.ofSeconds(1), Duration.ofMillis(2500), clock = { t }, sleeper = { t += it })
+        return g to { t }
+    }
+
+    @Test
+    fun `I-72 낮은 순위는 보통 요청이 1_5초 조용해야 차례를 잡는다`() {
+        val (g, clock) = flowingGate()
+        g.acquire() // 보통 요청 t=0
+        g.acquireLow(Duration.ofSeconds(60), Duration.ofMillis(1500))
+        assertTrue(clock() >= 1_500_000_000L, "보통 요청 뒤 1.5초가 지나야 한다: ${clock()}")
+    }
+
+    @Test
+    fun `I-72 낮은 순위가 잡은 뒤 온 보통 요청은 한 칸(1초)까지만 늦는다`() {
+        var t = 10_000_000_000L
+        val sleeps = mutableListOf<Long>()
+        val g = RateGate(Duration.ofSeconds(1), Duration.ofMillis(2500), clock = { t }, sleeper = { sleeps += it; t += it })
+        g.acquireLow(Duration.ofSeconds(60), Duration.ofMillis(1500)) // 아무도 없으면 바로
+        assertEquals(emptyList(), sleeps)
+        g.acquire()
+        assertEquals(listOf(1_000_000_000L), sleeps)
+    }
+
+    @Test
+    fun `I-72 낮은 순위는 상한 안에 조용해지지 않으면 거절된다`() {
+        val (g, _) = flowingGate()
+        g.acquire()
+        assertFailsWith<TooBusyException> { g.acquireLow(Duration.ofSeconds(1), Duration.ofSeconds(5)) }
     }
 }

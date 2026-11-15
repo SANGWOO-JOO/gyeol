@@ -98,9 +98,9 @@ class IdentifyService(
     /**
      * 곡마다: 캐시 다시 확인 → 규칙으로 (가수, 곡) → fetcher(MusicBrainz) → 저장. 결과는 [sink]로.
      * [allowLlm]이 false면 LLM 단계(제목 정리·다른 표기 묻기)를 건너뛴다: 규칙으로 못 찾은 곡은 캐시에 남기지 않고 못 찾음으로 끝낸다
-     * (검색 때 가수 미리 준비는 유료 LLM을 부르지 않는다, 11-14)
+     * (검색 때 가수 미리 준비는 유료 LLM을 부르지 않는다, 11-14). [background]면 MusicBrainz 차례를 담기·업로드 식별 뒤로 미룬다 (I-72 B-3)
      */
-    fun identifyTargets(targets: List<Target>, sink: TargetSink, allowLlm: Boolean = true): Identified {
+    fun identifyTargets(targets: List<Target>, sink: TargetSink, allowLlm: Boolean = true, background: Boolean = false): Identified {
         val retryBefore = Instant.now().minus(props.identify.notFoundRetry)
         val found = mutableListOf<Long>()
         val forLlm = mutableListOf<Target>()
@@ -116,7 +116,7 @@ class IdentifyService(
             if (query == null) {
                 // 공식 채널의 단순한 제목은 LLM 없이 먼저 찾아 본다. 못 찾거나 거절되면 LLM으로 (L2-3a)
                 val official = RuleIdentifier.officialChannel(t.title, t.channel)
-                val hit = official?.let { q -> runCatching4xx { fetcher.identify(q.artist, q.title) } }
+                val hit = official?.let { q -> runCatching4xx { fetcher.identify(q.artist, q.title, lowPriority = background) } }
                 if (official == null || hit == null) {
                     if (allowLlm) forLlm += t else sink.finish(t, null)
                     continue
@@ -127,7 +127,7 @@ class IdentifyService(
                 continue
             }
             val info = try {
-                fetcher.identify(query.artist, query.title)
+                fetcher.identify(query.artist, query.title, lowPriority = background)
             } catch (e: HttpClientErrorException) {
                 failOne(t, e, sink); continue
             }

@@ -80,7 +80,7 @@ class ArtistImageBulkTest {
         `when`(fetcher.artistFile(anyString())).thenReturn(ResponseEntity.ok(byteArrayOf(1)))
         ArtistImageListener(repo, fetcher, mock(S3Client::class.java), json, props)
             .onMessage(json.writeValueAsString(ArtistImageMessage(channels = listOf(ChannelImageTarget("가수 - Topic", null, mbid = mbid)))))
-        verify(fetcher, never()).findArtist(anyString(), org.mockito.ArgumentMatchers.anyList())
+        verify(fetcher, never()).findArtist(anyString(), org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyBoolean())
         verify(repo).saveChannel("가수 - Topic", UUID.fromString(mbid), ArtistImage("COMMONS", s3Key = "channels/7", pageUrl = "p", author = "작가", license = "CC BY 4.0"))
     }
 }

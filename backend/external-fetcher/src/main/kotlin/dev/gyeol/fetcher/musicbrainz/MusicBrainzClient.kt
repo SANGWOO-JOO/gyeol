@@ -58,7 +58,7 @@ class MusicBrainzClient(private val props: FetcherProperties) {
     fun fetch(path: String, params: Map<String, Any>): JsonNode {
         var last: Exception? = null
         repeat(3) { attempt ->
-            gate.acquire(props.musicbrainz.identifyMaxWait)
+            if (MbPriority.low.get() == true) gate.acquireLow(LOW_MAX_WAIT, LOW_QUIET) else gate.acquire(props.musicbrainz.identifyMaxWait)
             try {
                 return slowHttp.get()
                     .uri { b -> b.path(path).apply { params.forEach { (k, v) -> queryParam(k, v) } }.queryParam("fmt", "json").build() }
@@ -125,4 +125,24 @@ class MusicBrainzClient(private val props: FetcherProperties) {
 
     /** Lucene 특수 문자를 이스케이프해 사용자가 입력한 글자가 검색 문법으로 해석되지 않게 한다 */
     fun escape(q: String): String = q.replace(Regex("""([+\-!(){}\[\]^"~*?:\\/]|&&|\|\|)"""), """\\$1""")
+
+    companion object {
+        /** I-72 B-3: 낮은 순위 요청이 차례를 기다리는 상한과, 보통 요청 뒤 비워 둘 시간 */
+        val LOW_MAX_WAIT: java.time.Duration = java.time.Duration.ofSeconds(60)
+        val LOW_QUIET: java.time.Duration = java.time.Duration.ofMillis(1500)
+    }
+}
+
+/**
+ * I-72 B-3: 이 스레드의 MusicBrainz 호출 순위. 검색 때 미리 준비(worker가 priority=low로 부름)는 담기·업로드 식별보다 뒤로 미룬다.
+ * 컨트롤러가 요청 동안만 켜고 끈다 ([lowPriority])
+ */
+object MbPriority {
+    val low: ThreadLocal<Boolean> = ThreadLocal.withInitial { false }
+}
+
+inline fun <T> lowPriority(on: Boolean, block: () -> T): T {
+    if (!on) return block()
+    MbPriority.low.set(true)
+    try { return block() } finally { MbPriority.low.set(false) }
 }

@@ -85,6 +85,8 @@ class ArtistPrepareIntegrationTest {
 
     companion object {
         val LLM_CALLS = AtomicInteger()
+        val IDENTIFY_CALLS = AtomicInteger()
+        val LOW_IDENTIFY_CALLS = AtomicInteger()
         const val A = "aaaaaaaa-0000-0000-0000-000000000001"
         const val B = "bbbbbbbb-0000-0000-0000-000000000002"
 
@@ -123,6 +125,8 @@ class ArtistPrepareIntegrationTest {
                 }
             }
             createContext("/internal/musicbrainz/identify") { ex ->
+                IDENTIFY_CALLS.incrementAndGet()
+                if (ex.requestURI.query.orEmpty().contains("priority=low")) LOW_IDENTIFY_CALLS.incrementAndGet()
                 val body = ex.requestBody.readAllBytes().decodeToString()
                 val title = Regex("\"title\"\\s*:\\s*\"([^\"]*)\"").find(body)?.groupValues?.get(1).orEmpty()
                 // I-55: 영어 제목은 일본어판 녹음만 맞고(languageVersion), 한국어 제목은 원곡에 맞는다
@@ -191,6 +195,13 @@ class ArtistPrepareIntegrationTest {
         jdbc.sql("INSERT INTO search_artist_prep (prep_key, name, status) VALUES (:k, :n, 'QUEUED') ON CONFLICT (prep_key) DO UPDATE SET status = 'QUEUED'")
             .param("k", key).param("n", name).update()
 
+    /** 큐 대신 직접: 이어 맡긴 묶음(QUEUED)이 남아 있는 동안 다시 부른다 */
+    private fun runAll(key: String, name: String, artistId: Long? = null): Int {
+        var n = 0
+        do { service.prepare(key, name, artistId); n++ } while (row(key).first == "QUEUED" && n < 10)
+        return n
+    }
+
     private fun row(key: String): Triple<String, Long?, String?> =
         jdbc.sql("SELECT status, artist_id, reason FROM search_artist_prep WHERE prep_key = :k").param("k", key)
             .query { rs, _ -> Triple(rs.getString(1), rs.getObject(2) as Long?, rs.getString(3)) }.single()
@@ -211,18 +222,28 @@ class ArtistPrepareIntegrationTest {
     @Test
     fun `처음 보는 가수 - 확정한 가수의 인기곡 3곡을 LLM 없이 식별하고 표지·사진 큐로, 지도에는 올리지 않음`() {
         queued("n:준비가수", "준비가수")
-        service.prepare("n:준비가수", "준비가수", null)
+        val (calls0, low0) = IDENTIFY_CALLS.get() to LOW_IDENTIFY_CALLS.get()
+        assertEquals(2, runAll("n:준비가수", "준비가수"), "5위까지 3곡씩 두 묶음 (이어 맡김)")
+        assertEquals(IDENTIFY_CALLS.get() - calls0, LOW_IDENTIFY_CALLS.get() - low0, "미리 준비 식별은 모두 낮은 순위(priority=low)")
 
         val aid = artistIdOf(A)!!
         assertEquals(Triple("DONE", aid, null), row("n:준비가수"))
         val titles = jdbc.sql("SELECT title FROM track WHERE artist_id = :a ORDER BY id").param("a", aid).query(String::class.java).list()
-        assertEquals(listOf("대표1", "대표2", "대표3"), titles, "못 찾은 곡은 건너뛰고 3곡에서 멈춘다")
+        assertEquals(listOf("대표1", "대표2", "대표3", "대표4"), titles.filterNotNull().sorted(), "못 찾은 곡은 건너뛰고 창 안을 끝까지 (묶음 안은 동시에 식별)")
+        val ranks = jdbc.sql("SELECT rank, status FROM artist_top_track WHERE prep_key = 'n:준비가수' ORDER BY rank").query { rs, _ -> rs.getInt(1) to rs.getString(2) }.list()
+        assertEquals(listOf(1 to "READY", 2 to "NO_MATCH", 3 to "READY", 4 to "READY", 5 to "READY"), ranks)
+        assertEquals(5, jdbc.sql("SELECT count(*) FROM artist_top_track WHERE prep_key = 'id:$aid'").query(Int::class.java).single(), "우리 가수가 되면 id: 키에도 목록 복사")
         val coverIds = messages(coverUrl).flatMap { m -> m["trackIds"].toList().map { it.asLong() } }.toSet()
         val trackIds = jdbc.sql("SELECT id FROM track WHERE artist_id = :a").param("a", aid).query(Long::class.java).list().toSet()
         assertEquals(trackIds, coverIds)
-        val photo = messages(imageUrl).single()
-        assertEquals(aid, photo["items"][0]["artistId"].asLong())
-        assertTrue(photo["commonsOnly"].asBoolean())
+        val photos = messages(imageUrl)
+        assertTrue(photos.isNotEmpty() && photos.all { it["items"][0]["artistId"].asLong() == aid && it["commonsOnly"].asBoolean() })
+        assertTrue(messages(songUrl).any { it["type"].asString() == "PREPARE_SEARCH_ARTIST" && it["prepKey"].asString() == "n:준비가수" }, "다음 묶음을 큐로 이어 맡김")
+        // 이미 준비한 순위는 다시 부르지 않는다: 다시 맡겨도 할 일이 없다
+        jdbc.sql("UPDATE search_artist_prep SET status = 'QUEUED' WHERE prep_key = 'n:준비가수'").update()
+        val before = IDENTIFY_CALLS.get()
+        service.prepare("n:준비가수", "준비가수", null)
+        assertEquals(before, IDENTIFY_CALLS.get(), "READY 순위는 MusicBrainz 식별을 부르지 않는다")
         assertEquals(0, LLM_CALLS.get(), "유료 LLM 호출 0 (allowLlm=false)")
         assertTrue(messages(songUrl).none { it["type"].asString() == "PREPARE_ARTIST" }, "공용 지도 준비를 맡기지 않는다")
         // 못 찾은 Topic 곡은 캐시에 남기지 않는다 (나중에 LLM 경로가 다시 볼 수 있게)
@@ -269,7 +290,7 @@ class ArtistPrepareIntegrationTest {
     @Test
     fun `같은 메시지를 두 번 받아도 한 번만 한다 (QUEUED일 때만 시작)`() {
         queued("n:준비가수2", "준비가수")
-        service.prepare("n:준비가수2", "준비가수", null)
+        runAll("n:준비가수2", "준비가수")
         val first = jdbc.sql("SELECT finished_at FROM search_artist_prep WHERE prep_key = 'n:준비가수2'").query(java.sql.Timestamp::class.java).single()
         messages(coverUrl); messages(imageUrl)
         service.prepare("n:준비가수2", "준비가수", null)

@@ -242,9 +242,10 @@ class ArtistImageController(private val client: ArtistImageClient) {
     }
 
     @GetMapping("/internal/artist-image/find-artist")
-    fun findArtist(@RequestParam name: String, @RequestParam(required = false) title: List<String>?): ResponseEntity<Map<String, String>> {
+    fun findArtist(@RequestParam name: String, @RequestParam(required = false) title: List<String>?, @RequestParam(required = false) priority: String?): ResponseEntity<Map<String, String>> {
         require(name.isNotBlank() && name.length <= 200) { "이름이 올바르지 않습니다" }
-        return client.findArtist(name, title.orEmpty().filter { it.length <= 300 })?.let { ResponseEntity.ok(mapOf("mbid" to it)) } ?: ResponseEntity.notFound().build()
+        val mbid = dev.gyeol.fetcher.musicbrainz.lowPriority(priority == "low") { client.findArtist(name, title.orEmpty().filter { it.length <= 300 }) }
+        return mbid?.let { ResponseEntity.ok(mapOf("mbid" to it)) } ?: ResponseEntity.notFound().build()
     }
 
     @GetMapping("/internal/artist-image/file")

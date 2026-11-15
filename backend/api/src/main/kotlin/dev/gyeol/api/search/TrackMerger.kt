@@ -134,7 +134,15 @@ class TrackMerger(private val db: TrackSearchRepository) {
      * DB 결과(확실한·약한)와 Last.fm 결과를 합친다. 순서: 확실한 DB → Last.fm(우리 곡으로 바뀐 것 포함) → 약한 DB, 같은 곡은 처음 것만
      */
     fun merge(strong: List<DbTrackHit>, weak: List<DbTrackHit>, remote: List<TrackItem>, limit: Int): List<TrackItem> {
-        val local = strong + weak
+        val remoteItems = mapRemote(remote, strong + weak)
+        return unifyArtistNames(dedupe(strong.map(::item) + remoteItems + weak.map(::item)).take(limit))
+    }
+
+    /**
+     * Last.fm 곡 → 우리 곡 (순서 그대로, 합치기·자르기 없음): MBID, 식별 캐시, 같은 가수의 제목 표기. 못 찾으면 그대로.
+     * [local]은 이미 찾은 우리 곡(표시 이름·비교 대상). I-72: 인기곡 목록 순위도 이것으로 우리 곡에 바로 잇는다
+     */
+    fun mapRemote(remote: List<TrackItem>, local: List<DbTrackHit> = emptyList()): List<TrackItem> {
         val resolved = resolveArtists(remote.map { it.artist })
         // 우리 가수의 표시 이름: DB 결과에 그 가수가 있으면 그 표기(최빈 YouTube 표기), 없으면 MusicBrainz 이름
         val shown = local.groupBy { it.artistId }.mapValues { (_, hs) -> hs.groupingBy { it.artist }.eachCount().maxBy { it.value }.key }
@@ -163,9 +171,7 @@ class TrackMerger(private val db: TrackSearchRepository) {
         }
         val extra = db.hits(mapped.mapNotNull { it.second }.toSet() - (local + artistTracks).map { it.trackId }.toSet()).associateBy { it.trackId }
         val localById = (local + artistTracks).associateBy { it.trackId }
-        val remoteItems = mapped.map { (r, id) -> id?.let { (localById[it] ?: extra[it])?.let(::item) } ?: r }
-
-        return unifyArtistNames(dedupe(strong.map(::item) + remoteItems + weak.map(::item)).take(limit))
+        return mapped.map { (r, id) -> id?.let { (localById[it] ?: extra[it])?.let(::item) } ?: r }
     }
 
     /** 같은 가수(우리 id)는 결과 안에서 한 표기로 (가장 많이 나온 표기, 같으면 먼저 나온 것). "다비치"와 "DAVICHI"가 섞여 보이지 않게 */

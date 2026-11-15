@@ -630,3 +630,32 @@
   - 경로가 방마다 따로라 다른 방 쿠키에는 영향이 없다.
 - 열쇠가 없거나 틀리면(401·403) 쿠키를 주지 않는다.
 - 테스트: api 1개(헤더로·쿠키로 둘 다 Set-Cookie·Max-Age=15552000, 틀린 열쇠는 쿠키 없음). api 100(건너뜀 1) 통과. api 재시작, 로컬 방 8에서 Set-Cookie·no-store 확인(임시 열쇠는 지움).
+
+### I-72 검색 결과 표지: 인기곡 목록 + 준비 커서 + MusicBrainz 우선순위 (11-15, 사용자 승인)
+- **B-1 V35 `artist_top_track`(prep_key, rank, title, track_id, status PENDING|READY|NO_MATCH|OTHER|FAILED, tried_at, fetched_at):** Last.fm top-tracks 50곡을 저장하고 7일 지나야 다시 받는다. 새 목록은 같은 제목의 준비 상태를 이어 받는다.
+- **B-2 준비 커서(`search_artist_prep`에 window_end·batches_day·batches·artist_mbid):**
+  - 첫 검색은 10위, 더보기(2쪽 이후)는 20위까지 본다. 진행 중이면 창만 넓힌다.
+  - worker `ArtistPrepareService`가 3곡씩 동시에 식별하고, 창 안에 남은 순위가 있으면 다음 묶음을 큐로 이어 맡긴다(가수 키당 하루 10묶음).
+  - 실패·없음·다른 가수도 tried_at을 남기고 3일 뒤 다시 본다.
+  - "하루 1번" 규칙은 "창 안에 준비할 순위가 남았는가"로 바꿨다(SKIPPED·FAILED만 하루). 방당 하루 30명은 그대로다.
+  - 키는 우리 가수면 `id:`, 처음 보는 가수면 `n:`(우리 가수가 되면 목록을 `id:` 키로 복사한다).
+  - 우리 가수 카드도 얼굴과 상관없이 맡긴다(예전에는 NONE일 때만).
+- **B-3 MusicBrainz 우선순위:** fetcher `RateGate.acquireLow`를 쓴다. 미리 준비 식별·가수 확정은 `priority=low`로 부르고, 줄이 비어 있고 보통 요청이 1.5초 조용할 때만 차례를 잡는다.
+  - 판단: 큐를 나누는 방식은 fetcher의 같은 RateGate를 함께 써서 우선순위가 생기지 않는다. 그래서 게이트에 순위를 뒀다.
+  - 낮은 순위 식별은 가수 녹음 훑기·넓은 검색을 건너뛰는 빠른 모드(못 찾음 2~3번 호출, 예전 7번)다.
+- **B-4 검색 응답:** 가수 카드가 있고 목록이 있으면 그 순서로 쪽을 채운다(`source: "db+toplist"`, 1~5쪽 = 50위).
+  - READY 순위는 우리 곡(trackId·coverUrl·releaseYear)이다.
+  - 나머지 순위는 검색 합치기 규칙(`TrackMerger.mapRemote`, I-54와 같은 규칙)으로 이미 있는 우리 곡에 바로 이어 READY로 남긴다. 그래서 미리 준비가 다시 부르지 않는다.
+  - 못 이은 순위는 제목만 준다(가수 이름 = 카드 displayName ?: name, artistId = 카드 가수).
+  - 응답에 `pending: Boolean`(준비 진행 중)을 더했다. 목록이 아직 없으면 예전 검색 결과에 pending만 붙인다.
+- **측정 (로컬, 시험 방은 만들었다가 지움)**
+  - ① DAY6: 첫 검색 뒤 31초에 10곡 중 표지 8곡, 36초에 10곡 모두.
+    - 식별은 25초 안에 끝나고, 표지 저장이 2~4초 더 걸린다. MusicBrainz 초당 1회 × 곡당 2번이 하한이다.
+    - SHINee(병렬 전): 30초 5곡, 47초 8곡.
+  - ② 담기 식별 지연: 보통 순위 식별 호출당 평균은 준비 없음 3,675ms(4건) / 준비 중 2,159ms(4건)로, 늘지 않았다(차이는 MusicBrainz 응답 편차). 같은 시간 낮은 순위는 호출당 5,156ms로 양보했다.
+  - ③ 준비가 끝난 DAY6·SHINee를 다시 검색하면 fetcher 로그 0줄(MusicBrainz·Last.fm 호출 없음), worker 미리 준비 0건.
+- 테스트
+  - fetcher `RateGateTest` 3개
+  - worker `ArtistPrepareIntegrationTest` 갱신(묶음 이어 맡기기, id: 키 목록 복사, READY 순위 재호출 없음, 낮은 순위 요청)
+  - api 3개 다시 작성·1개 추가(목록 응답·pending)
+  - 결과: fetcher 60·worker 105·api 101(건너뜀 1) 통과. 11:53:40 세 모듈 재시작.
