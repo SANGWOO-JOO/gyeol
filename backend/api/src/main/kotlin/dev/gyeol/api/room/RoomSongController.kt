@@ -306,6 +306,11 @@ class RoomSongService(
         val title = body.title?.trim()?.takeIf { it.length in 1..300 } ?: throw ApiException.validation("제목은 1~300자예요")
         val artist = body.artist?.trim()?.takeIf { it.length in 1..300 } ?: throw ApiException.validation("가수는 1~300자예요")
         val mbid = body.mbid?.takeIf { it.isNotBlank() }?.let { runCatching { UUID.fromString(it) }.getOrNull() ?: throw ApiException.validation("mbid 형식이 올바르지 않아요") }
+        // I-74: 검색 줄에 trackId가 없었어도(아직 준비 전이었거나 Last.fm 줄) 그 사이 우리 DB에 같은 곡이 있으면 식별 큐 없이 바로 담는다.
+        // 검색 합치기와 같은 규칙(TrackMerger.mapRemote: mbid → 식별 캐시 "제목|가수 - Topic" → 같은 가수의 제목 표기)
+        merger.mapRemote(listOf(TrackItem(title, artist, mbid?.toString(), null, null, null, null, null))).firstOrNull()?.trackId?.let { known ->
+            return add(ctx, body.copy(trackId = known))
+        }
         if (songs.pendingRequests(me) >= p.maxPendingRequests) throw ApiException.tooMany("TOO_MANY_PENDING", "찾는 중인 노래가 많아요. 잠시 뒤 다시 담아 주세요")
         val today = countToday(me)
         val requestId = songs.createRequest(room.id, me, title, artist, mbid)

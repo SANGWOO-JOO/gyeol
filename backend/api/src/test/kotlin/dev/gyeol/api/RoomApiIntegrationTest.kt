@@ -1660,4 +1660,24 @@ class RoomApiIntegrationTest {
         assertTrue(bad.status == 401 || bad.status == 403, bad.status.toString())
         assertTrue(bad.headers.keys.none { it.equals("set-cookie", true) })
     }
+
+    @Test
+    fun `I-74 제목·가수로 담아도 우리 DB에 같은 곡이 있으면 식별 큐 없이 바로 담는다 - 식별 캐시·제목 표기, 없으면 지금처럼 202`() {
+        val host = newRoom()
+        val a = ArtistInfo(UUID.randomUUID(), "바로가수", "Baro", emptyList())
+        val t = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "바로 담기 노래", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2020-01-01", "Single"))
+        val t2 = identify.upsertTrack(TrackInfo(UUID.randomUUID(), "두 번째 노래", a, UUID.randomUUID(), UUID.randomUUID(), "음반", "2021-01-01", "Single"))
+        // 미리 준비·식별이 남긴 캐시 키 ("제목|가수 - Topic")
+        identify.saveAlias(dev.gyeol.core.identify.AliasKey.of("Baro Song", "바로가수 - Topic"), t, dev.gyeol.core.identify.AliasMethod.RULE, dev.gyeol.core.identify.Query("바로가수", "Baro Song", false))
+        val path = "/api/rooms/${host.rid}/songs"
+        val byAlias = call("POST", path, mapOf("title" to "Baro Song", "artist" to "바로가수"), host.key)
+        assertEquals(201, byAlias.status, "식별 캐시로 바로")
+        assertEquals(t, byAlias.body!!["song"]["trackId"].asLong())
+        val byForm = call("POST", path, mapOf("title" to "두 번째 노래 (Feat. 누군가)", "artist" to "바로가수"), host.key)
+        assertEquals(201, byForm.status, "같은 가수의 제목 표기로 바로")
+        assertEquals(t2, byForm.body!!["song"]["trackId"].asLong())
+        assertEquals(409, call("POST", path, mapOf("title" to "Baro Song", "artist" to "바로가수"), host.key).status, "이미 담은 곡")
+        val unknown = call("POST", path, mapOf("title" to "없는 노래 I-74", "artist" to "바로가수"), host.key)
+        assertEquals(202, unknown.status, "우리 DB에 없으면 지금처럼 식별")
+    }
 }
