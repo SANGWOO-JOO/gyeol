@@ -524,3 +524,20 @@ button.groupHead:focus-visible { outline: 2px solid var(--r-accent-strong); outl
 .headMenuList { position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; min-width: 168px; display: flex; flex-direction: column; padding: 6px; border-radius: 16px; background: rgba(30, 27, 54, .92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, .1); box-shadow: 0 12px 32px rgba(0, 0, 0, .45); }
 .headMenuList button { min-height: 44px; padding: 0 14px; border: 0; border-radius: 10px; background: none; color: var(--r-text); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
 .headMenuList button:hover, .headMenuList button:focus-visible { background: rgba(185, 162, 255, .14); outline: none; }
+
+/* PC 판 너비 조절: 판 왼쪽 경계(지도 오른쪽 끝)의 끌기 손잡이. 접기 버튼(z 4)보다 아래, 지도보다 위 */
+.panelResizer {
+  position: absolute; top: 0; bottom: 0; right: 0; width: 10px; z-index: 3; cursor: col-resize; touch-action: none; outline: none;
+}
+.panelResizer::after { content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 2px; background: transparent; transition: background .15s; }
+.panelResizer:hover::after, .panelResizer:focus-visible::after { background: var(--r-accent-strong); }
+.panelResizer:focus-visible { box-shadow: inset -2px 0 0 var(--r-accent-strong); }
+.sidePanelDragging { transition: none; }
+.sidePanelDragging::after { content: ''; position: absolute; inset: 0; box-shadow: inset 2px 0 0 var(--r-accent-strong); pointer-events: none; }
+
+/* 판이 넓어지면(420px~) 본문을 한 단계 키운다: 13→14px 비율(1.077)로 글자·카드를 함께. 판 자신의 너비는 그대로 */
+.sidePanel { container: room-panel / inline-size; }
+@container room-panel (min-width: 420px) {
+  .sidePanel > * { zoom: 1.077; }
+}
+@media (prefers-reduced-motion: reduce) { .panelResizer::after { transition: none; } }

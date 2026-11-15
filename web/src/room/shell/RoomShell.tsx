@@ -26,7 +26,8 @@ import { HeadMenu } from './HeadMenu'
 import lst from '../galaxy/list.module.css'
 import { PeopleIcon, PlayIcon, RecordIcon, RoomPlanet, ScopeIcon } from './RoomIcons'
 import { memberColor } from '../roomApi'
-import { expandsPanel, readCollapsed, writeCollapsed } from './panelPref'
+import { expandsPanel, panelWidthFor, readCollapsed, readPanelWidth, writeCollapsed, writePanelWidth } from './panelPref'
+import { PanelResizer } from './PanelResizer'
 import s from '../room.module.css'
 import sh from './shell.module.css'
 
@@ -80,6 +81,19 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const [sheet, setSheetRaw] = useState<SheetState>(null)
   // PC 오른쪽 판 접기 (11-14): 이 브라우저에 기억, 탭을 고르거나 가수·내 정보 판이 열리면 저절로 펼침
   const [collapsed, setCollapsedRaw] = useState(readCollapsed)
+  // PC 판 너비 (끌어서 조절, 이 브라우저에 기억). 화면 너비가 바뀌면 범위(320~560, 화면 40%)에 다시 맞춘다
+  const [panelStored, setPanelStored] = useState(readPanelWidth)
+  const [panelDragging, setPanelDragging] = useState(false)
+  const [viewport, setViewport] = useState(() => (typeof window === 'undefined' ? 1440 : window.innerWidth))
+  useEffect(() => {
+    if (!wide) return
+    let f = 0
+    const on = () => { cancelAnimationFrame(f); f = requestAnimationFrame(() => setViewport(window.innerWidth)) }
+    window.addEventListener('resize', on)
+    on()
+    return () => { cancelAnimationFrame(f); window.removeEventListener('resize', on) }
+  }, [wide])
+  const panelWidth = panelWidthFor(viewport, panelStored)
   const setCollapsed = useCallback((v: boolean) => { setCollapsedRaw(v); writeCollapsed(v) }, [])
   /** PC에선 참가자 판이 따로 없고 오른쪽 판의 참가자 탭이다 */
   const setSheet = useCallback((next: SheetState | ((prev: SheetState) => SheetState)) => {
@@ -399,6 +413,11 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
             <Toast toast={toast} onClose={closeToast} wide />
             {/* 판 왼쪽 가장자리(= 지도 오른쪽 끝)에 붙은 접기 손잡이. 판은 스크롤 상자라 그 안에 두면 잘린다 */}
             {!collapsed && (
+              <PanelResizer width={panelWidth} viewport={viewport} controls="room-side-panel"
+                onChange={setPanelStored} onCommit={w => { setPanelStored(w); writePanelWidth(w) }}
+                onReset={() => { setPanelStored(null); writePanelWidth(null) }} onDragging={setPanelDragging} />
+            )}
+            {!collapsed && (
               <button type="button" className={sh.panelToggle} aria-expanded={true} aria-label="오른쪽 판 접기" title="판 접기" onClick={() => setCollapsed(true)}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
               </button>
@@ -424,7 +443,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
               </nav>
             </aside>
           ) : (
-          <aside className={sh.sidePanel} aria-label="자세히">
+          <aside id="room-side-panel" className={`${sh.sidePanel} ${panelDragging ? sh.sidePanelDragging : ''}`} aria-label="자세히" style={{ flexBasis: panelWidth }}>
             <nav className={sh.segTabs} aria-label="판 보기">
               {PANEL_TABS.map(t => (
                 <button key={t} type="button" className={sh.segTab} aria-current={!detail && panelTab === t ? 'page' : undefined} onClick={() => setPanel(t)}>
