@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Planet, RoomMap, RoomSearchItem } from './roomApi'
-import { searchable, searchDelay, addedMessage, appendSearch, artistDisplayName, artistFaceUrl, isNewArtist, showArtistMore, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName } from './roomLogic'
+import type { Planet, RoomMap, RoomSearchItem, TrackItem } from './roomApi'
+import { searchable, searchDelay, addedMessage, appendSearch, artistDisplayName, artistFaceUrl, isNewArtist, showArtistMore, appendSongs, artistCardSub, asSearchItem, canLoadMore, artistEndText, groupByRelease, mergeArtist, artistSongsErrorText, releaseText, scanNotice, scanPollMs, sharedWithText, trackKey, codeMatchDisplay, failText, galaxyOfTrack, genreMixText, giftLine, giftResultText, imageQuota, unlockText, groupByGalaxy, mapCounts, names, planetPeople, searchBadge, songOwners, sourceName, mergeRefresh, artistTint, SEARCH_REFRESH } from './roomLogic'
 
 describe('코드 맞추기 표시 (8-b, 결정 "라")', () => {
   const m = { score: 42, confidence: 'LOW', minSongs: 6, sharedArtistCount: 2, sharedGalaxyCount: 1, sharedSongs: 0 }
@@ -316,5 +316,51 @@ describe('검색 글자 수', () => {
     expect(searchable(' 아이 ')).toBe(true)
     expect(searchDelay('비')).toBe(400)
     expect(searchDelay('아이유')).toBe(300)
+  })
+})
+
+describe('I-72 검색 표지 바꿔 끼우기', () => {
+  const it0 = (title: string, artist = 'SHINee', extra: Partial<TrackItem> = {}): { item: TrackItem; mine: boolean; sameSong: string[]; sameArtist: string[] } =>
+    ({ item: { title, artist, mbid: null, listeners: null, releaseYear: null, trackId: null, coverUrl: null, ...extra }, mine: false, sameSong: [], sameArtist: [] })
+
+  it('같은 제목·가수 줄에 표지·연도가 생기면 그 줄만 바꾼다', () => {
+    const prev = [it0('Lucifer', 'SHINee', { trackId: 1, coverUrl: 'a', releaseYear: 2010 }), it0('A-Yo'), it0('Life')]
+    const fresh = [prev[0], it0('A-Yo', 'SHINee', { trackId: 2, coverUrl: 'b', releaseYear: 2016 }), it0('Life')]
+    const out = mergeRefresh(prev, fresh)
+    expect(out.map(r => r.item.trackId)).toEqual([1, 2, null])
+    expect(out[0]).toBe(prev[0])
+    expect(out[2]).toBe(prev[2])
+  })
+  it('바뀐 게 없으면 같은 배열을 돌려준다 (다시 그리지 않음)', () => {
+    const prev = [it0('A-Yo')]
+    expect(mergeRefresh(prev, [it0('A-Yo')])).toBe(prev)
+  })
+  it('db+toplist면 제목이 달라도 같은 순위 자리로 맞춘다 (쪽 offset 포함)', () => {
+    const prev = [...Array.from({ length: 10 }, (_, i) => it0(`p1-${i}`)), it0('산소같은 너'), it0('Ring Ding Dong')]
+    const fresh = [it0('산소같은 너 (Love Like Oxygen)', 'SHINee', { trackId: 9, coverUrl: 'c' }), it0('Ring Ding Dong')]
+    expect(mergeRefresh(prev, fresh, 10, false)[10].item.trackId).toBeNull()
+    const out = mergeRefresh(prev, fresh, 10, true)
+    expect(out[10].item.trackId).toBe(9)
+    expect(out[11]).toBe(prev[11])
+  })
+  it('순위 자리 맞추기는 가수가 같을 때만, 이미 다른 줄에 있는 곡은 두 번 넣지 않는다', () => {
+    const prev = [it0('X', 'IU'), it0('Y'), it0('Z', 'SHINee', { trackId: 5 })]
+    const fresh = [it0('X2', 'SHINee', { trackId: 7, coverUrl: 'c' }), it0('Y2', 'SHINee', { trackId: 5, coverUrl: 'd' }), it0('Z', 'SHINee', { trackId: 5, coverUrl: 'd' })]
+    const out = mergeRefresh(prev, fresh, 0, true)
+    expect(out[0]).toBe(prev[0])
+    expect(out[1]).toBe(prev[1])
+    expect(out[2].item.coverUrl).toBe('d')
+  })
+  it('식별은 됐는데 표지가 늦게 생긴 줄도 바꾼다', () => {
+    const prev = [it0('A-Yo', 'SHINee', { trackId: 2 })]
+    expect(mergeRefresh(prev, [it0('A-Yo', 'SHINee', { trackId: 2, coverUrl: 'b' })])[0].item.coverUrl).toBe('b')
+  })
+  it('artistTint: 같은 가수는 같은 색, "- Topic"·대소문자는 무시, 가수마다 다른 색', () => {
+    expect(artistTint('SHINee')).toBe(artistTint('shinee - Topic'))
+    expect(artistTint('SHINee')).not.toBe(artistTint('YOUNHA'))
+    expect(artistTint(null)).toMatch(/^hsl\(/)
+  })
+  it('다시 받기는 2.5초 간격 최대 2번', () => {
+    expect(SEARCH_REFRESH).toEqual({ delayMs: 2500, max: 2 })
   })
 })

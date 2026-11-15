@@ -335,3 +335,50 @@ export function searchable(q: string): boolean {
 }
 /** 검색 대기 시간(ms): 한 글자는 조금 길게(한글 조합 ㅂ→비 동안 요청이 늘지 않게) */
 export const searchDelay = (q: string) => (Array.from(q.trim()).length === 1 ? 400 : 300)
+
+/** I-72 W-3: 표지가 없는 곡의 자리 레코드 라벨 색. 같은 가수는 늘 같은 색 (이름 해시 → 보라~분홍~하늘 범위의 밝은 색) */
+export function artistTint(name: string | null | undefined): string {
+  const s = (name ?? '').replace(/\s*-\s*topic$/i, '').trim().toLowerCase()
+  let h = 2166136261
+  for (const ch of s) { h ^= ch.codePointAt(0)!; h = Math.imul(h, 16777619) }
+  const u = h >>> 0
+  const hue = (200 + (u % 160)) % 360 // 200(하늘)~360(분홍)
+  return `hsl(${hue} ${58 + ((u >>> 8) % 18)}% ${66 + ((u >>> 16) % 10)}%)`
+}
+
+const looseKey = (t: { title: string; artist: string }) => `${t.title}|${t.artist}`.toLowerCase().replace(/\s+/g, '')
+const hasCover = (t: TrackItem) => !!t.coverUrl || !!t.coverPath
+/** fresh가 prev보다 나아졌나: 식별(trackId)·표지·연도 중 하나라도 새로 생김 */
+const better = (p: TrackItem, f: TrackItem) =>
+  (p.trackId == null && f.trackId != null) || (!hasCover(p) && hasCover(f)) || (p.releaseYear == null && f.releaseYear != null)
+
+/**
+ * I-72 W-1: 준비 중(pending) 검색을 조용히 다시 받았을 때, 받은 쪽(fresh)으로 기존 목록(prev)에서 나아진 줄만 바꿔 끼운다.
+ * - 같은 곡(trackId) 또는 같은 제목·가수 줄
+ * - byRank(source=db+toplist: items가 Last.fm 순위 순)면 같은 순위 자리(offset + i)도 본다 (DB 제목이 Last.fm 제목과 다를 수 있어서). 가수가 같을 때만
+ * 순서·길이는 그대로, 다른 줄이 이미 가진 곡(trackId)은 두 번 넣지 않는다. 바뀐 게 없으면 prev를 그대로 돌려준다
+ */
+export function mergeRefresh<T extends { item: TrackItem }>(prev: T[], fresh: T[], offset = 0, byRank = false): T[] {
+  const byKey = new Map(fresh.map(f => [looseKey(f.item), f]))
+  const byId = new Map(fresh.filter(f => f.item.trackId != null).map(f => [f.item.trackId, f]))
+  const taken = new Set(prev.map(p => p.item.trackId).filter(id => id != null))
+  let changed = false
+  const out = prev.map((p, i) => {
+    let f = (p.item.trackId != null ? byId.get(p.item.trackId) : undefined) ?? byKey.get(looseKey(p.item))
+    if ((!f || !better(p.item, f.item)) && byRank && p.item.trackId == null) {
+      const r = fresh[i - offset]
+      if (r && r.item.artist.toLowerCase() === p.item.artist.toLowerCase()) f = r
+    }
+    if (!f || !better(p.item, f.item)) return p
+    if (f.item.trackId != null && f.item.trackId !== p.item.trackId) {
+      if (taken.has(f.item.trackId)) return p
+      taken.add(f.item.trackId)
+    }
+    changed = true
+    return f
+  })
+  return changed ? out : prev
+}
+
+/** I-72 W-1: 준비 중 검색을 다시 받는 간격(ms)과 횟수 */
+export const SEARCH_REFRESH = { delayMs: 2500, max: 2 } as const

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { memberColor, roomApi, RoomApiError, type MemberView, type RoomMap, type RoomSearchItem, type SearchArtist } from '../roomApi'
-import { searchable, searchDelay, appendSearch, artistCardSub, artistDisplayName, artistFaceUrl, searchBadge, showArtistMore, sharedWithText, trackKey } from '../roomLogic'
+import { searchable, searchDelay, appendSearch, mergeRefresh, SEARCH_REFRESH, artistTint, artistCardSub, artistDisplayName, artistFaceUrl, searchBadge, showArtistMore, sharedWithText, trackKey } from '../roomLogic'
 import { Spinner } from '../components/RoomPage'
 import { ArtistFace } from './ArtistFace'
 import { AllSongsButton } from './AllSongsButton'
@@ -51,6 +51,25 @@ export function SearchPanel({
   const [loadingMore, setLoadingMore] = useState(false)
   const [moreError, setMoreError] = useState<string | null>(null)
   const searchGen = useRef(0)
+  // I-72 W-1: 준비 중(pending) 검색을 조용히 다시 받는 타이머. 검색어가 바뀌거나 화면을 떠나면 모두 취소
+  const refreshTimers = useRef<number[]>([])
+  // 화면에 띄운 목록의 출처. 둘 다 db+toplist(순위 순)일 때만 순위 자리로 맞춘다 (첫 응답이 db+lastfm이면 순서가 달라 엉뚱한 곡이 끼워짐)
+  const listSource = useRef<string | null>(null)
+  const cancelRefresh = () => { refreshTimers.current.forEach(id => clearTimeout(id)); refreshTimers.current = [] }
+  useEffect(() => cancelRefresh, [])
+  function scheduleRefresh(q: string, pageNo: number, gen: number, n = 1) {
+    const id = window.setTimeout(async () => {
+      if (gen !== searchGen.current) return
+      try {
+        const r = await roomApi.search(roomId, q, undefined, pageNo)
+        if (gen !== searchGen.current) return
+        // 순위 자리 맞추기: 한 쪽 10곡 (roomApi SearchResponse 주석)
+        setItems(prev => (prev ? mergeRefresh(prev, r.items, (pageNo - 1) * 10, r.source === 'db+toplist' && listSource.current === 'db+toplist') : prev))
+        if (r.pending && n < SEARCH_REFRESH.max) scheduleRefresh(q, pageNo, gen, n + 1)
+      } catch { /* 조용히 다시 받기: 실패해도 지금 목록 그대로 */ }
+    }, SEARCH_REFRESH.delayMs)
+    refreshTimers.current.push(id)
+  }
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
@@ -58,6 +77,7 @@ export function SearchPanel({
   useEffect(() => {
     const q = query.trim()
     const gen = ++searchGen.current
+    cancelRefresh()
     setPage(1); setHasMore(false); setLoadingMore(false); setMoreError(null)
     // 한글 조합 중(ㅂ→비)에는 보내지 않는다: 조합이 끝나면 다시 이 효과가 돈다
     if (composing) return
@@ -68,7 +88,9 @@ export function SearchPanel({
       roomApi.search(roomId, q, ac.signal)
         .then(r => {
           if (gen !== searchGen.current) return
+          listSource.current = r.source
           setItems(r.items); setArtist(r.artist ?? null); setPage(r.page ?? 1); setHasMore(!!r.hasMore); setError(null)
+          if (r.pending) scheduleRefresh(q, r.page ?? 1, gen)
           // 결과가 있는 검색어만 최근 검색어로
           if (r.items.length > 0 || r.artist) setRecent(prev => { const next = pushRecent(prev, q); writeRecent(next); return next })
         })
@@ -88,6 +110,7 @@ export function SearchPanel({
       if (gen !== searchGen.current) return // 그사이 검색어가 바뀜
       // 2쪽부터 artist는 null: 1쪽 가수 카드를 그대로 둔다
       setItems(prev => appendSearch(prev ?? [], r.items))
+      if (r.pending) scheduleRefresh(q, r.page ?? page + 1, gen)
       setPage(r.page ?? page + 1); setHasMore(!!r.hasMore && r.items.length > 0) // 빈 쪽이 오면(1쪽 hasMore는 추정값) 더보기를 숨긴다
     } catch (err) {
       if (gen === searchGen.current) setMoreError(err instanceof RoomApiError ? err.message : '더 불러오지 못했어요')
@@ -205,7 +228,7 @@ export function SearchRow({ roomId, r, added, pending, busy, onAdd, rank, sub: s
   return (
     <li className={`${sh.row} ${(goldRing || badge.kind === 'sameSong') && r.sameSong.length > 0 ? sh.rowGold : ''}`}>
       {rank != null && <span className={sh.rank}>{rank}</span>}
-      <CoverImg roomId={roomId} cover={t} className={sh.cover} />
+      <CoverImg roomId={roomId} cover={t} className={sh.cover} tint={artistTint(t.artist)} />
       <span className={sh.rowText}>
         <span className={sh.songTitle}>{t.title}</span>
         {sub && <span className={sh.songSub}>{sub}</span>}
