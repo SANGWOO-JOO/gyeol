@@ -1,4 +1,6 @@
 /* 내 정보·방 설정·멤버 관리 개편 (11-14): 신청서 대신 사람 색 고리 얼굴 + 유리 카드. 위험 동작은 맨 아래 장미색 구역에 따로 */
+/* 작은 설명 글은 낱말 단위로 줄바꿈 (375px에서 '들 / 어와요'처럼 끊기던 것) */
+.help, .doorCard small { word-break: keep-all; }
 .ring { flex: none; display: inline-flex; border-radius: 50%; }
 .sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; font-size: 12px; color: var(--r-text-2); }
 .chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; background: rgba(255, 255, 255, .07); color: var(--r-text); white-space: nowrap; }
@@ -99,3 +101,53 @@
 .loss li svg { flex: none; margin-top: 2px; color: #e3a6b8; }
 .lossStrong { color: #f2c4d1 !important; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .switch, .switch::after, .faceChoice > span { transition: none; } }
+
+/* Landing의 작은 행성, 이름표와 스티커 앨범 */
+.pocketPlanet { width:72px; height:72px; flex:none; display:inline-flex; position:relative; }
+.pocketPlanet > svg { width:100%; height:100%; overflow:visible; }
+.planetFloat { animation:ac-float 5s ease-in-out infinite; transform-origin:center; }
+.planetSticker { position:absolute; inset:11px; display:flex; border-radius:50%; box-shadow:0 0 0 3px #eee4ff, 0 4px 12px #14122555; transform:rotate(-7deg); }
+.nameLine { display:flex; align-items:center; gap:6px; min-width:0; }
+.nameTag { display:inline-block; max-width:100%; min-width:0; padding:5px 12px; border:1px solid #b9a2ff40; border-radius:18px 18px 18px 5px; background:#27213e; color:#e6dcff; font-size:17px; line-height:1.5; overflow-wrap:anywhere; font-weight:500; }
+.pencil { width:36px; height:40px; flex:none; border:0; background:none; color:#c8b6ee; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+.pencil:focus-visible, .editCancel:focus-visible, .deleteLink:focus-visible { outline:2px solid #b9a2ff; outline-offset:2px; border-radius:10px; }
+.inlineEdit { display:flex; flex-direction:column; gap:6px; padding:12px; border-radius:18px; background:#b9a2ff09; border:1px solid #b9a2ff25; }
+.editCancel { align-self:flex-end; min-height:36px; padding:0 12px; border:0; background:none; color:var(--r-text-2); font:inherit; font-size:12px; cursor:pointer; }
+.stickerBook { position:relative; display:flex; flex-direction:column; gap:12px; padding:20px 16px 18px; border:1px solid #b9a2ff30; border-radius:8px 24px 24px 8px; background:radial-gradient(circle at 1px 1px, #e6dcff13 1px, transparent 1.5px) 0 0 / 14px 14px, linear-gradient(135deg, #b9a2ff10, #e3a6b808); box-shadow:inset 5px 0 0 #b9a2ff0c; }
+.albumLabel { color:#b6a5ce; font-size:11px; letter-spacing:.04em; line-height:1.6; }
+.collectionCount { margin-left:auto; color:#c8bfd9; font-size:11px; font-weight:400; }
+.stickerBook .faces { gap:10px; padding:8px 2px; }
+.stickerBook .faceChoice { width:62px; height:68px; border-radius:18px; background:#e6dcff08; border:1px solid #e6dcff12; }
+.stickerBook .faceChoice:nth-child(even) { transform:rotate(4deg); }
+.stickerBook .faceChoice:nth-child(odd) { transform:rotate(-3deg); }
+.stickerBook .faceChoice .pocketPlanet { width:48px; height:48px; }
+.stickerBook .nextSlot { width:62px; height:68px; border-radius:18px; background:#14122522; }
+.progressLabel { display:flex; justify-content:space-between; color:#e6dcff; font-size:12px; }
+.progressLabel > span { color:#ffe3b8; }
+.progressTrack { height:4px; border-radius:8px; background:#b9a2ff18; overflow:hidden; }
+.progressTrack > span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg, #b9a2ff, #e3a6b8, #ffe3b8); }
+.leaveArea { padding:4px 2px; }
+.leaveArea > p { margin:8px 0 0; }
+.roomIdentity { display:flex; flex-direction:column; gap:8px; padding:0 2px 8px; }
+.doorCard { display:flex; flex-direction:column; gap:16px; padding:18px 14px; border-radius:24px; background:linear-gradient(135deg, #b9a2ff12, #e3a6b808); border:1px solid #b9a2ff25; }
+.pocketLock { width:44px; height:52px; flex:none; overflow:visible; }
+.shackle { transform-origin:14px 25px; transform:translateY(-4px) rotate(-25deg); transition:transform .3s ease; }
+.pocketLock[data-closed='true'] .shackle { transform:translateY(0) rotate(0); }
+.doorCard .seats { gap:10px; justify-content:center; }
+.tinyOn circle { fill:#d2bdf1; stroke:#e6dcff; }
+.tinyOn ellipse { stroke:#b9a2ff; }
+.tinyOn path { stroke:#665185; stroke-linecap:round; stroke-width:1.4; }
+.tinyOn:nth-child(even) circle { fill:#e3b7cd; }
+.tinyOff circle, .tinyOff ellipse { stroke:#b9a2ff55; stroke-dasharray:2 3; }
+.tinyOff path { opacity:0; }
+.deleteArea { display:flex; flex-direction:column; align-items:center; gap:4px; padding:14px 8px 0; text-align:center; }
+.deleteArea > p { margin:0; }
+.deleteLink { min-height:44px; padding:0 12px; border:0; background:none; color:#d6a7b6; font:inherit; font-size:12px; text-decoration:underline; text-underline-offset:4px; cursor:pointer; }
+@keyframes ac-float { 0%,100% { transform:translateY(0) rotate(-2deg); } 50% { transform:translateY(-2px) rotate(2deg); } }
+@media (prefers-reduced-motion:reduce) { .planetFloat { animation:none; } .shackle { transition:none; } }
+/* 선택과 스위치의 색은 즉시 바꾸고, 움직임만 전환한다. */
+.stickerBook .faceChoice > span, .doorCard .switch { transition:none; }
+.doorCard .switch::after { transition:transform .2s; }
+.roomIdentity .nameLine { width:100%; }
+.doorCard .seats > svg { flex:none; }
+@media (prefers-reduced-motion:reduce) { .doorCard .switch::after { transition:none; } }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { memberColor, roomApi, RoomApiError, type GiftsResponse, type MeView, type MemberRow, type RoomSummary } from '../roomApi'
 import { Avatar } from '../components/Avatar'
 import { Spinner } from '../components/RoomPage'
@@ -26,16 +26,51 @@ const Icon = ({ d, size = 18 }: { d: ReactNode; size?: number }) => (
 )
 const KEY = <><circle cx="8" cy="15" r="4" /><path d="M11 12l9-9M17 6l3 3M15 8l2 2" /></>
 const PEN = <path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" />
-const DOOR = <><path d="M4 21h16M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" /><circle cx="14.5" cy="12" r=".9" fill="currentColor" /></>
 const SPARK = <path d="M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6z" />
 const LOCK = <><rect x="5" y="11" width="14" height="10" rx="2.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>
 const DOT = <circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none" />
+
+/** Landing과 같은 작은 고리 행성. 받은 얼굴은 스티커로 그대로 보여 준다. */
+function PocketPlanet({ colorIdx, nickname, characterId }: { colorIdx: number; nickname: string; characterId?: number | null }) {
+  const id = `ac-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
+  const color = memberColor(colorIdx).bg
+  return <span className={a.pocketPlanet}>
+    <svg viewBox="0 0 84 80" fill="none" aria-hidden="true">
+      <defs><linearGradient id={id} x1="20" y1="12" x2="62" y2="68" gradientUnits="userSpaceOnUse"><stop stopColor="#F5EEFF" /><stop offset="1" stopColor={color} /></linearGradient></defs>
+      <g className={a.planetFloat}>
+        <ellipse cx="42" cy="40" rx="38" ry="12" transform="rotate(-23 42 40)" stroke={color} strokeOpacity=".6" />
+        <circle cx="42" cy="39" r="27" fill={`url(#${id})`} stroke="#E6DCFF" strokeOpacity=".6" />
+        <path d="M24 29Q28 20 37 20" stroke="white" strokeOpacity=".6" strokeWidth="2" strokeLinecap="round" />
+        <g stroke="#665185" strokeWidth="1.8" strokeLinecap="round"><path d="M35 36v3M49 36v3M38 45q4 4 8 0" /></g>
+        <g fill="#D78FA9" opacity=".65"><ellipse cx="29" cy="44" rx="4" ry="2" /><ellipse cx="55" cy="44" rx="4" ry="2" /></g>
+        <path d="M8 51C19 62 65 41 76 28" stroke={color} strokeWidth="3" strokeLinecap="round" />
+        <path d="M10 51C22 59 62 41 73 30" stroke="#F5EEFF" strokeOpacity=".7" strokeLinecap="round" />
+      </g>
+      <path d="M69 7l2 5 5 2-5 2-2 5-2-5-5-2 5-2ZM14 64l1 3 3 1-3 1-1 3-1-3-3-1 3-1Z" fill="#FFE3B8" />
+    </svg>
+    {characterId != null && <span className={a.planetSticker}><Avatar nickname={nickname} colorIdx={colorIdx} characterId={characterId} size={50} /></span>}
+  </span>
+}
+
+function PencilButton({ expanded, onClick, label }: { expanded: boolean; onClick: () => void; label: string }) {
+  return <button type="button" className={a.pencil} aria-label={label} aria-expanded={expanded} onClick={onClick}><Icon d={PEN} size={15} /></button>
+}
+
+function PocketLock({ closed }: { closed: boolean }) {
+  return <svg className={a.pocketLock} data-closed={closed} viewBox="0 0 48 56" fill="none" aria-hidden="true">
+    <path className={a.shackle} d="M14 25V15a10 10 0 0 1 20 0v10" stroke="#E6DCFF" strokeWidth="4" strokeLinecap="round" />
+    <rect x="6" y="23" width="36" height="29" rx="11" fill="#B9A2FF" />
+    <path d="M18 35v2m12-2v2m-9 6q3 2 6 0" stroke="#514064" strokeWidth="1.8" strokeLinecap="round" />
+    <path d="M38 6v6m-3-3h6" stroke="#FFE3B8" strokeLinecap="round" />
+  </svg>
+}
 
 /** 6-h 내 정보: 닉네임 바꾸기, 받은 캐릭터로 얼굴 고르기, 이 기기에서 나가기 */
 export function MeSheet({ roomId, me, onClose, onRenamed, onLeft, onError, show }: {
   roomId: string; me: MeView; onClose: () => void; onRenamed: () => void; onLeft: () => void; onError: (e: unknown) => boolean; show: Show
 }) {
   const [nickname, setNickname] = useState(me.member.nickname)
+  const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [leaving, setLeaving] = useState(false)
@@ -50,6 +85,7 @@ export function MeSheet({ roomId, me, onClose, onRenamed, onLeft, onError, show 
     try {
       await roomApi.rename(roomId, nick)
       show({ title: '닉네임을 바꿨어요', sub: `${nick} · 친구들 화면에도 바로 바뀌어요` })
+      setEditing(false)
       onRenamed()
     } catch (err) {
       if (onError(err)) return
@@ -66,37 +102,39 @@ export function MeSheet({ roomId, me, onClose, onRenamed, onLeft, onError, show 
   }
 
   return (
-    <Sheet title={me.member.nickname} onClose={onClose}
-      head={<RingFace nickname={me.member.nickname} colorIdx={me.member.colorIdx} characterId={me.member.avatarCharacterId} size={56} />}
+    <Sheet title={<span className={a.nameLine}><span className={a.nameTag}>{me.member.nickname}</span><PencilButton label="이름 바꾸기" expanded={editing} onClick={() => { setNickname(me.member.nickname); setError(null); setEditing(v => !v) }} /></span>} onClose={onClose}
+      head={<PocketPlanet nickname={me.member.nickname} colorIdx={me.member.colorIdx} characterId={me.member.avatarCharacterId} />}
       sub={<span className={a.sub}>
         <span className={a.chip}><i style={{ background: color }} aria-hidden="true" />내 색</span>
         <span className={a.chip}>노래 {me.songCount}곡</span>
         <span>{me.roomName}</span>
       </span>}>
-      <form className={a.card} style={{ ['--tint' as string]: color }} onSubmit={save} noValidate>
-        <h3 className={a.cardHead}><Icon d={PEN} />이름 바꾸기</h3>
+      {editing && <form className={a.inlineEdit} style={{ ['--tint' as string]: color }} onSubmit={save} noValidate>
+        
         <div className={a.field}>
           <label htmlFor="me-nick" className={a.label}>닉네임</label>
           <div className={a.row}>
-            <input id="me-nick" className={a.input} maxLength={12} value={nickname} autoComplete="off" aria-invalid={!!error || undefined}
+            <input id="me-nick" autoFocus className={a.input} maxLength={12} value={nickname} autoComplete="off" aria-invalid={!!error || undefined}
               aria-describedby="me-nick-help" onChange={e => setNickname(e.target.value)} />
             <button type="submit" className={a.save} disabled={busy || unchanged}>{busy ? <Spinner size={14} /> : '저장'}</button>
           </div>
-          {error ? <p className={a.error} role="alert" id="me-nick-help">{error}</p> : <span className={a.help} id="me-nick-help">12자까지, 이 우주 안에서 겹치지 않게 지어요. 친구들 화면에도 바로 바뀌어요</span>}
+          {error ? <p className={a.error} role="alert" id="me-nick-help">{error}</p> : <span className={a.help} id="me-nick-help">12자까지 · 이 우주에서 하나뿐인 이름. 친구들에게 바로 보여요</span>}
         </div>
-      </form>
+        <button type="button" className={a.editCancel} disabled={busy} onClick={() => { setEditing(false); setError(null) }}>취소</button>
+      </form>}
 
       <Characters roomId={roomId} me={me} onChanged={onRenamed} onError={onError} show={show} />
 
-      <div className={a.card}>
+      <div className={a.leaveArea}>
         <button type="button" className={a.action} onClick={leave} disabled={leaving}>
           <span className={a.icon}><Icon d={KEY} /></span>
           <span className={a.grow}>
             이 기기에서 나가기
-            <small>친구 폰이나 PC에서 들어왔다면 눌러 주세요. 내 노래는 그대로 남고, 다시 들어올 땐 "{iAm(me.member.nickname)}"와 4자리 비밀번호면 돼요</small>
+            <small>빌린 기기라면 여기서 나가요</small>
           </span>
           {leaving ? <Spinner size={16} /> : <Icon d={<path d="M9 6l6 6-6 6" />} size={16} />}
         </button>
+        <p className={a.help}>노래는 남아요. 다시 올 땐 “{iAm(me.member.nickname)}”와 4자리 비밀번호로 들어와요.</p>
       </div>
       <LegalLinks />
     </Sheet>
@@ -131,12 +169,13 @@ function Characters({ roomId, me, onChanged, onError, show }: { roomId: string; 
   const current = data.avatarCharacterId
   const sum = data.summary
   return (
-    <div className={a.card}>
-      <h3 className={a.cardHead}><Icon d={SPARK} />내 얼굴</h3>
-      <p className={a.cardNote}>노래 50곡마다 내 취향으로 그린 캐릭터를 하나씩 받아요. 누르면 그 얼굴로 바뀌어요</p>
+    <div className={a.stickerBook}>
+      <span className={a.albumLabel}>모은 얼굴</span>
+      <h3 className={a.cardHead}><Icon d={SPARK} />내 얼굴 <span className={a.collectionCount}>{data.characters.length + 1}개 모았어요</span></h3>
+      <p className={a.cardNote}>50곡마다 도착하는 내 취향 얼굴. 마음에 드는 스티커를 눌러 달아 봐요.</p>
       <div className={a.faces} role="group" aria-label="얼굴 고르기">
         <button type="button" className={a.faceChoice} aria-pressed={current == null} aria-label="기본 얼굴" disabled={busy} onClick={() => choose(null)}>
-          <span style={{ borderRadius: '50%', display: 'inline-flex' }}><Avatar nickname={me.member.nickname} colorIdx={me.member.colorIdx} size={48} /></span>
+          <span style={{ borderRadius: '50%', display: 'inline-flex' }}><PocketPlanet nickname={me.member.nickname} colorIdx={me.member.colorIdx} /></span>
         </button>
         {data.characters.map((c, i) => (
           <button key={c.id} type="button" className={a.faceChoice} aria-pressed={current === c.id} aria-label={`받은 캐릭터 ${i + 1}${c.isFallback ? ' (기본 캐릭터)' : ''}`} disabled={busy} onClick={() => choose(c.id)}>
@@ -145,6 +184,8 @@ function Characters({ roomId, me, onChanged, onError, show }: { roomId: string; 
         ))}
         <span className={a.nextSlot} role="img" aria-label={`다음 캐릭터까지 ${sum.remaining}곡`}>+{sum.remaining}곡</span>
       </div>
+      <span className={a.progressLabel}>다음 얼굴까지 {sum.remaining}곡 <span>✧</span></span>
+      <span className={a.progressTrack} aria-hidden="true"><span style={{ width: `${Math.max(0, Math.min(100, (50 - sum.remaining) * 2))}%` }} /></span>
       {sum.receivedToday && <span className={a.goldNote}>오늘 선물은 받았어요. {sum.nextMilestone}곡이 되면 {sum.waiting > 0 ? '내일 열려요' : '다음 날 열려요'}</span>}
       <span className={a.help}>노래를 빼도 받은 캐릭터는 남아요</span>
     </div>
@@ -250,6 +291,7 @@ export function SettingsSheet({ roomId, summary, memberCount, songCount, onClose
   onClose: () => void; onChanged: () => void; onDeleted: () => void; onError: (e: unknown) => boolean; show: Show
 }) {
   const [name, setName] = useState(summary.name)
+  const [editing, setEditing] = useState(false)
   const [closed, setClosed] = useState(summary.status === 'CLOSED')
   const [busy, setBusy] = useState<'name' | 'closed' | 'delete' | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -265,6 +307,7 @@ export function SettingsSheet({ roomId, summary, memberCount, songCount, onClose
     try {
       await roomApi.patchRoom(roomId, { name: n })
       show({ title: '우주 이름을 바꿨어요', sub: n })
+      setEditing(false)
       onChanged()
     } catch (err) {
       if (!onError(err)) setError(errText(err, '바꾸지 못했어요'))
@@ -320,37 +363,37 @@ export function SettingsSheet({ roomId, summary, memberCount, songCount, onClose
 
   return (
     <Sheet title="방 설정" onClose={onClose} sub={<span className={a.sub}><span className={a.chip}>노래 {songCount}곡</span><span className={a.chip}>{memberCount} / {summary.capacity}명</span></span>}>
-      <form className={a.card} onSubmit={saveName} noValidate>
-        <h3 className={a.cardHead}><Icon d={PEN} />우주 이름</h3>
+      <div className={a.roomIdentity}><span className={a.albumLabel}>우리 우주 이름</span><div className={a.nameLine}><span className={a.nameTag}>{summary.name}</span><PencilButton label="우주 이름 바꾸기" expanded={editing} onClick={() => { setName(summary.name); setError(null); setEditing(v => !v) }} /></div></div>
+      {editing && <form className={a.inlineEdit} onSubmit={saveName} noValidate>
         <div className={a.field}>
           <label htmlFor="room-rename" className={a.label}>이름</label>
           <div className={a.row}>
-            <input id="room-rename" className={a.input} maxLength={30} value={name} autoComplete="off" aria-invalid={!!error || undefined}
+            <input id="room-rename" autoFocus className={a.input} maxLength={30} value={name} autoComplete="off" aria-invalid={!!error || undefined}
               aria-describedby={error ? 'room-rename-err' : undefined} onChange={e => setName(e.target.value)} />
             <button type="submit" className={a.save} disabled={busy !== null || name.trim() === summary.name}>{busy === 'name' ? <Spinner size={14} /> : '저장'}</button>
           </div>
           {error && <p className={a.error} role="alert" id="room-rename-err">{error}</p>}
         </div>
-      </form>
+        <button type="button" className={a.editCancel} disabled={busy !== null} onClick={() => { setEditing(false); setError(null) }}>취소</button>
+      </form>}
 
-      <div className={a.card}>
+      <div className={a.doorCard}>
         <label className={a.action} style={{ cursor: 'pointer' }}>
-          <span className={a.icon}><Icon d={DOOR} /></span>
+          <PocketLock closed={closed} />
           <span className={a.grow}>
-            새 참가 마감
-            <small>켜면 링크로 새로 들어올 수 없어요. 이미 들어온 사람은 그대로예요</small>
+            문 잠그기
+            <small>새 친구 그만 받기 · 먼저 온 친구는 언제든 들어와요</small>
           </span>
           <input type="checkbox" role="switch" className={a.switch} checked={closed} disabled={busy !== null} onChange={e => toggleClosed(e.target.checked)} />
         </label>
         <div className={a.seats} role="img" aria-label={`지금 ${memberCount}명, 최대 ${summary.capacity}명`}>
-          {Array.from({ length: summary.capacity }, (_, i) => <i key={i} className={i < memberCount ? a.seatOn : a.seatOff} />)}
+          {Array.from({ length: summary.capacity }, (_, i) => <svg key={i} className={i < memberCount ? a.tinyOn : a.tinyOff} width="34" height="30" viewBox="0 0 34 30" fill="none" aria-hidden="true"><circle cx="17" cy="15" r="10" /><ellipse cx="17" cy="15" rx="16" ry="5" transform="rotate(-25 17 15)" /><path d="M14 13v2m6-2v2m-5 4q2 2 4 0" /></svg>)}
         </div>
       </div>
 
-      <div className={a.danger}>
-        <h3 className={a.dangerHead}>우주 삭제</h3>
-        <p className={a.cardNote}>삭제하면 모든 노래와 참가자 정보가 지워져요. 확인을 한 번 더 받아요</p>
-        <button type="button" className={a.dangerOpen} onClick={() => setConfirmDelete(true)}>우주 삭제하기</button>
+      <div className={a.deleteArea}>
+        <p className={a.help}>모든 노래와 참가자 정보가 지워져요. 다음 화면에서 한 번 더 확인해요.</p>
+        <button type="button" className={a.deleteLink} onClick={() => setConfirmDelete(true)}>우주 삭제하기</button>
       </div>
     </Sheet>
   )
