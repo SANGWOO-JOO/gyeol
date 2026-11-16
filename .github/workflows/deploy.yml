@@ -1,0 +1,71 @@
+# 단일 서버 배포 (cicd.md 2절 deploy·rollback, single-server-terraform.md 6절)
+#  - release.yml이 이미지를 올린 뒤 부른다(workflow_call)
+#  - 롤백·다시 배포: Actions 화면에서 태그를 넣고 직접 실행(workflow_dispatch). 이미지만 바뀌고 DB는 앞으로만 간다
+# GitHub에 AWS 키를 두지 않는다: OIDC → gyeol-deploy 역할(Environment production에서만 맡을 수 있음) → 서버에 SSM send-command
+# 저장소 Variables: AWS_DEPLOY_ROLE_ARN, AWS_REGION, SERVER_INSTANCE_ID (Terraform single 출력 github_variables)
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      tag: { type: string, required: true }
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 배포할 태그 (예 v1.0.0). GHCR에 이미지가 있어야 한다
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: 서버 배포 (${{ inputs.tag }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://gyeol.blog
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TAG: ${{ inputs.tag }}
+      INSTANCE: ${{ vars.SERVER_INSTANCE_ID }}
+    steps:
+      - name: 태그 형식
+        run: echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9.]+)?$'
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: 서버에서 gyeol-deploy 실행 (SSM)
+        run: |
+          ID=$(aws ssm send-command --instance-ids "$INSTANCE" --document-name AWS-RunShellScript \
+            --comment "gyeol deploy $TAG" --timeout-seconds 120 \
+            --parameters "{\"commands\":[\"/usr/local/bin/gyeol-deploy $TAG\"],\"executionTimeout\":[\"1800\"]}" \
+            --query Command.CommandId --output text)
+          echo "command $ID"
+          # 끝날 때까지 10초마다 (최대 약 28분)
+          for _ in $(seq 1 170); do
+            STATUS=$(aws ssm get-command-invocation --command-id "$ID" --instance-id "$INSTANCE" --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in Pending|InProgress|Delayed) sleep 10 ;; *) break ;; esac
+          done
+          aws ssm get-command-invocation --command-id "$ID" --instance-id "$INSTANCE" --query StandardOutputContent --output text | tail -40
+          ERR=$(aws ssm get-command-invocation --command-id "$ID" --instance-id "$INSTANCE" --query StandardErrorContent --output text | tail -20)
+          [ -n "$ERR" ] && { echo "--- stderr"; echo "$ERR"; }
+          echo "상태: $STATUS"
+          [ "$STATUS" = Success ]
+      - name: 밖에서 확인 (HTTPS 웹·API)
+        run: |
+          for _ in $(seq 1 18); do
+            curl -sf -o /dev/null https://gyeol.blog/ && break; sleep 10
+          done
+          curl -sf -o /dev/null -w "웹 %{http_code} %{time_total}s\n" https://gyeol.blog/
+          # 공개 API 하나: 없는 방은 404 JSON (api가 살아 있고 /api 경로가 api로 가는지)
+          code=$(curl -s -o /dev/null -w '%{http_code}' https://gyeol.blog/api/rooms/healthcheck)
+          echo "api $code"; [ "$code" = 404 ]

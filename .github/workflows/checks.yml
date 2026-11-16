@@ -94,7 +94,7 @@ jobs:
       # 백엔드(S3 상태) 없이 초기화: AWS 자격 증명을 쓰지 않는다
       - name: terraform validate
         run: |
-          for d in infra/terraform/base infra/terraform/bootstrap; do
+          for d in infra/terraform/base infra/terraform/bootstrap infra/terraform/single; do
             terraform -chdir="$d" init -backend=false -input=false
             terraform -chdir="$d" validate
           done
@@ -107,6 +107,8 @@ jobs:
           helm template gyeol deploy/helm/gyeol > /dev/null
           helm template gyeol deploy/helm/gyeol -f deploy/helm/gyeol/values-local.yaml > /dev/null
           helm template gyeol deploy/helm/gyeol -f deploy/helm/gyeol/values-single.yaml > /dev/null
+          # 단일 서버: Terraform이 서버에 만드는 values-prod.yaml 모양(관리자 IP·도메인)까지 겹쳐 본다
+          helm template gyeol deploy/helm/gyeol -f deploy/helm/gyeol/values-single.yaml --set ingress.host=gyeol.blog --set 'admin.allowedIps={203.0.113.7/32}' > /dev/null
 
   scripts:
     name: 셸 스크립트 문법
@@ -116,6 +118,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: |
-          for f in local/localstack/init-aws.sh scripts/*.sh; do
+          for f in local/localstack/init-aws.sh scripts/*.sh infra/terraform/single/gyeol-deploy.sh; do
             echo "bash -n $f"; bash -n "$f"
           done

@@ -1,0 +1,22 @@
+# Terraform(single)이 만든 서버 전용 값. values-single.yaml 위에 덮어쓴다. 비밀은 넣지 않는다(Parameter Store → Secret)
+ingress:
+  host: ${domain}
+aws:
+  uploadBucket: ${upload_bucket}
+  coverBucket: ${cover_bucket}
+postgres:
+  backup:
+    bucket: ${backup_bucket}
+api:
+  webOrigin: https://${domain}
+  mail:
+%{ if mail_from != "" ~}
+    mode: ses
+    from: ${mail_from}
+    configurationSet: ${mail_config}
+%{ else ~}
+    mode: log
+%{ endif ~}
+admin:
+  restrict: true
+  allowedIps: ${jsonencode(admin_ips)}

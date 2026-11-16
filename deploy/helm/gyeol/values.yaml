@@ -117,3 +117,18 @@ ingress:
   enabled: true
   className: ""   # k3d: 기본 Traefik
   host: ""        # 비우면 모든 호스트
+  # 단일 서버: Traefik ACME(Let's Encrypt). 리졸버 이름은 서버 user-data의 Traefik 설정과 같아야 한다
+  tls:
+    enabled: false
+    certResolver: le
+
+# 관리자 경로(/api/admin·/admin)를 허용 IP만 받게 할지. k3d는 열어 둠. 단일 서버는 values-prod.yaml에서 IP를 넣는다
+admin:
+  restrict: false
+  allowedIps: []
+
+# Traefik 요청 수 제한 (/api만, IP당). 측정 근거는 single-server-terraform.md 15-1
+rateLimit:
+  enabled: false
+  average: 20
+  burst: 100

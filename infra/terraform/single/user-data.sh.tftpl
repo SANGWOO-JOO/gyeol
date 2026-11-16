@@ -1,0 +1,62 @@
+#!/bin/bash
+# 처음 부팅 한 번 (문서 3-3): swap → k3s → helm·AWS CLI → Traefik ACME → 값 파일·배포 스크립트
+# 앱 배포는 하지 않는다. DNS A 레코드를 이 서버로 돌린 뒤 첫 태그 배포(gyeol-deploy)가 한다
+set -euxo pipefail
+exec > >(tee -a /var/log/gyeol-user-data.log) 2>&1
+timedatectl set-timezone Asia/Seoul
+
+# swap 2GB (S11): 4GiB에 여유 약 1GB라 처리 몰림 때 OOM 방지
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+apt-get update -y && apt-get install -y unzip curl jq
+
+# AWS CLI v2 (arm64)
+if ! command -v aws >/dev/null; then
+  curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o /tmp/awscli.zip
+  unzip -q /tmp/awscli.zip -d /tmp && /tmp/aws/install && rm -rf /tmp/aws /tmp/awscli.zip
+fi
+
+# Traefik(k3s 번들, 11-17 k3d 확인 3.6.13): Let's Encrypt HTTP-01 + HTTP→HTTPS 넘김(:443, websecure로 두면 내부 포트 8443으로 넘김). k3s가 시작할 때 읽도록 먼저 둔다
+mkdir -p /var/lib/rancher/k3s/server/manifests
+cat > /var/lib/rancher/k3s/server/manifests/traefik-config.yaml <<'YAML'
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    additionalArguments:
+      - "--certificatesresolvers.le.acme.email=${acme_email}"
+      - "--certificatesresolvers.le.acme.storage=/data/acme.json"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
+      - "--entrypoints.web.http.redirections.entrypoint.to=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+    persistence:
+      enabled: true
+      size: 128Mi
+    # 방문자 IP를 그대로 받는다(관리자 IP 허용·요청 수 제한·앱 IP 제한이 이 값을 본다). Cluster면 노드 주소로 바뀔 수 있다
+    service:
+      spec:
+        externalTrafficPolicy: Local
+YAML
+
+# k3s (버전 고정, S12)
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - --write-kubeconfig-mode 600
+# helm (버전 고정)
+curl -fsSL "https://get.helm.sh/helm-${helm_version}-linux-arm64.tar.gz" | tar -xz -C /tmp && install /tmp/linux-arm64/helm /usr/local/bin/helm
+
+# 서버 값 파일·배포 스크립트
+mkdir -p /etc/gyeol
+cat > /etc/gyeol/values-prod.yaml <<'YAML'
+${values_prod}
+YAML
+echo "${github_repo}" > /etc/gyeol/github-repo
+cat > /usr/local/bin/gyeol-deploy <<'SH'
+${deploy_script}
+SH
+chmod 755 /usr/local/bin/gyeol-deploy
+echo "user-data 완료"

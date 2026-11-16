@@ -1,5 +1,5 @@
 # v* 태그를 push하면 검사(checks.yml 전체) → 이미지 5개(linux/arm64) → GitHub Release (docs/todo/cicd.md 2절).
-# 배포(deploy·rollback, AWS OIDC)는 아직 없다 (4절 3번, 단일 서버 Terraform 뒤).
+# 이미지가 올라가면 deploy.yml로 단일 서버에 배포한다(OIDC → SSM). 하이픈 태그(시험판)는 배포하지 않는다.
 # 비밀값은 GITHUB_TOKEN만 쓴다 (ghcr.io 올리기 = packages: write, 릴리스 = contents: write)
 name: Release
 
@@ -77,6 +77,18 @@ jobs:
           for m in api worker external-fetcher; do build "$m" deploy/docker/backend.Dockerfile "MODULE=$m"; done
           build web deploy/docker/web.Dockerfile
           build embed deploy/docker/embed.Dockerfile
+
+  deploy:
+    name: 배포
+    needs: images
+    # 시험판(v1.0.0-rc1 등)은 이미지·릴리스까지만
+    if: ${{ !contains(github.ref_name, '-') }}
+    uses: ./.github/workflows/deploy.yml
+    with:
+      tag: ${{ github.ref_name }}
+    permissions:
+      contents: read
+      id-token: write
 
   release:
     name: GitHub Release

@@ -32,3 +32,12 @@ worker:
 embed:
   hpa:
     enabled: false
+
+# 도메인·TLS·관리자 IP는 서버의 /etc/gyeol/values-prod.yaml(Terraform이 만듦)에서 덮어쓴다
+ingress:
+  tls:
+    enabled: true
+admin:
+  restrict: true
+rateLimit:
+  enabled: true

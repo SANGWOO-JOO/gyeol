@@ -1,0 +1,5 @@
+# cp terraform.tfvars.example terraform.tfvars (git 제외)
+state_bucket      = "gyeol-tfstate-<계정ID>"   # backend.hcl과 같은 값
+acme_email        = "you@example.com"          # Let's Encrypt 만료 안내
+admin_ips         = ["203.0.113.7/32"]         # 집 IP. 비우면 관리자 경로 닫힘
+availability_zone = "ap-northeast-2d"          # apply 직전 스팟 가격 조회로 고른다 (문서 2-2)

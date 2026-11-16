@@ -161,3 +161,148 @@
 1. helm `--wait` 시간 초과(위). 원인은 새 클러스터의 시스템 이미지 받기다. 기다리니 해결됐다.
 2. 시험 데이터 넣기 첫 시도에서 `title_alias.method` NOT NULL에 걸렸다(내 SQL 실수). 고쳐서 다시 넣었다.
 3. 개발 api·worker·fetcher를 빌드·k3d 동안 멈췄다가 다시 켰다. 다시 켤 때 worker는 LLM_MODE=fake, MAP_ADMIN_ENDPOINT=true였다. 지금 dev-status는 7개 모두 ✓이고, 리뷰 방·사용자 방 2개는 ACTIVE 그대로다.
+
+## 3단계 결과·4단계 준비 (2026-11-16)
+
+### 배포 3단계(CI·이미지) + 4단계(서버 Terraform) 준비 보고 (11-17, 갈래 1)
+
+커밋·push·apply·시크릿 등록은 하지 않았다. 유료 호출은 0이다.
+AWS는 읽기만 했다: 상태 조회, plan, 스팟 가격·VPC·OIDC 공급자 조회.
+
+### 결론
+1. **이미지 저장소는 GHCR을 그대로 쓴다(11-14 결정, 구현·시험 끝).** ECR은 만들지 않는다.
+   - `release.yml`이 태그마다 arm64 이미지 5개를 GHCR 공개 패키지로 올린다. `v0.1.0-rc1`에서 익명 pull까지 확인했다.
+   - GHCR 공개 패키지는 저장·전송 무료다. ECR은 저장 GB당 월 약 0.10달러이고(추정), 서버에 ECR 로그인 도우미와 IAM, 수명 규칙 Terraform이 더 필요하다.
+2. **GitHub Actions:** 태그 push → 검사 → 이미지 → **배포(새로)** + Release.
+   - 배포는 `deploy.yml`이다. OIDC로 `gyeol-deploy` 역할을 맡고, SSM으로 서버의 `gyeol-deploy <태그>`를 실행한다.
+   - 롤백은 같은 workflow를 손으로 실행한다(입력: 태그).
+   - 시험판 태그(하이픈)는 배포하지 않는다.
+3. **embed는 운영에 필요하다.**
+   - 방에 처음 담긴 가수를 지도에 올리는 경로가 embed를 쓴다: `MapService.prepare` → 지식 → 설명 → `embedArtists` → 이웃 평균 자리.
+   - 곡 보강(`Enrich.embedTracks`)도 embed를 쓴다.
+   - 빼면 새 가수가 지도에 자리를 잡지 못한다.
+   - 메모리 819Mi(11-16 측정)라 4GiB 서버 계획에 이미 들어 있다. replicas 1, HPA 끔(values-single) 그대로 둔다.
+4. **서버 Terraform(`infra/terraform/single`)을 만들었다.** plan은 **14 to add**다. 비용은 1주 약 3.7달러(부가세 포함 약 4.1달러)이고, 월로는 약 17달러다(5절).
+5. **D4 절차:** `docs/todo/d4-map-data.md`에 정리했다. 로컬 임시 DB에서 복원까지 시험해 통과했다(1,480 자리 일치).
+
+### 1. 바꾼·만든 파일
+| 파일 | 내용 |
+|---|---|
+| `.github/workflows/deploy.yml` (새) | workflow_call·workflow_dispatch. Environment `production`, OIDC → `aws ssm send-command` → 결과 대기(최대 약 28분) → 밖에서 `https://gyeol.blog/` 200, `/api/rooms/healthcheck` 404(JSON) 확인 |
+| `.github/workflows/release.yml` | images 뒤 `deploy` job(하이픈 태그 제외). 머리 주석 |
+| `.github/workflows/checks.yml` | `infra/terraform/single` validate, `gyeol-deploy.sh` 문법, 운영 모양 helm template |
+| `deploy/helm/gyeol/templates/ingress.yaml` | `/api`·`/` Ingress 분리. TLS(certresolver `le`, websecure). 관리자 Ingress(`/api/admin`·`/admin`) + `ipAllowList` 미들웨어. `/api` 요청 수 제한 미들웨어 |
+| `values.yaml` | `ingress.tls`, `admin.restrict/allowedIps`, `rateLimit`(기본 모두 끔이라 k3d는 그대로) |
+| `values-single.yaml` | tls·admin.restrict·rateLimit 켬 |
+| `infra/terraform/single/*` (새) | `main`·`variables`·`network`·`ec2`·`iam`·`deploy`·`outputs`.tf, `user-data.sh.tftpl`, `values-prod.yaml.tftpl`, `gyeol-deploy.sh`, 예시 2개, `.terraform.lock.hcl` |
+| `docs/todo/d4-map-data.md` (새) | 지도 데이터 옮기기 절차와 로컬 시험 결과 |
+
+- 맥북에만 있는 파일(git 제외): `infra/terraform/single/backend.hcl`(base와 같은 상태 버킷), `terraform.tfvars`(plan용 임시값)
+
+### 2. single plan 자원 (14)
+- 네트워크
+  - `aws_default_subnet`(ap-northeast-2d)
+  - 보안 그룹 + 80·443 들어옴 + 나감 전부
+  - 탄력적 IP
+- 서버
+  - `aws_instance`: t4g.medium **스팟 persistent·회수 시 stop**
+  - Ubuntu 24.04 arm64(ami-093a68505ea068a90)
+  - IMDSv2 홉 2, gp3 30GB 암호화, 종료 시 삭제 안 함
+  - user-data 5.2KB(한도 16KB), `bash -n` 통과
+- IAM
+  - 서버 역할 + 인스턴스 프로필
+  - 붙이는 정책: base `app_policy_arn`, `AmazonSSMManagedInstanceCore`
+  - 인라인 정책: Parameter Store `/gyeol/prod/*` 읽기 + `kms:Decrypt`(ViaService ssm) + 선물 이미지 모델(us-west-2) InvokeModel
+- 배포 역할 `gyeol-deploy`
+  - 신뢰: 계정에 이미 있는 GitHub OIDC 공급자, `aud=sts.amazonaws.com`, `sub=repo:SANGWOO-JOO/gyeol:environment:production`
+  - 권한: 이 인스턴스 + `AWS-RunShellScript`에만 `ssm:SendCommand`, 결과 조회 2개(`*`)
+- 출력: `public_ip`, `instance_id`, `github_variables`(아래 4절에 넣을 값), `ami`
+
+### 서버 user-data가 하는 일 (처음 부팅 한 번)
+1. swap 2GB를 만든다.
+2. AWS CLI v2(arm64)를 설치한다.
+3. Traefik HelmChartConfig를 둔다(아래 항목들).
+4. k3s `v1.35.5+k3s1`(k3d 검증과 같음)과 helm `v4.3.1`(CI·맥북과 같음)을 설치한다.
+5. `/etc/gyeol/values-prod.yaml`과 `/usr/local/bin/gyeol-deploy`를 만든다.
+
+Traefik 설정:
+- Let's Encrypt HTTP-01(resolver `le`)
+- HTTP→HTTPS 넘김
+- acme 저장 볼륨
+- `externalTrafficPolicy: Local`
+
+앱 배포는 하지 않는다. 첫 태그 배포가 한다.
+
+### `gyeol-deploy <태그>` (서버, SSM으로 실행)
+1. 태그 형식을 확인한다.
+2. 배포 전 백업: CronJob으로 Job을 만들고 완료를 기다린다. 첫 배포에는 건너뛴다.
+3. GitHub 태그 압축본에서 차트를 받는다.
+4. Parameter Store `/gyeol/prod/*` → `gyeol-secrets`. DB_PASSWORD가 없으면 중단한다.
+5. `helm upgrade --install -f values-single.yaml -f /etc/gyeol/values-prod.yaml --set image.tag=… --wait 15m`
+6. rollout을 확인한다(5개).
+
+비밀값은 출력하지 않는다.
+
+### 3. k3d로 확인한 것 (k3s v1.35.5 번들 Traefik 3.6.13, 앱 없이 whoami)
+- HelmChartConfig의 ACME 인자 5개가 들어갔고, acme PVC(local-path)가 Bound였다. `traefik.io` CRD(middlewares 등)가 있다.
+- HTTP → 301 → `https://gyeol.blog/`
+  - **처음 설정(`to=websecure`)은 내부 포트 8443으로 넘겨 고쳤다(`to=:443`).**
+- HTTPS `/` → web, `/api/x` → api. 관리자 경로는 허용 IP가 아니면 `/api/admin`·`/admin` 모두 403이다.
+- 요청 수 제한(시험값 burst 5): `/api` 12연속 → 200×4·429×8. 웹 `/`는 200×12로 제한되지 않았다.
+- 시험 중 Traefik이 실제 Let's Encrypt에 gyeol.blog 발급을 1번 시도해 실패했다(DNS가 이 클러스터가 아님). 실패 1번이라 영향은 없다고 본다(추정). 시험 클러스터는 지웠다.
+- 확인하지 못한 것: 방문자 IP 보존. k3d는 docker 망이라 X-Forwarded-For가 LB 컨테이너 주소였다. 서버에서 첫 배포 뒤 확인해야 한다.
+
+### 4. GitHub에 할 일 (사용자, Claude는 하지 않음)
+| 무엇 | 값 | 방법 |
+|---|---|---|
+| Environment `production` | 배포 브랜치·태그: **태그 `v*` + 브랜치 `main`**(롤백 수동 실행이 main에서 돎). 원하면 Required reviewers에 본인 | Settings → Environments → New environment |
+| Variables 3개 | `AWS_DEPLOY_ROLE_ARN`, `AWS_REGION`(ap-northeast-2), `SERVER_INSTANCE_ID` | single apply 뒤 `terraform -chdir=infra/terraform/single output github_variables`. Settings → Secrets and variables → Actions → Variables(또는 `gh variable set 이름 --body 값`) |
+| Secrets | **없음** | 이미지는 `GITHUB_TOKEN`, AWS는 OIDC |
+| GHCR 패키지 공개 | 이미 공개(11-14 rc1 익명 pull 확인) | — |
+
+### 5. 비용 (plan 자원 기준, 서울)
+- 스팟 가격(11-17 조회, 최근 7일, t4g.medium): 2d 0.0108~0.0121, 2a 0.0149~0.0160, 2b 0.0146~0.0163, 2c 0.0166~0.0172달러/시간 → **2d 유지**
+
+| 항목 | 1주(168시간) | 월 |
+|---|---|---|
+| EC2 스팟 2d | 약 1.9~2.0달러 | 약 7.9~8.8달러 |
+| EBS gp3 30GB | 약 0.6달러 | 약 2.7달러 |
+| 탄력적 IP | 약 0.8달러 | 약 3.6달러 |
+| SQS(리스너 17개 대기 요청) | 0~0.3달러(월 100만 건 무료 안쪽일 수 있음) | 약 1.3달러(추정) |
+| S3·Parameter Store 표준·서브넷·IAM·OIDC 역할 | 거의 0 | 0.5달러 미만 |
+| **합계 / 부가세 포함** | **약 3.7 / 약 4.1달러** | **약 16~17 / 약 18~19달러** |
+| 쓴 만큼 | Bedrock(업로드 1회 약 0.25달러), 선물 이미지 하루 최대 10장 × 약 0.04달러 | |
+
+- 내릴 때(1주 뒤): `terraform destroy`(single).
+  - **EBS는 남는다**(종료 시 삭제 안 함, S8). 마지막 백업이 S3에 있는지 보고 볼륨을 손으로 지운다. 안 지우면 월 약 2.7달러.
+  - 기본 서브넷은 `force_destroy`라 함께 지워진다.
+  - base는 남겨도 거의 0이다(SQS를 읽는 서버가 없음, S3 작은 양).
+
+### 6. 4단계 apply 전에 빠진 값·할 일
+1. **`terraform.tfvars`(single)**
+   - `acme_email`: 지금 plan용 임시값 `admin@gyeol.blog`다. gyeol.blog에는 받는 메일이 없으니 사용자 메일로 바꾼다.
+   - `admin_ips`: 집 IP /32. 비우면 관리자 경로가 밖에서 닫힌다.
+   - `availability_zone`: 2d
+2. **Parameter Store 4개**(사용자 터미널, 값이 기록에 남지 않게):
+   ```bash
+   read -rs V; aws ssm put-parameter --name /gyeol/prod/DB_PASSWORD --type SecureString --value "$V"; unset V
+   ```
+   - 같은 방식으로 `ADMIN_TOTP_KEY`(`openssl rand -base64 32`), `LASTFM_API_KEY`, `YOUTUBE_API_KEY`를 넣는다.
+3. **SES 샌드박스:** values-prod는 메일 `ses`다(base 출력 mail_from 있음). 샌드박스에서는 인증한 주소에만 가므로, 다른 사람은 방 만들기 인증 메일을 못 받는다. 사용자를 받기 전에 해제 신청이 필요하다.
+4. **DNS:** apply 출력 `public_ip`를 Porkbun A 레코드 `gyeol.blog`에 넣는다. `dig +short gyeol.blog`로 반영을 확인한 **뒤에** 첫 태그를 push한다.
+   - Let's Encrypt는 검증 실패에 시간당 한도가 있다(추정: 5회).
+5. Stability Stable Image Core Marketplace 구독(us-west-2, 콘솔). 안 하면 선물은 기본 캐릭터로 나온다.
+6. 첫 배포 → D4(지도 옮기기) → 관리자 계정 만들기(설계 9절 12번) → 사용자 받기
+
+### 7. 설계와 달라진 판단 · 트러블슈팅
+- **기본 VPC에 서브넷이 0개였다**(IGW·기본 경로는 있음). plan이 "no matching EC2 Subnet"으로 실패했다.
+  - `aws_default_subnet`으로 고른 영역에 기본 서브넷을 만들게 했다. 무료이고 destroy 때 지운다.
+- **종료 보호(`disable_api_termination`)는 넣지 않았다.** 스팟 인스턴스에는 쓸 수 없는 것으로 안다(추정).
+- **Traefik 넘김 대상 `websecure` → `:443`:** 위 3절.
+- **방문자 IP:** `externalTrafficPolicy: Local`을 추가했다. 서버에서 확인이 필요하다.
+- **OIDC 공급자:** 계정에 이미 있어 data로 참조한다(다른 프로젝트와 공유). 그래서 single destroy 때 지워지지 않는다.
+- **최소 구성이라 이번에 뺀 것**(설계에는 있음, 1주 운영에는 과하다고 판단)
+  - S7 Bedrock 예산 자동 조치: Claude 모델 비용이 Cost Explorer에서 "Amazon Bedrock"이 아니라 Marketplace 서비스 이름으로 잡힐 수 있어(추정), Service 필터 예산이 비용을 놓칠 수 있다. base 월 20달러 예산 알림과 앱 하루 한도로 대신한다.
+  - 16절 모니터링(CloudWatch·SNS·Lambda·Slack·uptime workflow), `tools/db-tunnel.sh`, 앱 검색 `IpRateLimiter`(15-2)
+- **배포 확인 경로:** release 노트의 `/api/health`는 없는 경로다. 없는 `/api` 경로는 404가 아니라 500 INTERNAL을 돌려준다(작은 문제, issues 후보). 그래서 배포 확인은 `/api/rooms/healthcheck` 404 JSON으로 했다.
+- `data "aws_subnet"` 조회 실패 외에는 plan 오류가 없다. `terraform validate`·`fmt -check`·`helm lint`(기본·local·single)·workflow YAML 파싱도 모두 통과했다.
