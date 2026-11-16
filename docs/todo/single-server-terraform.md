@@ -4,7 +4,7 @@
 
 근거:
 - `single-server.md`: 11-10 메모리 측정·비용 조회·정한 것·"Terraform에서 챙길 것"
-- `deploy-decisions.md`: D1~D6, 도메인 `gyeol.blog`(Cloudflare DNS), 선물 이미지 하루 10장
+- `deploy-decisions.md`: D1~D6, 도메인 `gyeol.blog`(Porkbun DNS, 11-16), 선물 이미지 하루 10장
 - `cicd.md` 2절 deploy: OIDC → SSM send-command → pg_dump·helm upgrade·rollout·헬스 체크
 - `infra/terraform/base`: SQS 10쌍·S3 3개·앱 IAM 정책·예산 알림·SES
 - Helm 차트 `values-single.yaml`: 클러스터 안 PostgreSQL·매일 백업 CronJob·ghcr 이미지
@@ -19,7 +19,7 @@ AWS 호출은 하지 않았다. 가격은 `single-server.md` 11-10 조회값을 
 ## 0. 요약
 
 ```
-Cloudflare DNS (gyeol.blog A 레코드, 프록시 끔)
+Porkbun DNS (gyeol.blog A 레코드)
         │ 80·443
         ▼
 EC2 t4g.medium 스팟 (Ubuntu 24.04 arm64, 기본 VPC 공용 서브넷, 탄력적 IP)
@@ -90,7 +90,7 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 | 방식 | 스팟 정지·시작 때 주소 | 비용 (**확인 필요**, 2024-02부터 공인 IPv4 과금) |
 |---|---|---|
 | 탄력적 IP | 그대로 | 시간당 0.005달러 = 월 약 3.6달러. 서버가 정지돼 있어도 같은 값(**추정**) |
-| 자동 할당 공인 IP | **바뀜** → Cloudflare A 레코드를 다시 고쳐야 함 | 실행 중에만 시간당 0.005달러(**추정**) |
+| 자동 할당 공인 IP | **바뀜** → Porkbun A 레코드를 다시 고쳐야 함 | 실행 중에만 시간당 0.005달러(**추정**) |
 
 - 스팟은 회수되면 정지됐다가 다시 시작한다(2-4). 자동 할당이면 그때마다 DNS가 깨진다.
 - 정지 중 비용 차이는 월 몇 달러 안쪽이라 탄력적 IP를 추천한다.
@@ -183,7 +183,9 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 - **빈틈(사실, 11-14 확인)**: Helm 차트는 `DB_PASSWORD`·`LASTFM_API_KEY`·`YOUTUBE_API_KEY`만 Secret에서 읽는다. `ADMIN_TOTP_KEY`는 아직 api env에 연결돼 있지 않다.
   - 구현 때 `backend.yaml` api env에 `secretKeyRef ADMIN_TOTP_KEY`를 더한다(optional: 없으면 관리자 로그인 503).
 
-## 5. 도메인·TLS (Cloudflare DNS)
+## 5. 도메인·TLS (Porkbun DNS, 11-16 바꿈)
+
+> 11-16: 도메인을 Porkbun에서 사서 DNS도 Porkbun에서 관리한다. Cloudflare는 쓰지 않으므로 아래 5-1의 프록시 비교는 참고로만 남긴다(결정 S4 '끔'과 같은 결과: 서버 Traefik이 Let's Encrypt로 직접 인증서).
 
 ### 5-1. Cloudflare 프록시: 끄기(DNS만) 추천 (결정 S4)
 
@@ -270,14 +272,14 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 
 | # | 할 일 | 어디서 | 막히는 것 |
 |---|---|---|---|
-| 1 | `gyeol.blog` 구매 — **완료(11-16, Porkbun 2.06달러)**. 자동 갱신 끄기, Cloudflare에 사이트 추가 후 Porkbun 네임서버를 Cloudflare로 바꿈 | Porkbun·Cloudflare | 메일·TLS·DNS 전부 |
+| 1 | `gyeol.blog` 구매 — **완료(11-16, Porkbun 2.06달러)**. 자동 갱신 꺼짐 확인(만료 2027-11-16). DNS는 Porkbun 그대로 | Porkbun | 메일·TLS·DNS 전부 |
 | 2 | base `terraform.tfvars`에 `mail_domain = "gyeol.blog"`, `budget_email` → base apply | 맥북 터미널 | — |
-| 3 | base 출력 `ses_dns_records`(DKIM 3개·MAIL FROM MX/SPF·DMARC)를 Cloudflare DNS에 입력 → SES에서 도메인 인증 확인 | Cloudflare·AWS 콘솔 | 메일 발송 |
+| 3 | base 출력 `ses_dns_records`(DKIM 3개·MAIL FROM MX/SPF·DMARC)를 Porkbun DNS에 입력 → SES에서 도메인 인증 확인 | Porkbun·AWS 콘솔 | 메일 발송 |
 | 4 | SES 샌드박스 해제 신청(도메인 인증 뒤, 사용 사례 설명) | AWS 콘솔 | 등록 안 된 주소로 발송. 답은 보통 하루 안이라는 안내가 있으나 자료마다 다름(**확인 필요**) |
 | 5 | Bedrock: Haiku 4.5 모델 접근(이미 씀), Stability Stable Image Core 구독(us-west-2) | AWS 콘솔 | 선물 새 그림(구독 전에는 기본 캐릭터로 대신함) |
 | 6 | Parameter Store에 비밀 4개 넣기(4절, `ADMIN_TOTP_KEY`는 새로 생성) | 맥북 터미널 | 서버 첫 배포 |
 | 7 | 스팟 가격 조회 → `availability_zone`, 관리자 IP → single `terraform.tfvars` → **single apply** | 맥북 터미널 | — |
-| 8 | 출력 EIP를 Cloudflare A 레코드 `gyeol.blog`(+`www` 선택)에 입력, 프록시 끔 | Cloudflare | TLS 발급 |
+| 8 | 출력 EIP를 Porkbun A 레코드 `gyeol.blog`(+`www` 선택)에 입력 | Porkbun | TLS 발급 |
 | 9 | GitHub: ghcr 패키지 5개 Public으로, 저장소 Variables 3개(6-1), Environment `production`(S6) | GitHub 설정 | 배포 워크플로 |
 | 10 | 첫 태그 push → 배포 → `https://gyeol.blog` 확인 | 관리 세션과 함께 | — |
 | 11 | 음악 지도 데이터 옮기기(D4): 로컬 덤프 → S3 → 서버에서 `pg_restore`(지도 표만) | SSM 세션 | 지도 화면 |

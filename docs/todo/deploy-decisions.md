@@ -8,7 +8,7 @@
 | # | 결정 | 추천 | 비용 영향 |
 |---|---|---|---|
 | D1 | 배포 순서 | 아래 1절 순서(로컬 k3d 확인 → base apply → CI → 단일 서버 → 실제 확인 → EKS 회차 → destroy) | 단계마다 |
-| D2 | 도메인 | **바꿈(11-16): `gyeol.blog`, Porkbun에서 첫해 2.06달러로 구매(갱신 21.11달러, 자동 갱신 끔), DNS는 Cloudflare 무료로 네임서버 위임.** 이전 결정(11-14 `ourgyeol.com`, Cloudflare Registrar 약 10.5달러)은 1주일쯤 운영 뒤 내릴 계획이라 비용 때문에 바꿈. `gyeol.click`은 Porkbun 조회 오류로 못 삼. 방장 이메일 인증 발신(`noreply@gyeol.blog`)과 웹 주소에 함께 씀. Route 53 호스팅 영역을 쓰지 않으므로 `ses.tf`는 `route53_zone_id` 없이, 출력된 DKIM·SPF·MX·DMARC 값을 Cloudflare DNS에 직접 넣음. 11-14 whois 기준 미등록, 구매 직전 재확인. 구매·결제는 사용자가 직접 | 연 약 10.5달러(.com 원가, 갱신가 구매 때 확인), DNS 0 |
+| D2 | 도메인 | **바꿈(11-16): `gyeol.blog`, Porkbun에서 첫해 2.06달러로 구매(갱신 21.11달러, 자동 갱신 끔), DNS는 Porkbun DNS 그대로(11-16 결정, Cloudflare 안 씀).** 이전 결정(11-14 `ourgyeol.com`, Cloudflare Registrar 약 10.5달러)은 1주일쯤 운영 뒤 내릴 계획이라 비용 때문에 바꿈. `gyeol.click`은 Porkbun 조회 오류로 못 삼. 방장 이메일 인증 발신(`noreply@gyeol.blog`)과 웹 주소에 함께 씀. Route 53 호스팅 영역을 쓰지 않으므로 `ses.tf`는 `route53_zone_id` 없이, 출력된 DKIM·SPF·MX·DMARC 값을 Cloudflare DNS에 직접 넣음. 11-14 whois 기준 미등록, 구매 직전 재확인. 구매·결제는 사용자가 직접 | 연 약 10.5달러(.com 원가, 갱신가 구매 때 확인), DNS 0 |
 | D3 | 선물 캐릭터 이미지 하루 한도 | **정함(11-14): 10장, 선착순을 화면에 표시**(`room-plan.md` ⑯ 변경). 앱 안의 제한이라, 운영에서는 AWS Budgets 자동 조치(넘으면 Bedrock 권한 회수)를 함께 걸지 검토 | 최대 하루 0.4달러, 월 최대 약 12달러 |
 | D4 | 운영 음악 지도 데이터 | **로컬에서 만든 지도(1,458명)를 덤프해 운영 DB로 옮김.** 다시 만들면 Bedrock 약 2.5달러 + MusicBrainz 약 2시간 | 0 (옮기기) |
 | D5 | 관리자 보안 값 보관 | `ADMIN_TOTP_KEY`·API 키는 SSM Parameter Store(SecureString)에, 관리자 경로는 Traefik IP 허용 | 거의 0 |
@@ -40,7 +40,7 @@
 | 항목 | 월 | 근거 |
 |---|---|---|
 | 단일 서버(t4g.medium 스팟 2d + EBS 30GB + IPv4 + SQS + S3, 부가세 포함) | 약 17.5달러 | `single-server.md` 11-10 조회 |
-| 도메인 `gyeol.blog` (Porkbun 등록, Cloudflare DNS 무료) | 첫해 2.06달러 한 번 | 11-16 구매. 갱신가 21.11달러라 자동 갱신 끔 |
+| 도메인 `gyeol.blog` (Porkbun 등록·DNS, 무료) | 첫해 2.06달러 한 번 | 11-16 구매. 갱신가 21.11달러라 자동 갱신 끔 |
 | SES 발송 | 0에 가까움 (1,000통당 0.10달러) | 방 만들기·재설정 메일만 |
 | Bedrock Haiku (청취 분석·코드 맞추기 이유·새 가수 설명) | 쓴 만큼 (처음 사용자 업로드 1회 약 0.25달러, 코드 맞추기 이유 1건 약 0.002달러) | 로컬 측정·추정 |
 | 선물 캐릭터 이미지(Stable Image Core, 장당 약 0.04달러) | 한도 10장이면 최대 월 약 12달러, 50장이면 약 60달러 | 설정 `daily-image-limit`, 단가 **확인 필요** |
@@ -152,7 +152,7 @@
   - 대상 테이블 목록과 YouTube 파생(채널 이미지·판정 별칭) 제외 범위는 따로 정해야 한다.
 - **처리방침·약관의 `{시행일}`:** 자리표시가 그대로 화면에 나온다. 테스트(`markdown.test.ts`)가 일부러 확인하는 자리표시라, 배포 때 날짜를 넣는 절차가 필요하다.
 - **values-single 메일:** 아직 `mode: log`다. D2 SES 인증 뒤 `ses`와 `MAIL_FROM`을 넣는다.
-- **단일 서버 HTTPS:** secureCookie true는 HTTPS가 있어야 쿠키가 붙는다. Traefik 인증서(ACME) 또는 Cloudflare 프록시 중 단계 3에서 정한다.
+- **단일 서버 HTTPS:** secureCookie true는 HTTPS가 있어야 쿠키가 붙는다. Traefik 인증서(ACME, Porkbun DNS라 이 방식) 중 단계 3에서 정한다.
 - **선물 이미지 모델 IAM:** 기존 2절 항목 그대로다.
 - **새 클러스터 첫 기동:** k3s 시스템 이미지(flannel·coredns·traefik)를 받느라 약 8분이 걸려 `helm --wait 5m`이 시간 초과됐다. 파드는 그 뒤 재시작 없이 떴다. 단일 서버 첫 설치도 시간 여유(10분)가 필요하다.
 - 맥북 정리: k3d 클러스터와 k3d LocalStack은 지웠다. 이미지 gyeol/*:20261116153743(약 2.8GB)은 다음 k3d-up 때 지워진다.
