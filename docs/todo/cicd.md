@@ -28,7 +28,7 @@ v0.3.0 push → checks(1절 전체) → images → release → deploy
 |---|---|
 | images | 이미지 5개(api·worker·external-fetcher·web·embed)를 **linux/arm64**로 빌드(서버 t4g). 공개 저장소용 ARM 러너가 있으면 그 러너에서, 없으면 buildx + QEMU. `ghcr.io/sangwoo-joo/gyeol-<이름>:v0.3.0`(+`latest`) 공개 패키지. `GITHUB_TOKEN`(packages: write)만 사용 |
 | release | GitHub Release + 릴리스 노트 초안(이전 태그 이후 커밋, job-scheduler 방식), "핵심 변경"은 사람이 채움 |
-| deploy | GitHub OIDC → AWS 역할(`gyeol-deploy`) → SSM `send-command`로 서버에서 ① `pg_dump` → S3 백업 ② `helm upgrade --install … --set image.tag=v0.3.0` ③ `kubectl rollout status` ④ `https://ourgyeol.com/api/health` 확인. 실패하면 워크플로 실패(알림은 GitHub 메일) |
+| deploy | GitHub OIDC → AWS 역할(`gyeol-deploy`) → SSM `send-command`로 서버에서 ① `pg_dump` → S3 백업 ② `helm upgrade --install … --set image.tag=v0.3.0` ③ `kubectl rollout status` ④ `https://gyeol.blog/api/health` 확인. 실패하면 워크플로 실패(알림은 GitHub 메일) |
 | rollback | `workflow_dispatch`(입력: 태그) → 같은 deploy 단계로 이전 태그 배포(또는 `helm rollback`) |
 
 ### 권한과 비밀

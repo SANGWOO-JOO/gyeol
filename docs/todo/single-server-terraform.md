@@ -4,7 +4,7 @@
 
 근거:
 - `single-server.md`: 11-10 메모리 측정·비용 조회·정한 것·"Terraform에서 챙길 것"
-- `deploy-decisions.md`: D1~D6, 도메인 `ourgyeol.com`(Cloudflare DNS), 선물 이미지 하루 10장
+- `deploy-decisions.md`: D1~D6, 도메인 `gyeol.blog`(Cloudflare DNS), 선물 이미지 하루 10장
 - `cicd.md` 2절 deploy: OIDC → SSM send-command → pg_dump·helm upgrade·rollout·헬스 체크
 - `infra/terraform/base`: SQS 10쌍·S3 3개·앱 IAM 정책·예산 알림·SES
 - Helm 차트 `values-single.yaml`: 클러스터 안 PostgreSQL·매일 백업 CronJob·ghcr 이미지
@@ -19,7 +19,7 @@ AWS 호출은 하지 않았다. 가격은 `single-server.md` 11-10 조회값을 
 ## 0. 요약
 
 ```
-Cloudflare DNS (ourgyeol.com A 레코드, 프록시 끔)
+Cloudflare DNS (gyeol.blog A 레코드, 프록시 끔)
         │ 80·443
         ▼
 EC2 t4g.medium 스팟 (Ubuntu 24.04 arm64, 기본 VPC 공용 서브넷, 탄력적 IP)
@@ -201,7 +201,7 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 - k3s의 Traefik `HelmChartConfig`에 `certificatesResolvers.le.acme`를 설정한다.
   - httpChallenge entryPoint web
   - 저장소: 지속 볼륨 `/data/acme.json`(Traefik `persistence.enabled`, local-path)
-- Ingress에 `traefik.ingress.kubernetes.io/router.tls.certresolver: le`와 `tls.hosts: [ourgyeol.com]`을 단다.
+- Ingress에 `traefik.ingress.kubernetes.io/router.tls.certresolver: le`와 `tls.hosts: [gyeol.blog]`을 단다.
   - Helm `ingress.host`·`ingress.tls` 값이 필요하다. 지금 차트에는 tls가 없다(**사실**).
 - HTTP→HTTPS 넘김: Traefik `ports.web.redirectTo`.
 - 처음 발급은 DNS A 레코드가 EIP를 가리킨 뒤에 된다. 순서는 9절.
@@ -234,7 +234,7 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 4. Secret 갱신(4절).
 5. `helm upgrade --install gyeol <차트> -n gyeol -f values-single.yaml -f /etc/gyeol/values-prod.yaml --set image.tag=<태그> --wait --timeout 10m`
 6. `kubectl rollout status` (api·worker·fetcher·web·embed)
-7. 출력 마지막 줄에 결과. GitHub 쪽은 `https://ourgyeol.com/api/health` UP을 확인한다(release.yml에서).
+7. 출력 마지막 줄에 결과. GitHub 쪽은 `https://gyeol.blog/api/health` UP을 확인한다(release.yml에서).
 
 - 실패하면 스크립트가 0이 아닌 값으로 끝나고 워크플로가 실패한다.
 - 자동 롤백은 하지 않는다. 마이그레이션이 앞으로만 가므로 사람이 판단한다(`cicd.md`). `helm rollback`은 이미지만 되돌리고 DB는 그대로다.
@@ -270,16 +270,16 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 
 | # | 할 일 | 어디서 | 막히는 것 |
 |---|---|---|---|
-| 1 | `ourgyeol.com` 구매(구매 직전 미등록 재확인, 갱신가 확인) | Cloudflare Registrar | 메일·TLS·DNS 전부 |
-| 2 | base `terraform.tfvars`에 `mail_domain = "ourgyeol.com"`, `budget_email` → base apply | 맥북 터미널 | — |
+| 1 | `gyeol.blog` 구매 — **완료(11-16, Porkbun 2.06달러)**. 자동 갱신 끄기, Cloudflare에 사이트 추가 후 Porkbun 네임서버를 Cloudflare로 바꿈 | Porkbun·Cloudflare | 메일·TLS·DNS 전부 |
+| 2 | base `terraform.tfvars`에 `mail_domain = "gyeol.blog"`, `budget_email` → base apply | 맥북 터미널 | — |
 | 3 | base 출력 `ses_dns_records`(DKIM 3개·MAIL FROM MX/SPF·DMARC)를 Cloudflare DNS에 입력 → SES에서 도메인 인증 확인 | Cloudflare·AWS 콘솔 | 메일 발송 |
 | 4 | SES 샌드박스 해제 신청(도메인 인증 뒤, 사용 사례 설명) | AWS 콘솔 | 등록 안 된 주소로 발송. 답은 보통 하루 안이라는 안내가 있으나 자료마다 다름(**확인 필요**) |
 | 5 | Bedrock: Haiku 4.5 모델 접근(이미 씀), Stability Stable Image Core 구독(us-west-2) | AWS 콘솔 | 선물 새 그림(구독 전에는 기본 캐릭터로 대신함) |
 | 6 | Parameter Store에 비밀 4개 넣기(4절, `ADMIN_TOTP_KEY`는 새로 생성) | 맥북 터미널 | 서버 첫 배포 |
 | 7 | 스팟 가격 조회 → `availability_zone`, 관리자 IP → single `terraform.tfvars` → **single apply** | 맥북 터미널 | — |
-| 8 | 출력 EIP를 Cloudflare A 레코드 `ourgyeol.com`(+`www` 선택)에 입력, 프록시 끔 | Cloudflare | TLS 발급 |
+| 8 | 출력 EIP를 Cloudflare A 레코드 `gyeol.blog`(+`www` 선택)에 입력, 프록시 끔 | Cloudflare | TLS 발급 |
 | 9 | GitHub: ghcr 패키지 5개 Public으로, 저장소 Variables 3개(6-1), Environment `production`(S6) | GitHub 설정 | 배포 워크플로 |
-| 10 | 첫 태그 push → 배포 → `https://ourgyeol.com` 확인 | 관리 세션과 함께 | — |
+| 10 | 첫 태그 push → 배포 → `https://gyeol.blog` 확인 | 관리 세션과 함께 | — |
 | 11 | 음악 지도 데이터 옮기기(D4): 로컬 덤프 → S3 → 서버에서 `pg_restore`(지도 표만) | SSM 세션 | 지도 화면 |
 | 12 | 관리자 계정: 맥북에서 `ADMIN_TOTP_KEY=<6번 값> uv run --directory tools/admin-account python make_admin.py` → 인증 앱 등록 → INSERT를 서버 DB에서 실행(SSM 세션 `kubectl exec … psql`) | 맥북·SSM 세션 | 관리자 페이지 |
 
@@ -327,7 +327,7 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
 | SQS | 약 1.3달러 | 리스너가 11개 → 17개(10쌍 + 실패 큐 리스너)로 늘어 대기 요청 월 약 430만 건으로 다시 추정. 100만 건 무료, 100만 건당 0.4달러(**추정**). 대기 간격 20초로 줄일 여지 |
 | S3(표지·가수 이미지·캐릭터·백업) | 0.5달러 미만 | 11-10(**추정**) |
 | Parameter Store 표준 4개 + KMS(AWS 관리형) | 0 | 표준 파라미터 무료(**확인 필요**) |
-| 도메인 `ourgyeol.com` | 약 0.9달러 | 연 약 10.5달러(구매 때 확인) |
+| 도메인 `gyeol.blog` | 첫해 2.06달러(한 번) | 갱신 21.11달러, 자동 갱신 끔 |
 | SES | 0에 가까움 | 1,000통당 0.10달러(**추정**) |
 | 데이터 전송(월 100GB 무료) | 0 | 11-10 |
 | **소계** | **약 17.5달러** | |
@@ -344,9 +344,9 @@ aws ec2 describe-spot-price-history --region ap-northeast-2 --instance-types t4g
   - `ingress.tls`·certresolver 주석(5-2)
   - 관리자 전용 Ingress + Middleware(8절)
   - api `MAIL_MODE=ses`·`MAIL_FROM`·`MAIL_CONFIG_SET`를 `values-prod.yaml`에서
-  - `WEB_ORIGIN=https://ourgyeol.com`
+  - `WEB_ORIGIN=https://gyeol.blog`
   - `ADMIN_SECURE_COOKIE=true`, `ROOM_SECURE_COOKIE=true`
-- base: `bedrock_models`에 이미지 모델·리전(7절), `web_origins`에 `https://ourgyeol.com`(업로드 버킷 CORS).
+- base: `bedrock_models`에 이미지 모델·리전(7절), `web_origins`에 `https://gyeol.blog`(업로드 버킷 CORS).
 - release.yml: deploy 작업(OIDC → SSM `gyeol-deploy <태그>` → 헬스 체크), rollback(`workflow_dispatch`).
 - Helm: `/api` Ingress 분리 + `gyeol-api-ratelimit` 미들웨어(15-1), 값 `rateLimit.*`.
 - api: 검색 2개에 `IpRateLimiter`(15-2), 배포 뒤 `X-Forwarded-For` 위조 확인(15-2).
@@ -506,7 +506,7 @@ GitHub Actions 생존 확인 (실패 시) ────────────�
 
 - CloudWatch 에이전트: user-data에서 설치, 디스크·메모리 2개 지표만 60초 간격. 사용자 지정 지표 2개라 월 1달러 미만(**추정**). 서버 역할에 `CloudWatchAgentServerPolicy`(AWS 관리형)를 더한다(7절 표에 추가).
 - 오류 로그(선택, 처음에는 꺼 둠): Fluent Bit DaemonSet이 api·worker 파드 로그 중 `ERROR` 줄만 CloudWatch Logs `/gyeol/prod/app`로 보낸다. 보관 7일. 무료 수집 한도(월 5GB) 안. 메모리 약 50MB 추가(**추정**). Helm 값 `logShipping.enabled`.
-- 생존 확인: GitHub Actions 예약 작업(`*/15 * * * *`)이 `https://ourgyeol.com/actuator/health/readiness`를 부르고, 실패하면 Slack Webhook으로 직접 보낸다. 공개 저장소라 무료. 서버가 통째로 죽으면 서버 안 장치로는 알 수 없어서 바깥에서 확인한다. Route 53 헬스 체크는 유료라 쓰지 않는다.
+- 생존 확인: GitHub Actions 예약 작업(`*/15 * * * *`)이 `https://gyeol.blog/actuator/health/readiness`를 부르고, 실패하면 Slack Webhook으로 직접 보낸다. 공개 저장소라 무료. 서버가 통째로 죽으면 서버 안 장치로는 알 수 없어서 바깥에서 확인한다. Route 53 헬스 체크는 유료라 쓰지 않는다.
   - Webhook 주소는 GitHub Secret `SLACK_WEBHOOK_URL`.
 
 ### 16-4. Terraform 위치와 비밀값

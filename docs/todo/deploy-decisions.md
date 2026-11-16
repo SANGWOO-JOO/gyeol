@@ -8,7 +8,7 @@
 | # | 결정 | 추천 | 비용 영향 |
 |---|---|---|---|
 | D1 | 배포 순서 | 아래 1절 순서(로컬 k3d 확인 → base apply → CI → 단일 서버 → 실제 확인 → EKS 회차 → destroy) | 단계마다 |
-| D2 | 도메인 | **정함(11-14): `ourgyeol.com`, Cloudflare Registrar에서 등록·DNS(무료).** 방장 이메일 인증 발신(`noreply@ourgyeol.com`)과 웹 주소에 함께 씀. Route 53 호스팅 영역을 쓰지 않으므로 `ses.tf`는 `route53_zone_id` 없이, 출력된 DKIM·SPF·MX·DMARC 값을 Cloudflare DNS에 직접 넣음. 11-14 whois 기준 미등록, 구매 직전 재확인. 구매·결제는 사용자가 직접 | 연 약 10.5달러(.com 원가, 갱신가 구매 때 확인), DNS 0 |
+| D2 | 도메인 | **바꿈(11-16): `gyeol.blog`, Porkbun에서 첫해 2.06달러로 구매(갱신 21.11달러, 자동 갱신 끔), DNS는 Cloudflare 무료로 네임서버 위임.** 이전 결정(11-14 `ourgyeol.com`, Cloudflare Registrar 약 10.5달러)은 1주일쯤 운영 뒤 내릴 계획이라 비용 때문에 바꿈. `gyeol.click`은 Porkbun 조회 오류로 못 삼. 방장 이메일 인증 발신(`noreply@gyeol.blog`)과 웹 주소에 함께 씀. Route 53 호스팅 영역을 쓰지 않으므로 `ses.tf`는 `route53_zone_id` 없이, 출력된 DKIM·SPF·MX·DMARC 값을 Cloudflare DNS에 직접 넣음. 11-14 whois 기준 미등록, 구매 직전 재확인. 구매·결제는 사용자가 직접 | 연 약 10.5달러(.com 원가, 갱신가 구매 때 확인), DNS 0 |
 | D3 | 선물 캐릭터 이미지 하루 한도 | **정함(11-14): 10장, 선착순을 화면에 표시**(`room-plan.md` ⑯ 변경). 앱 안의 제한이라, 운영에서는 AWS Budgets 자동 조치(넘으면 Bedrock 권한 회수)를 함께 걸지 검토 | 최대 하루 0.4달러, 월 최대 약 12달러 |
 | D4 | 운영 음악 지도 데이터 | **로컬에서 만든 지도(1,458명)를 덤프해 운영 DB로 옮김.** 다시 만들면 Bedrock 약 2.5달러 + MusicBrainz 약 2시간 | 0 (옮기기) |
 | D5 | 관리자 보안 값 보관 | `ADMIN_TOTP_KEY`·API 키는 SSM Parameter Store(SecureString)에, 관리자 경로는 Traefik IP 허용 | 거의 0 |
@@ -40,7 +40,7 @@
 | 항목 | 월 | 근거 |
 |---|---|---|
 | 단일 서버(t4g.medium 스팟 2d + EBS 30GB + IPv4 + SQS + S3, 부가세 포함) | 약 17.5달러 | `single-server.md` 11-10 조회 |
-| 도메인 `ourgyeol.com` (Cloudflare, DNS 무료) | 약 0.9달러 (연 약 10.5달러) | Cloudflare .com 갱신가, **구매 때 확인** |
+| 도메인 `gyeol.blog` (Porkbun 등록, Cloudflare DNS 무료) | 첫해 2.06달러 한 번 | 11-16 구매. 갱신가 21.11달러라 자동 갱신 끔 |
 | SES 발송 | 0에 가까움 (1,000통당 0.10달러) | 방 만들기·재설정 메일만 |
 | Bedrock Haiku (청취 분석·코드 맞추기 이유·새 가수 설명) | 쓴 만큼 (처음 사용자 업로드 1회 약 0.25달러, 코드 맞추기 이유 1건 약 0.002달러) | 로컬 측정·추정 |
 | 선물 캐릭터 이미지(Stable Image Core, 장당 약 0.04달러) | 한도 10장이면 최대 월 약 12달러, 50장이면 약 60달러 | 설정 `daily-image-limit`, 단가 **확인 필요** |
@@ -60,7 +60,7 @@
 | 날짜 | 내용 |
 |---|---|
 | 11-14 | 초안. 관리 세션이 기존 문서·코드·웹 검색으로 정리 |
-| 11-14 | D2 `ourgyeol.com`(Cloudflare) 결정, D3 10장 선착순 결정 |
+| 11-14 | D2 `gyeol.blog`(Cloudflare) 결정, D3 10장 선착순 결정 |
 
 ## 0단계 결과 (2026-11-16, 로컬 k3d)
 
@@ -138,10 +138,10 @@
 | `deploy/helm/gyeol/templates/backend.yaml` | api에 `WEB_ORIGIN`, `ROOM_SECURE_COOKIE`·`ADMIN_SECURE_COOKIE`(api.secureCookie), `ADMIN_TOTP_KEY`(gyeol-secrets, optional) |
 | `values.yaml` | `api.webOrigin: ""`, `api.secureCookie: false`, 비밀 값 설명에 ADMIN_TOTP_KEY |
 | `values-local.yaml` | 클러스터 안 DB, LocalStack 14566, webOrigin localhost:18000 |
-| `values-single.yaml` | `webOrigin: https://ourgyeol.com`, `secureCookie: true` |
+| `values-single.yaml` | `webOrigin: https://gyeol.blog`, `secureCookie: true` |
 | `deploy/docker/web-nginx.conf` | gzip(css·js·json·svg), `index.html`은 no-cache |
 | `scripts/k3d-up.sh`·`k3d-down.sh` | k3d 전용 LocalStack, 비밀 값에 로컬 가짜 ADMIN_TOTP_KEY(application-local.yml 값, 운영 키 아님) |
-| `infra/terraform/base/variables.tf`·`tfvars.example` | `web_origins` 기본값 `["https://ourgyeol.com"]` |
+| `infra/terraform/base/variables.tf`·`tfvars.example` | `web_origins` 기본값 `["https://gyeol.blog"]` |
 
 - `terraform plan`(apply 안 함): 36 to add, 0 change. 큐 10쌍, 버킷 3, 업로드 CORS(이번에 들어감), 알림, IAM, 예산.
 - `helm lint`(values-single): 통과
