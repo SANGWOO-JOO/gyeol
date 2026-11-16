@@ -1,4 +1,4 @@
-# D4 음악 지도 데이터 옮기기 절차 (2026-11-17, 절차만 · 실행 안 함)
+# D4 음악 지도 데이터 옮기기 절차 (2026-11-17, **운영 실행 완료**)
 
 `deploy-decisions.md` D4: 로컬에서 만든 지도(가수 약 1,500명)를 운영 DB로 옮긴다. 새로 만들면 Bedrock 약 2.5달러 + MusicBrainz 약 2시간이다.
 11-16 k3d 확인에서 빈 DB는 지도가 placeholder(은하 0)로 나왔다. 그래서 첫 배포 직후, 사용자를 받기 전에 한다.
@@ -98,3 +98,10 @@ kubectl -n gyeol exec gyeol-postgres-0 -- rm -f /tmp/map.dump /tmp/title_alias.c
 - 넣은 뒤 이상하면 위 표들을 `TRUNCATE … CASCADE`하고 다시 넣는다. 사용자를 받기 전이라 방 데이터는 없다.
 - 로컬 지도를 다시 만들었으면(`map_version`이 바뀜) 덤프도 다시 만든다.
 - 사용자 방(리뷰 방·시공삶·여찾사)은 옮기지 않는다. 옮기려면 방·참가자·담은 곡·열쇠·이메일까지 개인정보가 함께 가므로 따로 정한다.
+
+## 7. 운영 실행 기록 (11-17)
+- 덤프 8.7MB, `title_alias` 599행, 이미지 1,421개 66MB(`artists/` 929·`covers/` 492)를 S3에 올림.
+- SSM `send-command`로 4절 스크립트 실행. 실행 전 확인: version 35, artist 0, room 0.
+- **트러블슈팅:** 첫 실행이 `artist_image_rule_pkey` 중복으로 실패. 마이그레이션이 이 표에 기본 규칙 1행을 미리 넣어 두기 때문. `--single-transaction`이라 전부 되돌려졌고, `TRUNCATE artist_image_rule` 뒤 다시 넣어 성공(로컬 덤프에 같은 규칙 포함).
+- 결과: 가수 1,506, 활성 지도 자리 1,480(로컬과 같음), 곡 515, 별칭 599, 방 0. 시퀀스 맞춤, `plays_total` 0.
+- 정리: S3 `d4/`, 맥북 덤프·이미지 사본 삭제.
