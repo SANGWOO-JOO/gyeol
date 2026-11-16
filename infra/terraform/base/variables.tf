@@ -3,10 +3,11 @@ variable "region" {
   default = "ap-northeast-2"
 }
 
-# 브라우저가 서명 URL로 업로드 버킷에 직접 PUT하는 웹 주소. 서버 주소가 정해지면 채운다 (예: ["https://gyeol.example"])
+# 브라우저가 서명 URL로 업로드 버킷에 직접 PUT하는 웹 주소. 비면 CORS가 없어 운영 업로드가 브라우저에서 막힌다
+# 11-16: D2 도메인(ourgyeol.com)으로 기본값을 채움. Helm values-single.yaml api.webOrigin과 같은 값
 variable "web_origins" {
   type    = list(string)
-  default = []
+  default = ["https://ourgyeol.com"]
 }
 
 # worker가 Converse로 부르는 모델 (application.yml LLM_MODEL 기본값). global 추론 프로필

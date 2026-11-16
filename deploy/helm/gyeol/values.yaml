@@ -55,7 +55,7 @@ aws:
   # 브라우저가 올릴 S3 주소가 서버와 다를 때만 (k3d)
   publicEndpoint: ""
 
-# 비밀 값은 차트 밖에서 만든다: kubectl create secret generic gyeol-secrets (DB_PASSWORD, LASTFM_API_KEY, YOUTUBE_API_KEY)
+# 비밀 값은 차트 밖에서 만든다: kubectl create secret generic gyeol-secrets (DB_PASSWORD, LASTFM_API_KEY, YOUTUBE_API_KEY, ADMIN_TOTP_KEY)
 secretName: gyeol-secrets
 contact: https://github.com/SANGWOO-JOO
 
@@ -71,6 +71,10 @@ gift:
 api:
   replicas: 1
   port: 18080
+  # 웹 주소(scheme://host[:port]). CORS 허용 출처이자 관리자 API의 Origin 검사 값. 비우면 앱 기본값 localhost:15173이라 운영 관리자 요청이 403
+  webOrigin: ""
+  # 방 열쇠·관리자 쿠키에 Secure. HTTPS로만 여는 운영은 true, http인 k3d는 false
+  secureCookie: false
   # 방장 인증 메일. log(가짜 메일) | ses. ses는 파드에 ses:SendEmail 권한과 인증된 발신 도메인이 있어야 한다 (base ses.tf)
   mail:
     mode: log

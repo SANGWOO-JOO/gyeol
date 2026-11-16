@@ -12,7 +12,10 @@
     (dict "name" "GYEOL_COVERBUCKET" "value" .Values.aws.coverBucket)
     (dict "name" "MAIL_MODE" "value" .Values.api.mail.mode)
     (dict "name" "MAIL_FROM" "value" .Values.api.mail.from)
-    (dict "name" "MAIL_CONFIG_SET" "value" .Values.api.mail.configurationSet)))
+    (dict "name" "MAIL_CONFIG_SET" "value" .Values.api.mail.configurationSet)
+    (dict "name" "WEB_ORIGIN" "value" .Values.api.webOrigin)
+    (dict "name" "ROOM_SECURE_COOKIE" "value" (toString .Values.api.secureCookie))
+    (dict "name" "ADMIN_SECURE_COOKIE" "value" (toString .Values.api.secureCookie))))
   "worker" (dict "cfg" .Values.worker "service" false "env" (list
     (dict "name" "WORKER_ROLE" "value" .Values.worker.role)
     (dict "name" "PARSE_QUEUE" "value" .Values.aws.parseQueue)
@@ -82,6 +85,11 @@ spec:
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
+            {{- end }}
+            {{- if eq $name "api" }}
+            # ⑥ 관리자 TOTP 비밀값 암호화 키. 없으면 관리자 로그인만 503 (앱은 뜬다)
+            - name: ADMIN_TOTP_KEY
+              valueFrom: { secretKeyRef: { name: {{ $root.Values.secretName }}, key: ADMIN_TOTP_KEY, optional: true } }
             {{- end }}
             {{- if eq $name "fetcher" }}
             - name: LASTFM_API_KEY

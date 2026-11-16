@@ -19,6 +19,11 @@ aws:
   endpoint: ""
   publicEndpoint: ""
 
+api:
+  # D2 도메인. CloudFront 없이 Traefik이 같은 주소에서 /api를 받으므로 같은 출처
+  webOrigin: https://ourgyeol.com
+  secureCookie: true
+
 worker:
   llmMode: bedrock
   autoRecommend: false

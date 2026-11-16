@@ -1,6 +1,10 @@
-# k3d 로컬: DB·LocalStack은 맥북의 compose(local/compose.yaml)에 있고, 파드는 host.k3d.internal로 부른다
-db:
-  url: jdbc:postgresql://host.k3d.internal:15432/gyeol
+# k3d 로컬 (11-16 배포 0단계부터): 개발 환경(dev-up: DB 15432·LocalStack 4566)과 데이터를 나눈다
+#  - DB는 클러스터 안 PostgreSQL(단일 서버와 같은 구성, 빈 DB에서 V1부터 마이그레이션)
+#  - LocalStack은 k3d 전용 컨테이너 gyeol-k3d-localstack(14566). scripts/k3d-up.sh가 켠다
+#    같은 LocalStack을 쓰면 개발 worker와 k3d worker가 같은 큐를 나눠 읽어 다른 DB에 저장한다
+postgres:
+  enabled: true
+  storage: 2Gi
 aws:
   uploadBucket: gyeol-local-uploads
   parseQueue: gyeol-local-parse
@@ -22,6 +26,9 @@ aws:
   codeMatchQueue: gyeol-local-code-match
   codeMatchDlq: gyeol-local-code-match-dlq
   coverBucket: gyeol-local-covers
-  endpoint: http://host.k3d.internal:4566
-  publicEndpoint: http://localhost:4566
+  endpoint: http://host.k3d.internal:14566
+  publicEndpoint: http://localhost:14566
   localstack: true
+api:
+  webOrigin: http://localhost:18000
+  secureCookie: false
