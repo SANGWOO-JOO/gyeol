@@ -57,3 +57,9 @@ variable "github_repo" {
   type    = string
   default = "SANGWOO-JOO/gyeol"
 }
+
+# GitHub OIDC immutable subject 접두어 (gh api repos/<repo>/actions/oidc/customization/sub 의 sub_claim_prefix)
+variable "github_oidc_sub_prefix" {
+  type    = string
+  default = "repo:SANGWOO-JOO@97161681/gyeol@1437417299"
+}

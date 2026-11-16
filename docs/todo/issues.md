@@ -81,6 +81,9 @@
 | I-74 | 11-15 | 방 | 노래 담기가 처음 담는 곡이면 4~19초(DB 곡은 0.06초). 대부분 MusicBrainz 식별(호출 2~3번, 초당 1건, 가끔 503 재시도) | 닫힘 (11-15: trackId 있는 줄은 원래 바로 담기(0.01~0.05초). 제목만 담기도 TrackMerger.mapRemote로 DB 곡을 찾으면 바로 담기 — 다른 방 같은 곡 8.26→0.03초, 미리 준비된 곡 0.03초. 처음 담는 곡은 식별 그대로 2~14초) |
 | I-75 | 11-15 | 방 | 못 찾음(NOT_FOUND) 별칭 캐시가 있는 곡도 담기가 202로 worker 큐를 거쳐 3~8초 뒤 실패 | 닫힘 (11-15: API가 30일 안 NOT_FOUND 캐시면 200 FAILED·NOT_FOUND로 바로 끝냄, 하루 한도 안 셈. 웹은 FAILED면 요청 조회 없이 바로 안내. 바쁠 때 7.8~10.1초 → 0.02~0.03초) |
 | I-76 | 11-16 | 배포 | k3d 0단계에서 운영 설정 누락 발견: Helm api에 WEB_ORIGIN·ROOM/ADMIN_SECURE_COOKIE·ADMIN_TOTP_KEY 없음, web nginx gzip 없음, Terraform web_origins 기본값 비어 업로드 CORS 없음. k3d가 개발 DB·LocalStack을 같이 써 큐를 나눠 읽음 | 닫힘 (11-16: 모두 추가, k3d는 클러스터 안 DB·전용 LocalStack 14566. 상세 deploy-decisions.md 0단계 결과) |
+| I-77 | 11-17 | 배포 | 첫 배포 job이 `Input required and not supplied: aws-region`으로 4초 만에 실패: Environment production은 있으나 Actions Variables 3개 미등록 | 닫힘 (11-17: `gh variable set`으로 저장소 변수 등록 후 실패 job만 재실행) |
+| I-78 | 11-17 | 배포 | OIDC `Not authorized to perform sts:AssumeRoleWithWebIdentity`: 저장소가 immutable subject(`repo:SANGWOO-JOO@97161681/gyeol@1437417299:…`)를 써서 역할 신뢰 조건(`repo:SANGWOO-JOO/gyeol:…`)과 불일치 | 닫힘 (11-17: single deploy.tf가 두 형식 모두 허용, 변수 github_oidc_sub_prefix, IAM 1 change apply) |
+| I-79 | 11-16 | 배포 | single apply가 `InsufficientInstanceCapacity`(2d t4g.medium 스팟 자리 없음)로 4분 간격 재시도만 반복 | 닫힘 (11-16: apply 중단, AZ 2b로 바꿔 재생성. 맥에는 `timeout` 명령이 없어 한 번 실행 자체가 안 됐음) |
 | I-12 | 11-13 | 웹 | 4-g "우주에 올리는 중"을 실제로 못 봄(시험 가수가 모두 이미 공용 지도에 있음) | 닫힘 (11-14 화면 확인: 공용 지도에 없던 실리카겔 담기 → 점선 고리 준비 중 행성, 약 6초 뒤 자리 잡음. 캔버스 4-g 진행 카드는 웹에 없음 → I-52) |
 | I-8 | 11-13 | 병렬 규칙 | 갈래 A가 git 명령(rm --cached·reset)을 직접 실행 | 닫힘 |
 | I-9 | 11-13 | 측정 | 코드 맞추기 점수가 곡이 적을 때 낮게 치우침 | 우회 |

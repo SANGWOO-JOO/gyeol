@@ -16,11 +16,11 @@ data "aws_iam_policy_document" "deploy_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
-    # Environment production에서 돈 작업만 (태그 배포·수동 롤백 둘 다 이 Environment를 쓴다)
+    # Environment production에서 돈 작업만. 저장소가 immutable subject(소유자·저장소 ID 포함)를 쓰므로 두 형식을 모두 허용 (11-17 첫 배포에서 AssumeRole 거절) (태그 배포·수동 롤백 둘 다 이 Environment를 쓴다)
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:environment:production"]
+      values   = ["repo:${var.github_repo}:environment:production", "${var.github_oidc_sub_prefix}:environment:production"]
     }
   }
 }
