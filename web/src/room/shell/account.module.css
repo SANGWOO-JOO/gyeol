@@ -151,3 +151,8 @@
 .roomIdentity .nameLine { width:100%; }
 .doorCard .seats > svg { flex:none; }
 @media (prefers-reduced-motion:reduce) { .doorCard .switch::after { transition:none; } }
+
+/* 이 기기에서 나가기 확인 (11-16) */
+.leaveConfirm { display:flex; flex-direction:column; gap:8px; margin-top:8px; padding:12px 14px; border-radius:16px; background:rgba(255,255,255,.05); border:1px solid rgba(227,166,184,.28); }
+.leaveConfirmTitle { margin:0; font-size:14px; font-weight:700; color:var(--r-text); }
+.leaveConfirmRow { display:flex; justify-content:flex-end; gap:8px; }

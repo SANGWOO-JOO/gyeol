@@ -74,6 +74,7 @@ export function MeSheet({ roomId, me, onClose, onRenamed, onLeft, onError, show 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [leaving, setLeaving] = useState(false)
+  const [confirmLeave, setConfirmLeave] = useState(false)
   const nick = nickname.trim()
   const unchanged = nick === me.member.nickname
   const color = memberColor(me.member.colorIdx).bg
@@ -126,7 +127,7 @@ export function MeSheet({ roomId, me, onClose, onRenamed, onLeft, onError, show 
       <Characters roomId={roomId} me={me} onChanged={onRenamed} onError={onError} show={show} />
 
       <div className={a.leaveArea}>
-        <button type="button" className={a.action} onClick={leave} disabled={leaving}>
+        <button type="button" className={a.action} onClick={() => setConfirmLeave(true)} disabled={leaving || confirmLeave} aria-expanded={confirmLeave}>
           <span className={a.icon}><Icon d={KEY} /></span>
           <span className={a.grow}>
             이 기기에서 나가기
@@ -134,7 +135,18 @@ export function MeSheet({ roomId, me, onClose, onRenamed, onLeft, onError, show 
           </span>
           {leaving ? <Spinner size={16} /> : <Icon d={<path d="M9 6l6 6-6 6" />} size={16} />}
         </button>
-        <p className={a.help}>노래는 남아요. 다시 올 땐 “{iAm(me.member.nickname)}”와 4자리 비밀번호로 들어와요.</p>
+        {confirmLeave ? (
+          <div className={a.leaveConfirm} role="group" aria-label="이 기기에서 나갈까요?">
+            <p className={a.leaveConfirmTitle}>이 기기에서 나갈까요?</p>
+            <p className={a.help}>노래는 남아요. 다시 올 땐 “{iAm(me.member.nickname)}”와 4자리 비밀번호로 들어와요.</p>
+            <div className={a.leaveConfirmRow}>
+              <button type="button" className={a.editCancel} autoFocus disabled={leaving} onClick={() => setConfirmLeave(false)}>취소</button>
+              <button type="button" className={a.save} disabled={leaving} onClick={leave}>{leaving ? <Spinner size={14} /> : '나가기'}</button>
+            </div>
+          </div>
+        ) : (
+          <p className={a.help}>노래는 남아요. 다시 올 땐 “{iAm(me.member.nickname)}”와 4자리 비밀번호로 들어와요.</p>
+        )}
       </div>
       <LegalLinks />
     </Sheet>
