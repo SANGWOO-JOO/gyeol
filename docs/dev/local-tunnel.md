@@ -89,8 +89,17 @@
 | 화면은 열리는데 참가·담기만 "요청을 처리하지 못했어요" | 중계된 POST의 `Origin`이 달라 api CORS가 본문 없는 403으로 거절 | 중계에서 Origin을 localhost:15173으로 바꿈 (I-71) |
 | 인증 메일이 안 옴 | 로컬은 `LogMailSender` | api 로그에서 코드 확인 |
 | 터널을 다시 켰더니 초대 링크가 안 열림 | Quick Tunnel 주소가 바뀜 | 새 주소로 다시 초대 |
+| worker를 다시 켰는데 바로 죽음 ("Port 18082 was already in use") | 이전 worker가 graceful shutdown 중(약 2초)인데 새 프로세스를 먼저 띄움 | `lsof -iTCP:18082`로 포트가 비었는지 확인한 뒤 켠다 (11-16 실제 겪음) |
+| `kill $(cat .run/tunnel.pid)`로 안 꺼짐 | nohup으로 띄울 때 pid 파일이 다른 프로세스를 가리킴 | `pkill -f "cloudflared tunnel"` |
 
-## 8. 공부할 개념
+## 8. 11-15 사용 기록
+
+- 터널 연 시간: 11-15 18:59 ~ 11-16 15:33
+- 실제 AI 모드: 11-15 19:05 ~ 11-16 15:33
+- 만든 방: 시공삶(4명, 2곡), 여찾사(3명, 4곡)
+- Bedrock 호출: Haiku 4.5 13건(곡 설명 3, 가수 설명 2, 제목 다시 쓰기 8), 입력 약 19.6K·출력 약 1.5K 토큰 → 약 0.03달러(추정, 입력 1M당 1달러·출력 1M당 5달러 기준). 선물 그림 생성 0장
+
+## 9. 공부할 개념
 
 - **리버스 터널 / 아웃바운드 전용 연결:** 포트를 열지 않고 내부 서비스를 노출하는 방식. 같은 방식을 쓰는 도구로 ngrok, Tailscale Funnel, Cloudflare Named Tunnel(Zero Trust)이 있다.
 - **Host 헤더 검사와 DNS rebinding:** 개발 서버가 왜 모르는 Host를 막는가.
