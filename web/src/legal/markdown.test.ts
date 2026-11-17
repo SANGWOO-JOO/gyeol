@@ -36,9 +36,9 @@ describe('문안', () => {
       expect(new Set(ids).size).toBe(ids.length)
       expect(toc(b).length).toBeGreaterThan(4)
     })
-    it(`${name}: 자리표시자가 남아 있다 (실제 개인정보를 넣지 않음)`, () => {
-      expect(md).toContain('{시행일}')
-      expect(md).not.toMatch(/[\w.+-]+@(?!example)[\w-]+\.[a-z]{2,}/i)
+    it(`${name}: 자리표시자가 모두 채워져 있다`, () => {
+      expect(md).not.toMatch(/\{(운영자|연락처|시행일)\}/)
+      expect(md).toContain('2026년 11월 17일')
     })
   }
   it('처리방침에 YouTube 정책 링크가 있다', () => {
