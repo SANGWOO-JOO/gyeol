@@ -84,6 +84,7 @@
 | I-77 | 11-17 | 배포 | 첫 배포 job이 `Input required and not supplied: aws-region`으로 4초 만에 실패: Environment production은 있으나 Actions Variables 3개 미등록 | 닫힘 (11-17: `gh variable set`으로 저장소 변수 등록 후 실패 job만 재실행) |
 | I-78 | 11-17 | 배포 | OIDC `Not authorized to perform sts:AssumeRoleWithWebIdentity`: 저장소가 immutable subject(`repo:SANGWOO-JOO@97161681/gyeol@1437417299:…`)를 써서 역할 신뢰 조건(`repo:SANGWOO-JOO/gyeol:…`)과 불일치 | 닫힘 (11-17: single deploy.tf가 두 형식 모두 허용, 변수 github_oidc_sub_prefix, IAM 1 change apply) |
 | I-79 | 11-16 | 배포 | single apply가 `InsufficientInstanceCapacity`(2d t4g.medium 스팟 자리 없음)로 4분 간격 재시도만 반복 | 닫힘 (11-16: apply 중단, AZ 2b로 바꿔 재생성. 맥에는 `timeout` 명령이 없어 한 번 실행 자체가 안 됐음) |
+| I-80 | 11-17 | 배포 | v0.1.1 배포 직전(11:07 UTC) 스팟 인스턴스 회수(`Server.SpotInstanceShutdown`)로 서버가 꺼져 SSM `SendCommand`가 `InvalidInstanceId`로 실패, 사이트 약 6분 접속 불가 | 닫힘 (11-17: persistent·stop 스팟 요청이 11:13에 자동 재기동, 사이트 200·SSM Online 확인 뒤 실패 단계만 `gh run rerun --failed`로 재실행해 배포 성공. 일주일 운영 후 내릴 예정이라 온디맨드 전환은 안 함) |
 | I-12 | 11-13 | 웹 | 4-g "우주에 올리는 중"을 실제로 못 봄(시험 가수가 모두 이미 공용 지도에 있음) | 닫힘 (11-14 화면 확인: 공용 지도에 없던 실리카겔 담기 → 점선 고리 준비 중 행성, 약 6초 뒤 자리 잡음. 캔버스 4-g 진행 카드는 웹에 없음 → I-52) |
 | I-8 | 11-13 | 병렬 규칙 | 갈래 A가 git 명령(rm --cached·reset)을 직접 실행 | 닫힘 |
 | I-9 | 11-13 | 측정 | 코드 맞추기 점수가 곡이 적을 때 낮게 치우침 | 우회 |
