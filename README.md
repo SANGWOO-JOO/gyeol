@@ -6,12 +6,15 @@
 유튜브 청취 기록(Google Takeout)을 올리면 **많이 들은 곡·가수·시간대를 원곡 기준으로 분석**하고, 좋아하는 곡 몇 개를 고르면 위키백과·MusicBrainz·Last.fm **근거와 함께** 결이 맞는 곡 20곡을 추천합니다.
 EKS·AI 경험을 실측 수치와 함께 쌓으려고 만든 사이드 프로젝트입니다.
 
+**서비스: https://gyeol.blog** (지인 대상 운영 기간에만 열어 둡니다. 비용을 줄이려고 스팟 서버를 써서 가끔 몇 분 끊길 수 있습니다.)
+
 | 진행 상황 | |
 |---|---|
 | 로컬 개발 L1~L3 (업로드·통계·곡 식별·RAG 보강·추천·평가) | 완료 |
 | 실제 Takeout으로 청취 분석 품질 개선 (식별·표지·순위) | 완료 |
-| 음악 방 (방·참가·담기, 음악 지도 데이터, 메일, 50곡 선물, 코드 맞추기, 관리자, 웹 화면·지도) | 로컬 완료 (메일은 로컬 가짜 발송, SES 도메인 미정) |
+| 음악 방 (방·참가·담기, 음악 지도 데이터, 메일, 50곡 선물, 코드 맞추기, 관리자, 웹 화면·지도) | 완료 (메일: SES gyeol.blog 인증 완료, 프로덕션 승인 대기) |
 | 지인 대상 공개 시험 (Cloudflare Quick Tunnel, 11-15~16, 실제 AI 모드) | 완료 |
+| 운영 배포 (gyeol.blog, k3s 단일 서버·스팟 t4g.medium, Terraform·Helm·GitHub Actions OIDC→SSM, Let's Encrypt) | 완료 (11-16 첫 배포, 지도 데이터 옮김) |
 | 로컬 쿠버네티스(k3d) 배포 검증 | L3-3까지 완료, 이후 변경 확인 예정 |
 | AWS EKS (Terraform, 측정하는 날만 올리고 내리는 회차 5번) | 진행 예정 |
 | L4 (대화 에이전트, MCP 서버) | 보류 |
@@ -37,56 +40,68 @@ EKS·AI 경험을 실측 수치와 함께 쌓으려고 만든 사이드 프로�
 
 ## 화면
 
-로컬 테스트 방 데이터로 찍었습니다 (휴대폰 390px, PC 1440px).
+<details open>
+<summary><b>휴대폰 화면</b> (9장)</summary>
 
-| 첫 화면 | 방 지도 (행성·궤도·금빛 위성) |
-|:---:|:---:|
-| <img src="docs/images/mobile-landing.webp" width="260" alt="첫 화면"> | <img src="docs/images/mobile-map.webp" width="260" alt="방 지도를 확대한 모습. 행성 주위로 사람 색 위성과 같이 담은 노래의 금빛 궤도가 보인다"> |
-| **검색해 담기** | **내 노래 (선물 줄)** |
-| <img src="docs/images/mobile-search.webp" width="260" alt="노래 검색 결과와 담기 버튼"> | <img src="docs/images/mobile-mine.webp" width="260" alt="내 노래 목록과 맨 위 선물 줄"> |
-| **코드 맞추기 결과** | **50곡 선물 상자** |
-| <img src="docs/images/mobile-code-match.webp" width="260" alt="두 사람의 코드 맞추기 결과. 점수와 장르 비율·지도 거리·겹친 아티스트·같이 담은 노래"> | <img src="docs/images/mobile-gift-box.webp" width="260" alt="선물 상자와 오늘 남은 새 그림 장수"> |
-| **새 캐릭터** | |
-| <img src="docs/images/mobile-gift-character.webp" width="260" alt="담은 노래로 만든 새 캐릭터"> | |
+| 첫 화면 | 방 만들기 | 초대받아 참가 |
+|:---:|:---:|:---:|
+| <img src="docs/images/mobile-landing.webp" width="240" alt="첫 화면"> | <img src="docs/images/mobile-create.webp" width="240" alt="방 만들기 1단계. 부를 이름·우주 이름·비밀번호 4자리·이메일"> | <img src="docs/images/mobile-join.webp" width="240" alt="초대 링크로 연 참가 화면. 닉네임과 4자리 비밀번호, 이미 참가한 사람 이름"> |
+| **방 지도** | **검색해 담기** | **내 노래** |
+| <img src="docs/images/mobile-map.webp" width="240" alt="방 지도. 가수 얼굴 행성 주위로 사람 색 위성과 같이 담은 노래의 금빛 궤도가 보인다"> | <img src="docs/images/mobile-search.webp" width="240" alt="가수 카드와 노래 검색 결과, 담기 버튼"> | <img src="docs/images/mobile-mine.webp" width="240" alt="내 노래 목록과 다음 선물까지 남은 곡 수"> |
+| **코드 맞추기** | **방장 비밀번호 복구** | **새 캐릭터** |
+| <img src="docs/images/mobile-code-match.webp" width="240" alt="코드 맞추기 결과. 점수와 항목별 근거, LLM이 근거 안에서 쓴 이유"> | <img src="docs/images/mobile-host-reset.webp" width="240" alt="방장 비밀번호를 이메일 코드로 재설정하는 화면"> | <img src="docs/images/mobile-gift-character.webp" width="240" alt="담은 노래로 만든 새 캐릭터와 장르 섞기"> |
+
+</details>
+
+<details>
+<summary><b>PC 화면</b> (방 전체·가수 자세히·관리자 4장)</summary>
 
 **PC 배치** — 왼쪽 지도, 오른쪽 판(놀이터·검색·내 노래·참가자)
 
-| 방 전체 | 가수 자세히 |
+| 참가자 한 명 강조 | 가수 자세히 (설명·출처) |
 |:---:|:---:|
-| <img src="docs/images/pc-room.webp" alt="PC 방 화면. 왼쪽 지도와 오른쪽 내 노래 판"> | <img src="docs/images/pc-artist.webp" alt="PC에서 행성을 눌러 오른쪽 판에 가수 자세히를 연 모습"> |
+| <img src="docs/images/pc-room.webp" alt="참가자 패널에서 한 사람을 골라 그 사람이 담은 노래만 지도에서 강조한 모습"> | <img src="docs/images/pc-artist.webp" alt="가수 판. 근거 기반 설명과 출처 링크, 비슷한 아티스트"> |
+| **관리자 방 상세 (감사 기록)** | **관리자 OTP 2단계** |
+| <img src="docs/images/pc-admin.webp" alt="관리자 방 상세. 참가자·숨김·조치 사유·감사 기록, 이메일은 가려서 표시"> | <img src="docs/images/pc-admin-otp.webp" alt="관리자 로그인 OTP 2단계 화면"> |
 
-**관리자 우주 목록**
+</details>
 
-<img src="docs/images/pc-admin.webp" alt="관리자 우주 목록. 우주 이름·방장 닉네임·참가자·노래 수·상태">
+## 아키텍처
 
-## 구조
+<details open>
+<summary><b>전체 시스템 구조 — EC2 한 대(k3s) + AWS 관리형 서비스</b></summary>
 
-```mermaid
-flowchart LR
-  web[web<br/>React·Vite<br/>브라우저에서 거르기] -->|서명 URL| s3[(S3)]
-  web --> api[api<br/>Spring Boot]
-  s3 -->|업로드 알림| sqs[[SQS 큐 10개<br/>+ 실패 큐]]
-  api -->|담기·선물·코드 맞추기| sqs
-  api --> ses[SES<br/>방장 인증·재설정 메일]
-  sqs --> worker[worker<br/>parse·identify·cover·guess·enrich·recommend<br/>room-song·gift-image·code-match·artist-image]
-  api --> db[(PostgreSQL<br/>pgvector·pg_trgm)]
-  worker --> db
-  worker --> fetcher[external-fetcher<br/>외부 호출 한 곳, 속도 제한·캐시]
-  worker --> embed[embed<br/>Python·ONNX<br/>multilingual-e5-small]
-  worker --> bedrock[Bedrock<br/>Claude Haiku 4.5]
-  fetcher --> ext[MusicBrainz · Cover Art Archive<br/>Last.fm · YouTube Data API · Wikipedia]
-```
+<img src="docs/images/architecture.png" alt="시스템 구조. 사용자 → Porkbun DNS → EIP → EC2 스팟 k3s(Traefik·web·api·worker·fetcher·embed·PostgreSQL), SQS·S3·SES·Bedrock·Parameter Store, GitHub Actions → OIDC → SSM 배포">
 
-**처리 단계** (큐로 이어지고, 3번 실패하면 실패 큐로 보내 진행률이 멈추지 않게 실패로 표시)
+</details>
 
-1. **거르기** — 브라우저에서 시청 기록 9.6만 건 → 음악 2.5만 건 (0.8초). 애매한 영상은 ID만 보내 YouTube API로 음악 여부 판정
-2. **저장** — S3 → 검증 → 한 트랜잭션 저장 (2.5만 건 4.5초) → 기본 통계
-3. **곡 식별** — "[MV] 밤편지" 같은 제목을 MusicBrainz 원곡으로. 규칙 → LLM 제목 정리 → 다른 표기 재검색 → 전역 캐시
-4. **표지** — 원곡 음반의 앞표지를 S3에 미리 저장. 원곡 음반이 없으면 같은 음반 묶음의 다른 판 (다른 음반 표지로 대신하지 않음)
-   **방송 영상 가수 뽑기** — 많이 들은 방송·일반 채널 영상의 가수·곡을 LLM으로 읽어 확인된 가수일 때만 반영, 메들리는 곡마다
-5. **보강 (RAG)** — 위키백과·Last.fm·MusicBrainz 근거 수집 → LLM이 근거 안에서만 곡 설명 → 벡터
-6. **추천** — 취향 벡터 → 후보 50곡(Last.fm 두 경로 + 벡터 이웃) → 점수 → LLM 재정렬과 이유 → 검증
-7. **평가** — 좋아요·별로, 이유가 틀렸는지 체크 (RAG 켬/끔 블라인드 비교)
+<details>
+<summary><b>인프라 코드(IaC) — Terraform으로 서버 생성부터 k3s 설치까지 자동화</b></summary>
+
+<img src="docs/images/terraform.png" alt="Terraform 흐름. base(SQS·S3·SES·IAM·Budget)와 single(EC2 스팟·EIP·보안 그룹·IAM 역할) apply 뒤 EC2 첫 부팅 때 user-data가 swap·AWS CLI·Traefik 설정·k3s·Helm·배포 스크립트를 준비">
+
+</details>
+
+<details>
+<summary><b>배포·운영 — Helm 차트와 태그 push 자동 배포(CI/CD)</b></summary>
+
+<img src="docs/images/k3s.png" alt="k3s 운영 구조. Terraform·user-data로 k3s·Helm·Traefik 설치, namespace gyeol의 Deployment 5개·StatefulSet·CronJob 백업·Secret, gyeol-deploy 6단계">
+
+</details>
+
+<details>
+<summary><b>AI 파이프라인 — RAG·임베딩·LLM을 근거 안에서만 쓰기</b></summary>
+
+<img src="docs/images/pipeline.png" alt="AI 파이프라인. 가수 근거 수집 → LLM 설명(가드) → e5 임베딩 → pgvector → UMAP 지도, LLM 보조 작업(곡 제목 정리·코드 맞추기 이유·선물 그림)">
+
+</details>
+
+<details>
+<summary><b>데이터 모델(ERD) — 음악 방 핵심 테이블 18개</b></summary>
+
+<img src="docs/images/erd.png" alt="ERD. 방·멤버(room, member, member_key, room_song, song_request), 곡 카탈로그(artist, track), 지도·RAG(artist_profile, knowledge_chunk, artist_vector, map_version, galaxy, artist_position), 선물·코드 맞추기(gift_box, gift_character, code_match), 운영(llm_call)">
+
+</details>
 
 ## 측정한 수치
 
@@ -104,7 +119,6 @@ flowchart LR
 | 재생 기준 원곡 확인 비율 | 52.2% | 개선 전 32.0% |
 | 상위 10곡 확인 | 약 50초 | 개선 전 처리 후반 |
 | 업로드 → 분석·표지 완료 | 20분 17초 | MusicBrainz 초당 1회 제한 |
-
 | 음악 지도: Last.fm "비슷한 가수" 쌍이 지도 이웃 10명 안 (1,458명) | 384차원 16%, 2D 13% | 무작위 1% (약 13~16배) |
 | 음악 지도: 2D 이웃 5명 중 같은 나라 | 80% | — |
 | 가수 벡터 구성 (157명 검증) | 원문 0.5 + RAG 설명 0.5 | 원문만·설명만보다 이웃 일치가 높아 선택 |
@@ -125,7 +139,7 @@ flowchart LR
 | 웹 | React 19, TypeScript, Vite, Web Worker | 큰 파일을 화면 멈춤 없이 브라우저에서 처리 |
 | 음악 지도 | UMAP(Python, 한 번 돌리는 배치) + SVG 직접 그리기 | 지도 라이브러리 없이 포인터 이벤트로 확대·이동, 행성 400개에서 다시 그리기 약 40ms |
 | 메일 | SES (`MAIL_MODE=log`면 로그로 대신) | 로컬·테스트는 비용 없이, 운영만 실제 발송 |
-| 배포 | Docker, Helm, k3d → EKS (Terraform 예정) | 같은 이미지·차트로 로컬 검증 후 EKS |
+| 배포 | Docker, Helm, k3d(로컬) → k3s 단일 서버(운영, Terraform·GitHub Actions) → EKS 예정 | 같은 이미지·차트로 로컬 검증 후 운영, 태그를 올리면 검사·이미지·배포까지 자동 |
 
 ## 저장소 구조
 
@@ -168,6 +182,8 @@ scripts/k3d-up.sh                 # 로컬 쿠버네티스 배포, http://localh
 | [docs/todo/room-web.md](docs/todo/room-web.md) | 음악 방 웹 화면 범위 |
 | [docs/todo/parallel.md](docs/todo/parallel.md) · [issues.md](docs/todo/issues.md) | 여러 AI 코딩 세션 병렬 작업 관리와 이슈 기록 |
 | [docs/todo/deploy-decisions.md](docs/todo/deploy-decisions.md) | 배포 결정과 단계별 결과 |
+| [docs/todo/single-server.md](docs/todo/single-server.md) · [single-server-terraform.md](docs/todo/single-server-terraform.md) · [cicd.md](docs/todo/cicd.md) | 단일 서버 운영 배포 설계·Terraform·CI/CD |
+| [docs/todo/d4-map-data.md](docs/todo/d4-map-data.md) | 운영 서버로 지도·곡 데이터와 이미지 옮기기 |
 | [docs/dev/local-tunnel.md](docs/dev/local-tunnel.md) | 로컬 서비스를 잠깐 외부에 여는 방법(Cloudflare Quick Tunnel)과 사용 기록 |
 | [docs/legal/terms.md](docs/legal/terms.md) · [privacy.md](docs/legal/privacy.md) | 이용약관·개인정보 처리방침 원문 |
 | [docs/testing.md](docs/testing.md) | 자동 테스트와 수동 점검표 |
