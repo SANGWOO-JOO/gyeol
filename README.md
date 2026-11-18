@@ -115,7 +115,9 @@
 <details>
 <summary><b>AI 파이프라인 — RAG·임베딩·LLM을 근거 안에서만 쓰기</b></summary>
 
-<img src="docs/images/pipeline.png" alt="AI 파이프라인. RAG: 가수 근거 수집 → LLM 설명(가드) → e5 임베딩 → pgvector → UMAP 지도, 코드 맞추기 이유(가수 설명·근거 첨부). LLM 보조: 곡 식별 다른 표기·선물 그림">
+<img src="docs/images/pipeline.png" alt="RAG 두 갈래. RAG 1 가수 설명: 가수 근거 수집 → LLM 설명(가드) → e5 임베딩 → pgvector → UMAP 지도. RAG 2 코드 맞추기 이유: 점수는 코드, 저장된 가수 설명·근거 번호를 붙여 LLM이 이유를 쓰고 번호를 검증">
+
+<img src="docs/images/llm-assist.png" alt="LLM 보조 작업. 곡 식별에서 규칙으로 못 찾을 때만 LLM 다른 표기 재검색, 50곡 선물은 LLM 그림 묘사 → Stable Image Core">
 
 </details>
 
