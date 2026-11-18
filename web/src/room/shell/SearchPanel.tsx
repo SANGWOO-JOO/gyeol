@@ -10,14 +10,17 @@ import sh from './shell.module.css'
 import { Avatar } from '../components/Avatar'
 import { sourcesOf, useImageChain } from '../images'
 import { planetFace } from '../galaxy/faces'
+import { VibePanel } from './VibePanel'
 import { pushRecent, readRecent, topArtists, writeRecent } from './tabLogic'
 
 /** 검색 결과 한 줄을 구분하는 키 (DB 곡은 trackId, 아니면 제목|가수) */
 export const itemKey = trackKey
 
+export type SearchMode = 'name' | 'vibe'
+
 /** 4-d 노래 검색해 담기. 담는 일은 부모(RoomShell)가 하고, 여기서는 찾기와 표시만 */
 export function SearchPanel({
-  roomId, query, setQuery, added, pending, busy, onAdd, onOpenArtist, map = null,
+  roomId, query, setQuery, added, pending, busy, onAdd, onOpenArtist, map = null, mode = 'name', setMode,
 }: {
   roomId: string
   query: string
@@ -33,6 +36,9 @@ export function SearchPanel({
   onOpenArtist: (a: SearchArtist) => void
   /** 지도(사람 색·우리 우주에 많은 가수) */
   map?: RoomMap | null
+  /** 이름으로 찾기 · 분위기로 찾기 (vibe-search-rag.md 9절). 가수 화면에 갔다 와도 남게 부모가 들고 있다 */
+  mode?: SearchMode
+  setMode?: (m: SearchMode) => void
 }) {
   const members = map?.members ?? []
   const [recent, setRecent] = useState<string[]>(readRecent)
@@ -119,9 +125,25 @@ export function SearchPanel({
     }
   }
 
+  const modeTabs = setMode && (
+    <div className={sh.modeTabs} role="group" aria-label="찾는 방법">
+      <button type="button" className={sh.sortChip} aria-pressed={mode === 'name'} onClick={() => setMode('name')}>노래·가수 이름</button>
+      <button type="button" className={sh.sortChip} aria-pressed={mode === 'vibe'} onClick={() => setMode('vibe')}>분위기로 찾기</button>
+    </div>
+  )
+  if (mode === 'vibe') {
+    return (
+      <section aria-label="찾기" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className={sh.searchSticky}>{modeTabs}</div>
+        <VibePanel roomId={roomId} onOpenArtist={onOpenArtist} />
+      </section>
+    )
+  }
+
   return (
     <section aria-label="노래 검색" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div className={sh.searchSticky}>
+      {modeTabs}
       <label className={sh.searchBox}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B7AFD1" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
         <input ref={inputRef} type="search" aria-label="노래 검색" placeholder="노래나 가수 이름" value={query} onChange={e => setQuery(e.target.value)} enterKeyHint="search"
