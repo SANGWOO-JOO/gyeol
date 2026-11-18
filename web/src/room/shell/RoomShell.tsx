@@ -11,7 +11,7 @@ import { Wordmark } from '../components/Wordmark'
 import { GalaxyView } from '../galaxy/GalaxyView'
 import { useFreshMarks } from '../galaxy/fresh'
 import { keepFocus, toggleFocus } from '../galaxy/focus'
-import { itemKey, SearchPanel } from './SearchPanel'
+import { itemKey, SearchPanel, type SearchMode } from './SearchPanel'
 import { MineTab } from './MineTab'
 import { PeopleSheet } from './PeopleSheet'
 import { ArtistSheet } from './ArtistSheet'
@@ -71,6 +71,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
   const fresh = useFreshMarks(map, wide || tab === 'map')
   const [toast, setToast] = useState<ToastData | null>(null)
   const [query, setQuery] = useState('')
+  const [searchMode, setSearchMode] = useState<SearchMode>('name')
   /** I-30 가수 화면: 검색 탭(PC는 오른쪽 판 검색) 자리에 뜬다 */
   const [artistPage, setArtistPage] = useState<ArtistRef | null>(null)
   const [added, setAdded] = useState<Map<string, number>>(new Map())
@@ -161,7 +162,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
 
   /** 내 노래가 바뀜: 지도·내 정보·판들을 다시 받는다 */
   const changed = useCallback(() => { setVersion(v => v + 1); refreshMap(true); refreshMe(); refreshSummary() }, [refreshMap, refreshMe, refreshSummary])
-  const openSearch = useCallback((q: string) => { setQuery(q); setArtistPage(null); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }, [setParams, setSheet])
+  const openSearch = useCallback((q: string) => { setQuery(q); setSearchMode('name'); setArtistPage(null); setSheet(null); setParams({ tab: 'search' }, { replace: true }) }, [setParams, setSheet])
   /** 4′2 지도 행성 → 가수 화면 (검색 탭 자리, PC는 오른쪽 판 검색) */
   const openArtistSongs = useCallback((artistId: number, name: string) => {
     const planet = map?.planets.find(p => p.artistId === artistId)
@@ -347,7 +348,7 @@ export function RoomShell({ roomId, onLostKey }: { roomId: string; onLostKey: ()
       roomCount={artistPage.artistId != null && map ? (map.planets.find(p => p.artistId === artistPage.artistId)?.songs.length ?? 0) : undefined} pending={pendingKeys} busy={busy} onAdd={add}
       onError={handle} backLabel={artistPage.fromPlanet != null ? `${artistPage.name} 가수 판으로` : artistPage.fromMap ? '지도로' : '검색 결과로'} onBack={backFromArtist} />
   ) : (
-    <SearchPanel roomId={roomId} map={map} query={query} setQuery={setQuery} added={added}
+    <SearchPanel roomId={roomId} map={map} query={query} setQuery={setQuery} added={added} mode={searchMode} setMode={setSearchMode}
       pending={pendingKeys} busy={busy} onAdd={add} onOpenArtist={a => setArtistPage({ artistId: a.artistId, name: a.name, songCountInRoom: a.songCountInRoom, onMap: a.onMap })} />
   )
   const playTab = <PlayTab roomId={roomId} meId={me?.member.id ?? -1} version={version} onError={handle} show={show} />

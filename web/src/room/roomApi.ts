@@ -76,6 +76,14 @@ export interface ArtistView {
   songs: MapSong[]; nearby: { artistId: number; name: string; inRoom: boolean; galaxyId?: number | null; face?: Face | null }[]; preparing: boolean
 }
 
+/** 분위기로 찾기 가수 카드. reason은 검증에서 빠지면 null · inRoomBy: 이 가수를 방에서 담은 사람 닉네임 */
+export interface VibePick { artistId: number; name: string; imageUrl: string | null; reason: string | null; inRoomBy: string[] }
+/** 4-2 VibeSearchView. picks는 DONE일 때 3~5개 · notFound: 가까운 가수 없음(D8) */
+export interface VibeSearchView {
+  id: number; query: string; status: 'PENDING' | 'DONE' | 'FAILED'; createdAt: string
+  picks: VibePick[]; evidence: Evidence[]; notFound: boolean
+}
+
 export interface CodeMatchPerson { memberId: number; nickname: string; colorIdx: number; avatarCharacterId: number | null; songCount: number }
 /** status: REASONING(이유 쓰는 중)·DONE·NO_REASON · confidence: LOW(5~9)·MEDIUM(10~19)·HIGH(20~) · stale: 그 뒤 곡·지도가 바뀜 */
 export interface CodeMatchView {
@@ -170,7 +178,7 @@ async function call<T>(path: string, opt: CallOptions = {}): Promise<T> {
   if (res.status === 204) return undefined as T
   const body = await res.json().catch(() => null)
   if (!res.ok) {
-    throw new RoomApiError(res.status, body?.code ?? 'UNKNOWN', body?.message ?? '요청을 처리하지 못했어요.', body?.detail ?? null)
+    throw new RoomApiError(res.status, body?.code ?? body?.error ?? 'UNKNOWN', body?.message ?? '요청을 처리하지 못했어요.', body?.detail ?? null)
   }
   return body as T
 }
@@ -229,6 +237,9 @@ export const roomApi = {
   // ── 7단계: 놀이터 코드 맞추기 (room-api-db.md 11절). 저장 결과 200, 새 계산 202 ──
   codeMatch: (roomId: string, a: number, b: number) => call<CodeMatchView>(`/rooms/${rid(roomId)}/code-match`, { method: 'POST', roomId, body: { a, b } }),
   codeMatchLatest: (roomId: string, a: number, b: number, signal?: AbortSignal) => call<CodeMatchView>(`/rooms/${rid(roomId)}/code-match?a=${a}&b=${b}`, { roomId, signal }),
+  // ── 분위기로 가수 찾기 (docs/todo/vibe-search-rag.md 4-2). 새 요청 202 PENDING, 같은 질문 재사용 200 ──
+  vibeSearch: (roomId: string, q: string) => call<VibeSearchView>(`/rooms/${rid(roomId)}/vibe-search`, { method: 'POST', roomId, body: { q } }),
+  vibeSearchGet: (roomId: string, id: number, signal?: AbortSignal) => call<VibeSearchView>(`/rooms/${rid(roomId)}/vibe-search/${id}`, { roomId, signal }),
   /** 되돌리기로 다시 담을 때 (trackId만) */
   addTrack: (roomId: string, trackId: number) => call<AddSongResponse>(`/rooms/${rid(roomId)}/songs`, { method: 'POST', roomId, body: { trackId } }),
 }
