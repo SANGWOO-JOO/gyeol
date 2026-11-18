@@ -20,7 +20,8 @@ import tools.jackson.databind.json.JsonMapper
 data class CodeMatchMessage(val matchId: Long)
 
 /** 이유 재료: 두 사람 이름, 점수, 겹친 구역, 가수 설명(근거 번호) */
-data class ReasonInput(val nameA: String, val nameB: String, val score: Int, val sharedGalaxies: List<String>, val artists: List<ArtistEvidence>, val sharedArtists: List<String>)
+/** [pairs]: 겹치지 않은 두 사람 가수 중 벡터가 가까운 짝의 이름 (A 쪽, B 쪽) */
+data class ReasonInput(val nameA: String, val nameB: String, val score: Int, val sharedGalaxies: List<String>, val artists: List<ArtistEvidence>, val sharedArtists: List<String>, val pairs: List<Pair<String, String>> = emptyList())
 data class Reason(val text: String?, val evidence: List<Long>, val model: String, val inputTokens: Int, val outputTokens: Int, val latencyMs: Int)
 
 interface CodeMatchLlm {
@@ -45,6 +46,7 @@ class BedrockCodeMatchLlm(private val llm: WorkerProperties.Llm, json: JsonMappe
             appendLine("두 사람: ${input.nameA}, ${input.nameB} (코드 점수 ${input.score}%)")
             if (input.sharedGalaxies.isNotEmpty()) appendLine("함께 있는 구역: ${input.sharedGalaxies.joinToString(", ")}")
             if (input.sharedArtists.isNotEmpty()) appendLine("둘 다 담은 가수: ${input.sharedArtists.joinToString(", ")}")
+            if (input.pairs.isNotEmpty()) appendLine("음악이 가까운 짝 (서로 다른 가수, ${input.nameA}의 가수 ↔ ${input.nameB}의 가수): ${input.pairs.joinToString(", ") { "${it.first} ↔ ${it.second}" }}")
             appendLine("가수 설명 (각 줄 끝 [번호]는 근거 자료 번호):")
             input.artists.forEach { a -> appendLine("- ${a.name}: ${a.description.take(400)} ${a.evidence.joinToString(" ") { "[$it]" }}") }
         }
@@ -59,6 +61,7 @@ class BedrockCodeMatchLlm(private val llm: WorkerProperties.Llm, json: JsonMappe
         private val SYSTEM = """
             너는 음악 방의 "코드 맞추기" 결과에 짧은 이유를 쓴다. 두 사람의 음악 취향이 어디서 닿고 어디서 갈리는지 한국어 2~3문장으로 쓴다.
             주어진 구역 이름과 가수 설명에 있는 내용만 쓴다. 성격·연애·관계를 추측하지 않는다. 가수 이름은 써도 된다.
+            "음악이 가까운 짝"은 서로 다른 두 가수다. 짝을 두 사람이 함께 좋아한다고 쓰지 말고, 짝의 두 설명에 함께 나오는 장르·분위기·소리만 닮은 점으로 쓴다.
             쓴 내용의 근거가 된 설명 줄의 [번호]를 evidence에 적는다. 근거로 쓸 내용이 없으면 reason을 빈 문자열로 둔다.
         """.trimIndent()
         private val SCHEMA = mapOf(
@@ -79,7 +82,8 @@ class CodeMatchConfig {
 }
 
 /**
- * ⑤ 코드 맞추기 이유 (code-match 큐). 재료는 둘 다 담은 가수의 설명, 없으면 각자 많이 담은 가수 2명씩.
+ * ⑤ 코드 맞추기 이유 (code-match 큐). 재료는 둘 다 담은 가수의 설명, 겹친 가수가 없으면 두 사람 가수 중
+ * 벡터가 가까운 짝 3개 (docs/todo/codematch-vector-rag.md), 짝도 없으면 각자 많이 담은 가수 2명씩.
  * 근거 번호를 대지 못한 이유는 버리고 NO_REASON (화면은 점수·항목만)
  */
 @Service
@@ -89,6 +93,7 @@ class CodeMatchReasonService(
     private val llm: CodeMatchLlm,
     private val llmCalls: LlmCallRepository,
     private val json: JsonMapper,
+    private val props: WorkerProperties,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -100,19 +105,35 @@ class CodeMatchReasonService(
         val parts = json.readValue(row.partsJson, CodeMatchParts::class.java)
         val pa = matches.songPoints(a.id)
         val pb = matches.songPoints(b.id)
-        val shared = pa.map { it.artistId }.toSet() intersect pb.map { it.artistId }.toSet()
-        val pick = shared.ifEmpty { (top(pa) + top(pb)).toSet() }
-        val artists = matches.artistEvidence(pick.take(6))
-        val r = llm.reason(ReasonInput(a.nickname, b.nickname, row.score, parts.sharedGalaxies.take(5), artists, parts.sharedArtists.take(10)))
+        val aIds = pa.map { it.artistId }.toSet()
+        val bIds = pb.map { it.artistId }.toSet()
+        val shared = aIds intersect bIds
+        // 겹친 가수가 있으면 그것만 근거로 (짝을 섞으면 근거와 어긋난 문장이 늘었다, 11-18 측정)
+        val pairs = if (shared.isNotEmpty()) emptyList()
+        else matches.nearestPairs(aIds, bIds, PAIRS).filter { it.distance <= props.codeMatch.maxPairDistance }
+        val pick = when {
+            shared.isNotEmpty() -> shared.take(MAX_ARTISTS)
+            pairs.isNotEmpty() -> pairs.flatMap { listOf(it.aId, it.bId) }.distinct().take(MAX_ARTISTS)
+            else -> (top(pa) + top(pb)).distinct()
+        }
+        val artists = matches.artistEvidence(pick)
+        val names = (pa + pb).associate { it.artistId to it.artistName }
+        val pairNames = pairs.filter { it.aId in pick && it.bId in pick }.mapNotNull { p -> names[p.aId]?.let { x -> names[p.bId]?.let { y -> x to y } } }
+        val r = llm.reason(ReasonInput(a.nickname, b.nickname, row.score, parts.sharedGalaxies.take(5), artists, parts.sharedArtists.take(10), pairNames))
         if (r.model != "fake") llmCalls.record("CODE_MATCH", LlmUsage(r.model, 1, r.inputTokens, r.outputTokens, r.latencyMs))
         matches.finish(matchId, r.text, if (r.text == null) emptyList() else r.evidence)
-        log.info("코드 맞추기 {} 이유 {} (근거 {}개)", matchId, if (r.text == null) "없음" else "씀", r.evidence.size)
+        log.info("코드 맞추기 {} 이유 {} (근거 {}개, 겹친 가수 {}, 벡터 짝 {})", matchId, if (r.text == null) "없음" else "씀", r.evidence.size, shared.size, pairNames.size)
     }
 
     /** 실패 큐: 이유 없이 끝낸다 (화면이 "이유 쓰는 중"에서 멈추지 않게) */
     fun fail(matchId: Long) {
         matches.finish(matchId, null, emptyList())
         log.warn("코드 맞추기 {} 실패 큐 → NO_REASON", matchId)
+    }
+
+    companion object {
+        const val MAX_ARTISTS = 6
+        const val PAIRS = 3
     }
 
     private fun top(points: List<dev.gyeol.core.room.SongPoint>): List<Long> =

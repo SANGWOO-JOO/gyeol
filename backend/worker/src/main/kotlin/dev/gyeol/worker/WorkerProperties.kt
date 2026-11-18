@@ -46,7 +46,12 @@ data class WorkerProperties(
     )
 
     /** ⑤ 코드 맞추기 이유 쓰기 (점수는 API가 계산) */
-    data class CodeMatchProps(val queue: String = "gyeol-local-code-match", val dlq: String = "gyeol-local-code-match-dlq")
+    /** [maxPairDistance]: 이유 근거로 쓸 벡터 짝의 최대 코사인 거리 (1.0 = 거르지 않음, docs/todo/codematch-vector-rag.md D3) */
+    data class CodeMatchProps(
+        val queue: String = "gyeol-local-code-match",
+        val dlq: String = "gyeol-local-code-match-dlq",
+        val maxPairDistance: Double = 1.0,
+    )
 
     /** 음악 방 담기 식별 (docs/todo/room-api-db.md) */
     data class RoomProps(

@@ -97,6 +97,9 @@ data class CodeMatchRow(
 /** 이유 쓰기 재료: 겹친 가수(없으면 각자 대표 가수)의 근거 기반 설명 */
 data class ArtistEvidence(val artistId: Long, val name: String, val description: String, val evidence: List<Long>)
 
+/** 두 사람 가수 사이 벡터가 가까운 짝 (코사인 거리, 0에 가까울수록 비슷) */
+data class ArtistPair(val aId: Long, val bId: Long, val distance: Double)
+
 @Repository
 class CodeMatchRepository(private val jdbc: JdbcClient) {
 
@@ -159,6 +162,31 @@ class CodeMatchRepository(private val jdbc: JdbcClient) {
     }
 
     /** 설명이 있는 가수만, 근거 번호와 함께 */
+    /**
+     * [aIds]의 가수마다 [bIds] 안에서 섞은 벡터(원문 0.5 + 설명 0.5)가 가장 가까운 가수 1명을 찾아 거리순으로 [limit]개.
+     * 근거로 붙일 수 있게 설명·근거 번호가 있는 가수만 짝이 된다. 한 사람의 가수는 수백 명 이하라 후보 안에서 정확 검색한다
+     */
+    fun nearestPairs(aIds: Collection<Long>, bIds: Collection<Long>, limit: Int): List<ArtistPair> {
+        if (aIds.isEmpty() || bIds.isEmpty() || limit <= 0) return emptyList()
+        return jdbc.sql(
+            """
+            SELECT a.artist_id, nb.artist_id, nb.d
+            FROM artist_vector a
+            JOIN artist_profile pa ON pa.artist_id = a.artist_id AND pa.description IS NOT NULL AND cardinality(pa.evidence) > 0
+            CROSS JOIN LATERAL (
+              SELECT b.artist_id, b.mixed <=> a.mixed AS d
+              FROM artist_vector b
+              JOIN artist_profile pb ON pb.artist_id = b.artist_id AND pb.description IS NOT NULL AND cardinality(pb.evidence) > 0
+              WHERE b.artist_id = ANY (:b) AND b.artist_id <> a.artist_id
+              ORDER BY d LIMIT 1
+            ) nb
+            WHERE a.artist_id = ANY (:a)
+            ORDER BY nb.d LIMIT :l
+            """.trimIndent(),
+        ).param("a", aIds.toTypedArray()).param("b", bIds.toTypedArray()).param("l", limit)
+            .query { rs, _ -> ArtistPair(rs.getLong(1), rs.getLong(2), rs.getDouble(3)) }.list()
+    }
+
     fun artistEvidence(artistIds: Collection<Long>): List<ArtistEvidence> {
         if (artistIds.isEmpty()) return emptyList()
         return jdbc.sql(
