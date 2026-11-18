@@ -206,6 +206,18 @@ class VibeSearchIntegrationTest {
     }
 
     @Test
+    fun `실제 LLM이 아무도 고르지 않으면 카드로 채우지 않고 notFound`() {
+        artist("록 A", 70); artist("록 B", 70); artist("록 C", 70)
+        llm.next = { VibeLlmResult(emptyList(), "haiku", 10, 5, 100) }
+        val id = request("hot:70")
+        service.process(id)
+        val row = searches.get(id)!!
+        assertEquals("DONE", row.status)
+        assertEquals("[]", row.picksJson!!.replace(" ", ""))
+        assertEquals(1, llm.calls)
+    }
+
+    @Test
     fun `실패 큐는 FAILED`() {
         val id = request("hot:60")
         service.fail(id)

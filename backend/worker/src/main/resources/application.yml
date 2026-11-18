@@ -47,7 +47,7 @@ gyeol:
       dlq: ${VIBE_SEARCH_DLQ:gyeol-local-vibe-search-dlq}
       vector-column: ${VIBE_SEARCH_VECTOR_COLUMN:descr}
       query-prefix: ${VIBE_SEARCH_QUERY_PREFIX:query}
-      max-distance: ${VIBE_SEARCH_MAX_DISTANCE:0.18}
+      max-distance: ${VIBE_SEARCH_MAX_DISTANCE:0.22}
     # 음악 지도 데이터 만들기 내부 엔드포인트 (로컬에서만 true)
     map:
       admin-endpoint: ${MAP_ADMIN_ENDPOINT:false}

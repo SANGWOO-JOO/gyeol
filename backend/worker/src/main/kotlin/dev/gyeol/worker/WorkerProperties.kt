@@ -57,7 +57,7 @@ data class WorkerProperties(
     /**
      * 분위기로 가수 찾기 · Naive RAG (docs/todo/vibe-search-rag.md 4-1). 측정 뒤 값만 바꾼다:
      * [vectorColumn] artist_vector 열(descr·mixed·raw), [queryPrefix] e5 접두어(query·passage),
-     * [maxDistance] top-1 코사인 거리가 이보다 크면 "맞는 가수를 못 찾았어요" (1.0 = 거르지 않음, 11-18 측정으로 0.18).
+     * [maxDistance] top-1 코사인 거리가 이보다 크면 "맞는 가수를 못 찾았어요" (1.0 = 거르지 않음, 11-18 측정 2에서 정상 질문이 0.196까지 나와 0.22로 느슨하게, 엉뚱한 질문은 LLM 빈 응답으로 거른다).
      * [topK]명을 검색해 LLM이 [minPicks]~[maxPicks]명을 고른다
      */
     data class VibeSearchProps(
@@ -65,7 +65,7 @@ data class WorkerProperties(
         val dlq: String = "gyeol-local-vibe-search-dlq",
         val vectorColumn: String = "descr",
         val queryPrefix: String = "query",
-        val maxDistance: Double = 0.18,
+        val maxDistance: Double = 0.22,
         val topK: Int = 10,
         val minPicks: Int = 3,
         val maxPicks: Int = 5,

@@ -65,6 +65,7 @@ class BedrockVibeSearchLlm(private val llm: WorkerProperties.Llm, private val ma
         나라, 국적, 도시, 언어, 출신지는 언급하지 않는다. 다른 가수 이름은 쓰지 않는다.
         artistId에는 후보의 가수 번호를, evidence에는 그 이유의 근거가 된 설명 줄 끝의 [번호]를 적는다.
         질문에 맞는 근거가 없는 가수는 고르지 않는다. 사과하거나 쓸 수 없는 이유를 적지 않는다.
+        질문이 음악 분위기와 관계없거나 후보 중 맞는 가수가 없으면 picks를 빈 배열로 둔다.
     """.trimIndent()
 
     companion object {
@@ -122,7 +123,7 @@ class VibeSearchConfig {
 /**
  * 분위기로 가수 찾기 (vibe-search 큐, docs/todo/vibe-search-rag.md 3절):
  * 질문 임베딩 → 가수 벡터 top-k (설명·근거 있는 가수만) → 설명·근거 번호를 넣어 LLM이 고르고 이유 → 출력 검증 → DONE.
- * top-1 거리가 max-distance보다 멀면 picks 없이 DONE (notFound). LLM이 실패하면 이유 없이 검색 상위 카드만.
+ * top-1 거리가 max-distance보다 멀거나 LLM이 아무도 고르지 않으면 picks 없이 DONE (notFound). LLM이 실패하면 이유 없이 검색 상위 카드만.
  * 임베딩·DB 실패는 예외 → 큐가 다시 시도, 실패 큐에서 FAILED
  */
 @Service
@@ -155,6 +156,12 @@ class VibeSearchService(
             .onFailure { log.warn("분위기 찾기 {}: LLM 실패, 이유 없이 카드만", searchId, it) }.getOrNull()
         if (result != null && result.model != "fake") {
             llmCalls.record("VIBE_SEARCH", LlmUsage(result.model, 1, result.inputTokens, result.outputTokens, result.latencyMs))
+        }
+        // B안(11-18): 실제 LLM이 아무도 고르지 않으면 "맞는 가수 없음"으로 본다 (거리 기준은 느슨하게, 판단은 LLM)
+        if (result != null && result.model != "fake" && result.picks.isEmpty()) {
+            searches.finish(searchId, "DONE", hitsJson, "[]", emptyList())
+            log.info("분위기 찾기 {}: LLM이 맞는 가수 없음으로 판단 (top-1 거리 {})", searchId, hits.first().d)
+            return
         }
         val allowed = candidates.flatMap { it.evidence }.toSet()
         val picks = VibeGuard.validate(result?.picks.orEmpty(), hits, allowed, p.minPicks, p.maxPicks)
