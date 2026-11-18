@@ -2,11 +2,23 @@
 # PR은 바뀐 영역만, main push는 전체. 비밀값·AWS 호출 없음 (LLM은 fake, 외부 API 키 없이 도는 테스트만)
 name: CI
 
+# 문서만 바뀐 커밋(docs/·마크다운)은 CI를 돌리지 않는다. 코드와 같이 바뀌면 그대로 돈다.
+# 예외: docs/legal/은 웹이 ?raw로 불러오므로(LegalPage.tsx) 검사한다. 순서 중요(뒤 패턴이 앞을 덮음)
 on:
   push:
     branches: [main]
+    paths:
+      - '**'
+      - '!docs/**'
+      - '!**/*.md'
+      - 'docs/legal/**'
   pull_request:
     branches: [main]
+    paths:
+      - '**'
+      - '!docs/**'
+      - '!**/*.md'
+      - 'docs/legal/**'
 
 # 같은 브랜치(또는 PR)의 이전 실행은 취소
 concurrency:
@@ -51,6 +63,7 @@ jobs:
               - *ci
               - 'web/**'
               - 'tools/fixtures/**'   # Takeout 거르기 테스트 자료
+              - 'docs/legal/**'       # 약관·개인정보 처리방침 (LegalPage.tsx가 ?raw로 읽음)
             embed:
               - *ci
               - 'embed/**'
