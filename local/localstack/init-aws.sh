@@ -63,6 +63,7 @@ make_queue gyeol-local-recommend 900      # 추천 (L3-4), 후보 5곡 식별·�
 make_queue gyeol-local-room-song 900      # 음악 방 담기 식별 (측정 최대 82초), 실패 큐에서 요청을 FAILED로
 make_queue gyeol-local-gift-image 300     # ④ 선물 캐릭터, 이미지 생성 수십 초, 실패 큐에서 상자를 FAILED로
 make_queue gyeol-local-code-match 120     # ⑤ 코드 맞추기 이유, LLM 한 번, 실패 큐에서 이유 없이 끝냄
+make_queue gyeol-local-vibe-search 120    # 분위기로 가수 찾기, 임베딩 + LLM 한 번, 실패 큐에서 FAILED
 make_queue gyeol-local-guess 300          # 방송·일반 영상 가수·곡 뽑기, 실패 큐는 기록용
 make_queue gyeol-local-artist-image 600   # 가수 이미지, 실패 큐는 기록용
 
@@ -79,12 +80,12 @@ else
   FAILED+=("notification:$UPLOADS")
 fi
 
-# ── 기대 목록 검사: 버킷 2, 큐 10쌍(표시 제한·실패 큐 연결까지), 업로드 알림 ──
+# ── 기대 목록 검사: 버킷 2, 큐 11쌍(표시 제한·실패 큐 연결까지), 업로드 알림 ──
 MISSING=()
 for b in "$UPLOADS" "$COVERS"; do
   aws_ s3api head-bucket --bucket "$b" >/dev/null 2>&1 || MISSING+=("bucket:$b")
 done
-for q in parse:120 identify:900 cover:900 enrich:900 recommend:900 room-song:900 gift-image:300 code-match:120 guess:300 artist-image:600; do
+for q in parse:120 identify:900 cover:900 enrich:900 recommend:900 room-song:900 gift-image:300 code-match:120 vibe-search:120 guess:300 artist-image:600; do
   name="gyeol-local-${q%%:*}"; want="${q##*:}"
   [ -n "$(queue_url "$name-dlq")" ] || { MISSING+=("queue:$name-dlq"); continue; }
   url=$(queue_url "$name")
@@ -100,4 +101,4 @@ if [ ${#MISSING[@]} -gt 0 ]; then
   exit 1
 fi
 touch "$READY"
-echo "gyeol-local: 버킷 2, 큐 10쌍, 업로드 → parse 알림 준비 완료"
+echo "gyeol-local: 버킷 2, 큐 11쌍, 업로드 → parse 알림 준비 완료"

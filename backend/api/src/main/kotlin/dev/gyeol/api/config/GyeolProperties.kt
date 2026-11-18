@@ -71,7 +71,13 @@ data class GyeolProperties(
         /** ⑤ 코드 맞추기 이유 쓰기 → worker */
         val codeMatchQueue: String = "gyeol-local-code-match",
         val codeMatch: CodeMatch = CodeMatch(),
+        /** 분위기로 가수 찾기 → worker (docs/todo/vibe-search-rag.md) */
+        val vibeSearchQueue: String = "gyeol-local-vibe-search",
+        val vibeSearch: VibeSearch = VibeSearch(),
     )
+
+    /** 분위기로 가수 찾기 (D7: 멤버당 하루 20회, 저장 결과 재사용은 안 셈). 질문 길이 2~100자 */
+    data class VibeSearch(val dailyLimit: Int = 20, val minLength: Int = 2, val maxLength: Int = 100)
 
     /**
      * ⑤ 코드 맞추기 (11-13 결정): 각자 5곡부터, 방당 하루 새 계산 30번(저장 결과 재사용은 안 셈),
