@@ -1,7 +1,10 @@
 # GitHub Actions → OIDC → gyeol-deploy → 이 서버에만 SSM send-command (cicd.md 2절, 결정 S6)
-# 계정에 GitHub OIDC 공급자가 이미 있다(11-17 확인, 다른 프로젝트와 공유) → 만들지 않고 참조
-data "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
+# GitHub OIDC 공급자는 이 스택이 직접 만든다.
+# 11-17에는 다른 프로젝트와 공유해 data로 참조했으나, 11-18 00:07 다른 CloudFormation 스택 삭제로 공급자가 함께 지워져 v0.2.0 배포가 실패했다.
+# 계정당 URL 하나만 둘 수 있으므로 다른 프로젝트는 이 공급자를 참조해야 한다.
+resource "aws_iam_openid_connect_provider" "github" {
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
 }
 
 data "aws_iam_policy_document" "deploy_assume" {
@@ -9,7 +12,7 @@ data "aws_iam_policy_document" "deploy_assume" {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     principals {
       type        = "Federated"
-      identifiers = [data.aws_iam_openid_connect_provider.github.arn]
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
     }
     condition {
       test     = "StringEquals"
