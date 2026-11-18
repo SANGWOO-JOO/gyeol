@@ -289,6 +289,16 @@ class SessionApiIntegrationTest {
     }
 
     @Test
+    fun `없는 경로는 404, 지원하지 않는 방식은 405 (I-81)`() {
+        val (status, body) = call("GET", "/api/없는-경로")
+        assertEquals(404, status)
+        assertEquals("NOT_FOUND", body!!["code"].asString())
+        val (m, mb) = call("DELETE", "/api/sessions")
+        assertEquals(405, m)
+        assertEquals("METHOD_NOT_ALLOWED", mb!!["code"].asString())
+    }
+
+    @Test
     fun `만료된 세션은 조회·통계·삭제 모두 404`() {
         val token = call("POST", "/api/sessions", mapOf("entry" to "TAKEOUT")).second!!["token"].asString()
         assertEquals(200, call("GET", "/api/sessions/$token").first)

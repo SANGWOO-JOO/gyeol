@@ -6,6 +6,8 @@ import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.HttpRequestMethodNotSupportedException
+import org.springframework.web.servlet.resource.NoResourceFoundException
 
 /** detail: 화면이 쓰는 추가 값 (잠금 남은 초, 남은 시도 횟수 등) */
 data class ApiError(val code: String, val message: String, val detail: Map<String, Any>? = null)
@@ -37,6 +39,15 @@ class ApiErrorHandler {
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun unreadable(e: HttpMessageNotReadableException): ResponseEntity<ApiError> =
         ResponseEntity.badRequest().body(ApiError("VALIDATION", "요청 본문을 읽을 수 없습니다"))
+
+    /** 없는 경로는 500이 아니라 404, error 로그도 남기지 않는다 (I-81) */
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun noRoute(e: NoResourceFoundException): ResponseEntity<ApiError> =
+        ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiError("NOT_FOUND", "없는 주소예요"))
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
+    fun method(e: HttpRequestMethodNotSupportedException): ResponseEntity<ApiError> =
+        ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(ApiError("METHOD_NOT_ALLOWED", "지원하지 않는 요청 방식이에요"))
 
     @ExceptionHandler(Exception::class)
     fun unexpected(e: Exception): ResponseEntity<ApiError> {
