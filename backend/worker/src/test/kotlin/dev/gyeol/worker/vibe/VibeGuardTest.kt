@@ -3,6 +3,8 @@ package dev.gyeol.worker.vibe
 import dev.gyeol.core.room.VibeHit
 import dev.gyeol.core.room.VibePick
 import org.junit.jupiter.api.Test
+import software.amazon.awssdk.core.document.Document
+import tools.jackson.databind.json.JsonMapper
 import kotlin.test.assertEquals
 
 /** 분위기 찾기 출력 검증 (docs/todo/vibe-search-rag.md 6절) */
@@ -49,5 +51,15 @@ class VibeGuardTest {
         val none = VibeGuard.validate(emptyList(), hits, allowed, 3, 5)
         assertEquals(listOf(1L, 2L, 3L), none.map { it.artistId })
         assertEquals(listOf(VibePick(1, null)), VibeGuard.validate(emptyList(), hits.take(1), allowed, 3, 5), "검색 결과가 적으면 있는 만큼")
+    }
+
+    @Test
+    fun `Bedrock 응답처럼 숫자가 문자열로 와도 가수와 근거 번호를 읽는다 (I-83)`() {
+        val doc = Document.fromMap(mapOf("picks" to Document.fromList(listOf(
+            Document.fromMap(mapOf("artistId" to Document.fromNumber(1700), "reason" to Document.fromString("몽환적이에요."), "evidence" to Document.fromList(listOf(Document.fromNumber(5801), Document.fromString("x"))))),
+            Document.fromMap(mapOf("artistId" to Document.fromString("이름"), "reason" to Document.fromString("버림"), "evidence" to Document.fromList(emptyList()))),
+        ))))
+        val tree = JsonMapper.builder().build().valueToTree<tools.jackson.databind.JsonNode>(doc.unwrap())
+        assertEquals(listOf(RawVibePick(1700, "몽환적이에요.", listOf(5801))), BedrockVibeSearchLlm.parsePicks(tree))
     }
 }

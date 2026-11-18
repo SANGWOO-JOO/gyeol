@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Service
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
 data class VibeSearchMessage(val searchId: Long)
@@ -52,11 +53,7 @@ class BedrockVibeSearchLlm(private val llm: WorkerProperties.Llm, private val ma
             candidates.forEach { a -> appendLine("- 가수 ${a.artistId} · ${a.name}: ${a.description.take(400)} ${a.evidence.joinToString(" ") { "[$it]" }}") }
         }
         val r = tool.call(llm.model, SYSTEM, user, "record_picks", SCHEMA, 800)
-        val picks = r.input.path("picks").toList().mapNotNull { p ->
-            val id = p.path("artistId").takeIf { it.isNumber }?.asLong() ?: return@mapNotNull null
-            RawVibePick(id, p.path("reason").asString("").ifEmpty { null }, p.path("evidence").toList().filter { it.isNumber }.map { it.asLong() })
-        }
-        return VibeLlmResult(picks, r.model, r.inputTokens, r.outputTokens, r.latencyMs)
+        return VibeLlmResult(parsePicks(r.input), r.model, r.inputTokens, r.outputTokens, r.latencyMs)
     }
 
     private val SYSTEM = """
@@ -69,6 +66,18 @@ class BedrockVibeSearchLlm(private val llm: WorkerProperties.Llm, private val ma
     """.trimIndent()
 
     companion object {
+        /** SDK Document를 트리로 바꾸면 숫자가 문자열("1700")로 온다. 숫자·숫자 문자열만 받고 나머지는 버린다 (I-83) */
+        private fun JsonNode.longOrNull(): Long? = when {
+            isNumber -> asLong()
+            isString -> asString().trim().toLongOrNull()
+            else -> null
+        }
+
+        fun parsePicks(input: JsonNode): List<RawVibePick> = input.path("picks").toList().mapNotNull { p ->
+            val id = p.path("artistId").longOrNull() ?: return@mapNotNull null
+            RawVibePick(id, p.path("reason").asString("").ifEmpty { null }, p.path("evidence").toList().mapNotNull { it.longOrNull() })
+        }
+
         private val SCHEMA = mapOf(
             "type" to "object", "required" to listOf("picks"),
             "properties" to mapOf(
