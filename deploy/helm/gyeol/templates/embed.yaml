@@ -23,6 +23,10 @@ spec:
             - name: EMBED_THREADS
               value: {{ .Values.embed.threads | quote }}
           resources: {{- toYaml .Values.embed.resources | nindent 12 }}
+          # I-84: 종료 신호 뒤 5초 기다렸다 내려간다 (서비스 라우팅에서 빠지기 전 들어온 요청이 Connection refused 받지 않게)
+          lifecycle:
+            preStop:
+              exec: { command: ["sleep", "5"] }
           # 모델 로드에 몇 초 걸린다: 준비되기 전에는 트래픽을 받지 않는다
           startupProbe:
             httpGet: { path: /readyz, port: http }

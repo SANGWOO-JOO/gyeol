@@ -127,7 +127,27 @@ class VibeSearchConfig {
         if (props.llm.mode == "bedrock") BedrockVibeSearchLlm(props.llm, props.vibeSearch.maxPicks, json) else FakeVibeSearchLlm()
 
     @Bean
-    fun queryEmbedder(embed: EmbedClient): QueryEmbedder = QueryEmbedder { text, prefix -> embed.embed(listOf(text), prefix).second.single() }
+    fun queryEmbedder(embed: EmbedClient): QueryEmbedder =
+        QueryEmbedder { text, prefix -> ConnectRetry.run { embed.embed(listOf(text), prefix).second.single() } }
+}
+
+/**
+ * 연결 오류(I/O)만 짧게 다시 시도한다 (I-84: 배포 중 embed pod 교체 순간의 Connection refused).
+ * 그래도 실패하면 예외를 그대로 던져 SQS 재시도(visibility 120초)에 맡긴다. 응답 오류(4xx·5xx)는 다시 시도하지 않는다.
+ */
+object ConnectRetry {
+    val DELAYS_MS = listOf(1000L, 2000L)
+
+    fun <T> run(delays: List<Long> = DELAYS_MS, sleep: (Long) -> Unit = Thread::sleep, block: () -> T): T {
+        for (d in delays) {
+            try {
+                return block()
+            } catch (e: org.springframework.web.client.ResourceAccessException) {
+                sleep(d)
+            }
+        }
+        return block()
+    }
 }
 
 /**

@@ -79,6 +79,10 @@ spec:
           image: "{{ $root.Values.image.registry }}/{{ $root.Values.image.prefix }}{{ $s.image | default $name }}:{{ $root.Values.image.tag }}"
           imagePullPolicy: {{ $root.Values.image.pullPolicy }}
           ports: [{ name: http, containerPort: {{ $s.cfg.port }} }]
+          # I-84: 종료 신호 뒤 5초 기다렸다 내려간다 (서비스 라우팅에서 빠지기 전 요청이 끊기지 않게)
+          lifecycle:
+            preStop:
+              exec: { command: ["sleep", "5"] }
           env:
             - name: PORT
               value: {{ $s.cfg.port | quote }}
