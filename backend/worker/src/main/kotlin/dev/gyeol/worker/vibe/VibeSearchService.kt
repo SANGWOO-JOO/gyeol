@@ -100,16 +100,17 @@ class BedrockVibeSearchLlm(private val llm: WorkerProperties.Llm, private val ma
 /**
  * 6절 출력 검증 (LLM 없이 단위 테스트):
  * - 검색 top-k 밖 가수, 중복은 버리고 [maxPicks]명까지
- * - 근거 번호는 프롬프트에 준 것만. 남은 번호가 0개거나 이유가 비었거나 거절문이면 이유 없이 카드만
+ * - 근거 번호는 그 가수에게 준 것만 (다른 후보 가수의 번호는 버림). 남은 번호가 0개거나 이유가 비었거나 거절문이면 이유 없이 카드만
  * - [minPicks]명보다 적으면 검색 순서대로 이유 없는 카드로 채운다
  */
 object VibeGuard {
     const val MAX_REASON = 300
 
-    fun validate(raw: List<RawVibePick>, hits: List<VibeHit>, allowedChunks: Set<Long>, minPicks: Int, maxPicks: Int): List<VibePick> {
+    fun validate(raw: List<RawVibePick>, hits: List<VibeHit>, allowedChunks: Map<Long, Set<Long>>, minPicks: Int, maxPicks: Int): List<VibePick> {
         val hitIds = hits.map { it.artistId }.toSet()
         val picked = raw.filter { it.artistId in hitIds }.distinctBy { it.artistId }.take(maxPicks).map { p ->
-            val evidence = p.evidence.filter { it in allowedChunks }.distinct()
+            val own = allowedChunks[p.artistId].orEmpty()
+            val evidence = p.evidence.filter { it in own }.distinct()
             val reason = p.reason?.trim()?.take(MAX_REASON)?.takeIf { it.isNotEmpty() && !DescriptionGuard.refusal(it) && evidence.isNotEmpty() }
             if (reason == null) VibePick(p.artistId, null) else VibePick(p.artistId, reason, evidence)
         }
@@ -172,7 +173,7 @@ class VibeSearchService(
             log.info("분위기 찾기 {}: LLM이 맞는 가수 없음으로 판단 (top-1 거리 {})", searchId, hits.first().d)
             return
         }
-        val allowed = candidates.flatMap { it.evidence }.toSet()
+        val allowed = candidates.associate { it.artistId to it.evidence.toSet() }
         val picks = VibeGuard.validate(result?.picks.orEmpty(), hits, allowed, p.minPicks, p.maxPicks)
         val used = picks.flatMap { it.evidence }.distinct()
         searches.finish(searchId, "DONE", hitsJson, json.writeValueAsString(picks), used)

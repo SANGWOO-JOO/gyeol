@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 /** 분위기 찾기 출력 검증 (docs/todo/vibe-search-rag.md 6절) */
 class VibeGuardTest {
     private val hits = listOf(VibeHit(1, 0.1), VibeHit(2, 0.2), VibeHit(3, 0.3), VibeHit(4, 0.4), VibeHit(5, 0.5), VibeHit(6, 0.6))
-    private val allowed = setOf(11L, 12L, 13L)
+    private val allowed = hits.associate { it.artistId to setOf(11L, 12L, 13L) }
 
     @Test
     fun `top-k 밖 가수와 중복은 버리고 최대 수까지`() {
@@ -61,5 +61,19 @@ class VibeGuardTest {
         ))))
         val tree = JsonMapper.builder().build().valueToTree<tools.jackson.databind.JsonNode>(doc.unwrap())
         assertEquals(listOf(RawVibePick(1700, "몽환적이에요.", listOf(5801))), BedrockVibeSearchLlm.parsePicks(tree))
+    }
+
+    @Test
+    fun `다른 후보 가수의 근거 번호는 버리고, 남은 번호가 없으면 이유 없이 카드만`() {
+        val own = mapOf(1L to setOf(11L), 2L to setOf(12L), 3L to setOf(13L))
+        val raw = listOf(
+            RawVibePick(1, "자기 근거와 남의 근거", listOf(11, 12)),
+            RawVibePick(2, "남의 근거만", listOf(11, 13)),
+            RawVibePick(3, "자기 근거", listOf(13)),
+        )
+        val out = VibeGuard.validate(raw, hits, own, 3, 5)
+        assertEquals(VibePick(1, "자기 근거와 남의 근거", listOf(11L)), out[0])
+        assertEquals(VibePick(2, null), out[1])
+        assertEquals(VibePick(3, "자기 근거", listOf(13L)), out[2])
     }
 }
