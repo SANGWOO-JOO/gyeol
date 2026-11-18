@@ -25,6 +25,8 @@ aws:
   giftDlq: gyeol-local-gift-image-dlq
   codeMatchQueue: gyeol-local-code-match
   codeMatchDlq: gyeol-local-code-match-dlq
+  vibeSearchQueue: gyeol-local-vibe-search
+  vibeSearchDlq: gyeol-local-vibe-search-dlq
   coverBucket: gyeol-local-covers
   endpoint: http://host.k3d.internal:14566
   publicEndpoint: http://localhost:14566

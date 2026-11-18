@@ -47,6 +47,7 @@ class RoomApiIntegrationTest {
         private const val SONG_QUEUE = "gyeol-test-room-song"
         private const val GIFT_QUEUE = "gyeol-test-gift-image"
         private const val CODE_QUEUE = "gyeol-test-code-match"
+        private const val VIBE_QUEUE = "gyeol-test-vibe-search"
         // 테스트 전용 가짜 키·비밀번호·OTP 비밀값
         private const val ADMIN_KEY = "dGVzdC1vbmx5LWZha2Uta2V5LTAxMjM0NTY3ODlhYiE="
         private const val ADMIN_PW = "test-only-password"
@@ -137,6 +138,8 @@ class RoomApiIntegrationTest {
             registry.add("gyeol.room.gift-queue") { GIFT_QUEUE }
             registry.add("gyeol.room.code-match-queue") { CODE_QUEUE }
             registry.add("gyeol.room.code-match.daily-limit") { "3" }
+            registry.add("gyeol.room.vibe-search-queue") { VIBE_QUEUE }
+            registry.add("gyeol.room.vibe-search.daily-limit") { "3" }
             registry.add("gyeol.admin.totp-key") { ADMIN_KEY }
             registry.add("gyeol.admin.login-per-minute") { "1000" }
             registry.add("gyeol.cover-bucket") { COVERS }
@@ -159,7 +162,7 @@ class RoomApiIntegrationTest {
         @BeforeAll
         @JvmStatic
         fun createQueue() {
-            sqs().use { it.createQueue { q -> q.queueName(SONG_QUEUE) }; it.createQueue { q -> q.queueName(GIFT_QUEUE) }; it.createQueue { q -> q.queueName(CODE_QUEUE) } }
+            sqs().use { it.createQueue { q -> q.queueName(SONG_QUEUE) }; it.createQueue { q -> q.queueName(GIFT_QUEUE) }; it.createQueue { q -> q.queueName(CODE_QUEUE) }; it.createQueue { q -> q.queueName(VIBE_QUEUE) } }
             s3().use { it.createBucket { b -> b.bucket(COVERS) } }
         }
     }
@@ -585,6 +588,79 @@ class RoomApiIntegrationTest {
         add(minji, track("민지 6", "민지 가수 6"))
         assertEquals("CODE_MATCH_LIMIT", call("POST", path, mapOf("a" to host.memberId, "b" to minji.memberId), host.key).body!!["code"].asString())
         assertEquals(404, call("GET", "/api/rooms/${other.rid}/code-match?a=${host.memberId}&b=${minji.memberId}", key = other.key).status)
+    }
+
+    @Test
+    fun `분위기 찾기 - 2~100자, 새 요청은 202와 큐, 같은 질문은 200 재사용(큐·횟수 없음), 결과 카드·담은 사람·notFound, 멤버당 하루 제한, 다른 방 404`() {
+        val host = newRoom()
+        val minji = join(host.rid, "민지").joined()
+        val other = newRoom()
+        val path = "/api/rooms/${host.rid}/vibe-search"
+
+        listOf("가", "가".repeat(101), "   ").forEach {
+            val r = call("POST", path, mapOf("q" to it), host.key)
+            assertEquals(400, r.status); assertEquals("QUERY_LENGTH", r.body!!["code"].asString())
+        }
+        assertEquals(202, call("POST", path, mapOf("q" to "가".repeat(100)), host.key).status, "100자는 허용")
+
+        val first = call("POST", path, mapOf("q" to "비 오는 밤 몽환적인 Band"), host.key)
+        assertEquals(202, first.status)
+        assertEquals("PENDING", first.body!!["status"].asString())
+        val id = first.body["id"].asLong()
+        val msgs = sqs().use { c ->
+            val url = c.getQueueUrl { it.queueName(VIBE_QUEUE) }.queueUrl()
+            c.receiveMessage { it.queueUrl(url).maxNumberOfMessages(10).waitTimeSeconds(5) }.messages()
+                .onEach { m -> c.deleteMessage { it.queueUrl(url).receiptHandle(m.receiptHandle()) } }
+        }.map { json.readTree(it.body())["searchId"].asLong() }
+        assertTrue(id in msgs)
+
+        val pending = call("GET", "$path/$id", key = minji.key).body!!
+        assertEquals("PENDING", pending["status"].asString())
+        assertEquals("비 오는 밤 몽환적인 Band", pending["query"].asString())
+        assertTrue(pending["picks"].isEmpty && !pending["notFound"].asBoolean())
+
+        // worker 대신 결과를 넣는다: 방에서 상우가 담은 가수 + 담은 사람 없는 가수
+        val t = track("몽환 노래", "몽환 밴드")
+        assertEquals(201, call("POST", "/api/rooms/${host.rid}/songs", mapOf("trackId" to t), host.key).status)
+        val dream = jdbc.sql("SELECT artist_id FROM track WHERE id = :t").param("t", t).query(Long::class.java).single()
+        val lone = jdbc.sql("SELECT artist_id FROM track WHERE id = :t").param("t", track("다른 노래", "외딴 가수")).query(Long::class.java).single()
+        jdbc.sql("UPDATE vibe_search SET status = 'DONE', picks = CAST(:p AS jsonb) WHERE id = :id")
+            .param("p", """[{"artistId":$dream,"reason":"몽환적인 기타가 닿아요.","evidence":[]},{"artistId":$lone,"reason":null,"evidence":[]}]""").param("id", id).update()
+        val done = call("GET", "$path/$id", key = host.key).body!!
+        assertEquals("DONE", done["status"].asString())
+        assertEquals(listOf("몽환 밴드", "외딴 가수"), done["picks"].toList().map { it["name"].asString() })
+        assertEquals("몽환적인 기타가 닿아요.", done["picks"][0]["reason"].asString())
+        assertEquals(listOf("상우"), done["picks"][0]["inRoomBy"].toList().map { it.asString() })
+        assertTrue(done["picks"][1]["reason"].isNull && done["picks"][1]["inRoomBy"].isEmpty)
+        assertTrue(done["picks"][0]["imageUrl"].isNull, "Commons 사진이 없으면 null")
+        assertTrue(!done["notFound"].asBoolean())
+
+        // 같은 질문(공백·대소문자만 다름): 200 + 저장 결과, 큐·하루 횟수 없음 (Bedrock 미호출)
+        val again = call("POST", path, mapOf("q" to "  비 오는  밤 몽환적인 band "), minji.key)
+        assertEquals(200, again.status)
+        assertEquals(id, again.body!!["id"].asLong())
+        assertEquals("DONE", again.body["status"].asString())
+        val none = sqs().use { c ->
+            val url = c.getQueueUrl { it.queueName(VIBE_QUEUE) }.queueUrl()
+            c.receiveMessage { it.queueUrl(url).maxNumberOfMessages(10).waitTimeSeconds(2) }.messages()
+        }
+        assertTrue(none.isEmpty(), "재사용은 큐에 보내지 않는다")
+        assertEquals(1, jdbc.sql("SELECT count(*) FROM vibe_search WHERE query_hash = (SELECT query_hash FROM vibe_search WHERE id = :id)").param("id", id).query(Int::class.java).single())
+
+        // 가까운 가수 없음: DONE인데 picks가 비면 notFound
+        val nf = call("POST", path, mapOf("q" to "오늘 점심 뭐 먹지"), minji.key).body!!["id"].asLong()
+        jdbc.sql("UPDATE vibe_search SET status = 'DONE', picks = '[]' WHERE id = :id").param("id", nf).update()
+        assertTrue(call("GET", "$path/$nf", key = minji.key).body!!["notFound"].asBoolean())
+
+        // 멤버당 하루 3번(테스트 설정): 상우는 이미 2번(100자, 첫 질문) → 1번 더, 그다음 429. 민지는 따로 센다
+        assertEquals(202, call("POST", path, mapOf("q" to "새벽 감성 발라드"), host.key).status)
+        val limited = call("POST", path, mapOf("q" to "청량한 걸그룹"), host.key)
+        assertEquals(429, limited.status); assertEquals("DAILY_LIMIT", limited.body!!["code"].asString())
+        assertEquals(200, call("POST", path, mapOf("q" to "새벽 감성 발라드"), host.key).status, "재사용은 한도와 상관없음")
+        assertEquals(202, call("POST", path, mapOf("q" to "청량한 걸그룹"), minji.key).status)
+
+        assertEquals(404, call("GET", "/api/rooms/${other.rid}/vibe-search/$id", key = other.key).status, "다른 방 결과")
+        assertEquals(404, call("GET", "$path/999999", key = host.key).status)
     }
 
     // ── ⑥ 관리자 ──

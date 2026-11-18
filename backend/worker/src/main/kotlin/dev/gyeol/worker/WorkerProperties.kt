@@ -24,6 +24,7 @@ data class WorkerProperties(
     val map: MapProps = MapProps(),
     val gift: GiftProps = GiftProps(),
     val codeMatch: CodeMatchProps = CodeMatchProps(),
+    val vibeSearch: VibeSearchProps = VibeSearchProps(),
     /** 청취 기록 세션에서 식별 뒤 보강·추천까지 자동으로 이어 갈지 (기본은 분석까지만) */
     val autoRecommend: Boolean = false,
     /** 외부 API가 바빠서(503) 실패한 메시지를 다시 받기까지 */
@@ -51,6 +52,23 @@ data class WorkerProperties(
         val queue: String = "gyeol-local-code-match",
         val dlq: String = "gyeol-local-code-match-dlq",
         val maxPairDistance: Double = 1.0,
+    )
+
+    /**
+     * 분위기로 가수 찾기 · Naive RAG (docs/todo/vibe-search-rag.md 4-1). 측정 뒤 값만 바꾼다:
+     * [vectorColumn] artist_vector 열(descr·mixed·raw), [queryPrefix] e5 접두어(query·passage),
+     * [maxDistance] top-1 코사인 거리가 이보다 크면 "맞는 가수를 못 찾았어요" (1.0 = 거르지 않음, 11-18 측정으로 0.18).
+     * [topK]명을 검색해 LLM이 [minPicks]~[maxPicks]명을 고른다
+     */
+    data class VibeSearchProps(
+        val queue: String = "gyeol-local-vibe-search",
+        val dlq: String = "gyeol-local-vibe-search-dlq",
+        val vectorColumn: String = "descr",
+        val queryPrefix: String = "query",
+        val maxDistance: Double = 0.18,
+        val topK: Int = 10,
+        val minPicks: Int = 3,
+        val maxPicks: Int = 5,
     )
 
     /** 음악 방 담기 식별 (docs/todo/room-api-db.md) */

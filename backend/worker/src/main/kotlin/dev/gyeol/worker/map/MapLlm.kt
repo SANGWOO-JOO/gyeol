@@ -106,5 +106,8 @@ object DescriptionGuard {
         RegexOption.IGNORE_CASE,
     )
 
+    /** 거절문 ("정보가 없어 … 수 없", "죄송" 등) */
+    fun refusal(text: String): Boolean = REFUSAL.containsMatchIn(text)
+
     fun usable(text: String?): String? = text?.takeIf { !REFUSAL.containsMatchIn(it) && MUSIC.containsMatchIn(it) }
 }

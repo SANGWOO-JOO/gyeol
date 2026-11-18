@@ -41,6 +41,13 @@ gyeol:
     code-match:
       queue: ${CODE_MATCH_QUEUE:gyeol-local-code-match}
       dlq: ${CODE_MATCH_DLQ:gyeol-local-code-match-dlq}
+    # 분위기로 가수 찾기 · Naive RAG (D1·D2·D8 값은 측정 뒤 바꿈, docs/todo/vibe-search-rag.md 4-1)
+    vibe-search:
+      queue: ${VIBE_SEARCH_QUEUE:gyeol-local-vibe-search}
+      dlq: ${VIBE_SEARCH_DLQ:gyeol-local-vibe-search-dlq}
+      vector-column: ${VIBE_SEARCH_VECTOR_COLUMN:descr}
+      query-prefix: ${VIBE_SEARCH_QUERY_PREFIX:query}
+      max-distance: ${VIBE_SEARCH_MAX_DISTANCE:0.18}
     # 음악 지도 데이터 만들기 내부 엔드포인트 (로컬에서만 true)
     map:
       admin-endpoint: ${MAP_ADMIN_ENDPOINT:false}

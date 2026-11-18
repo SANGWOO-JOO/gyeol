@@ -9,9 +9,10 @@ locals {
     guess          = 300
     "artist-image" = 600
     # 음악 방 (11-14 I-1: 앱이 큐를 자동으로 만들지 않으므로 여기서 만든다. 값은 local/localstack/init-aws.sh와 같다)
-    "room-song"  = 900 # 담기 식별, 측정 최대 82초
-    "gift-image" = 300 # ④ 선물 캐릭터 이미지 생성
-    "code-match" = 120 # ⑤ 코드 맞추기 이유, LLM 한 번
+    "room-song"   = 900 # 담기 식별, 측정 최대 82초
+    "gift-image"  = 300 # ④ 선물 캐릭터 이미지 생성
+    "code-match"  = 120 # ⑤ 코드 맞추기 이유, LLM 한 번
+    "vibe-search" = 120 # 분위기로 가수 찾기, 임베딩 1번 + LLM 1번
   }
 }
 

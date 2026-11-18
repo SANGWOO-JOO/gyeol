@@ -41,6 +41,10 @@ gyeol:
       weight-distance: 0.3
       weight-artist: 0.2
       weight-song: 0.1
+    # 분위기로 가수 찾기: 검색·이유는 worker (docs/todo/vibe-search-rag.md)
+    vibe-search-queue: ${VIBE_SEARCH_QUEUE:gyeol-local-vibe-search}
+    vibe-search:
+      daily-limit: 20
     secure-cookie: ${ROOM_SECURE_COOKIE:false}
   mail:
     # log(가짜 메일, 기본) | ses. ses는 MAIL_FROM이 SES에서 인증한 도메인 주소여야 한다 (infra/terraform/base/ses.tf)
